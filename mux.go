@@ -67,7 +67,13 @@ func (mux *Mux) AddBackend(target *url.URL) (backendId int) {
 	defer mux.mu.Unlock()
 
 	backendId = mux.nextBackendId
-	mux.backends[backendId] = httputil.NewSingleHostReverseProxy(target)
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	// Allow the proxy to keep more than the default (2) keepalive connections per
+	// upstream.
+	proxy.Transport = &http.Transport{MaxIdleConnsPerHost: 20}
+
+	mux.backends[backendId] = proxy
 	mux.nextBackendId++
 	return
 }
