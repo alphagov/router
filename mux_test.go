@@ -144,7 +144,7 @@ func TestLookup(t *testing.T) {
 }
 
 func testLookup(t *testing.T, ex LookupExample) {
-	mux := NewProxyMux()
+	mux := NewMux()
 	for _, r := range ex.registrations {
 		t.Logf("Register(path:%v, prefix:%v, backend:%v)", r.path, r.prefix, r.backend)
 		mux.Register(r.path, r.prefix, r.backend)
@@ -168,10 +168,10 @@ func loadStrings(filename string) []string {
 	return strings.Split(string(content), "\n")
 }
 
-func benchSetup() *ProxyMux {
+func benchSetup() *Mux {
 	routes := loadStrings("testdata/routes")
 
-	pm := NewProxyMux()
+	pm := NewMux()
 	pm.Register("/government", true, 123)
 
 	for _, l := range routes {
@@ -185,11 +185,11 @@ func BenchmarkLookup(b *testing.B) {
 	b.StopTimer()
 	pm := benchSetup()
 	urls := loadStrings("testdata/urls")
-  perm := rand.Perm(len(urls))
+	perm := rand.Perm(len(urls))
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		pm.Lookup(urls[perm[i % len(urls)]])
+		pm.Lookup(urls[perm[i%len(urls)]])
 	}
 }
 
@@ -198,11 +198,11 @@ func BenchmarkLookupBogus(b *testing.B) {
 	b.StopTimer()
 	pm := benchSetup()
 	urls := loadStrings("testdata/bogus")
-  perm := rand.Perm(len(urls))
+	perm := rand.Perm(len(urls))
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		pm.Lookup(urls[perm[i % len(urls)]])
+		pm.Lookup(urls[perm[i%len(urls)]])
 	}
 }
 

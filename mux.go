@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-type ProxyMux struct {
+type Mux struct {
 	mu            sync.RWMutex
 	nextBackendId int
 	backends      map[int]*httputil.ReverseProxy
@@ -22,9 +22,9 @@ type muxEntry struct {
 	backendId int
 }
 
-// NewProxyMux makes a new empty ProxyMux.
-func NewProxyMux() *ProxyMux {
-	return &ProxyMux{
+// NewMux makes a new empty Mux.
+func NewMux() *Mux {
+	return &Mux{
 		trie:     trie.NewTrie(),
 		backends: make(map[int]*httputil.ReverseProxy),
 	}
@@ -32,7 +32,7 @@ func NewProxyMux() *ProxyMux {
 
 // ServeHTTP dispatches the request to a backend with a registered route
 // matching the request path, or 404s.
-func (mux *ProxyMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id, ok := mux.Lookup(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
@@ -62,7 +62,7 @@ func (mux *ProxyMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // then the resulting request will be for
 //
 //   /foo/bar
-func (mux *ProxyMux) AddBackend(target *url.URL) (backendId int) {
+func (mux *Mux) AddBackend(target *url.URL) (backendId int) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
@@ -73,7 +73,7 @@ func (mux *ProxyMux) AddBackend(target *url.URL) (backendId int) {
 }
 
 // GetBackend retrieves the registered backend with the given id.
-func (mux *ProxyMux) GetBackend(backendId int) (proxy *httputil.ReverseProxy, ok bool) {
+func (mux *Mux) GetBackend(backendId int) (proxy *httputil.ReverseProxy, ok bool) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
@@ -87,7 +87,7 @@ func (mux *ProxyMux) GetBackend(backendId int) (proxy *httputil.ReverseProxy, ok
 
 // Lookup takes a path and looks up its registered entry in the mux trie,
 // returning the id of the matching backend, if any.
-func (mux *ProxyMux) Lookup(path string) (backendId int, ok bool) {
+func (mux *Mux) Lookup(path string) (backendId int, ok bool) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
@@ -95,7 +95,7 @@ func (mux *ProxyMux) Lookup(path string) (backendId int, ok bool) {
 	return entry.backendId, ok
 }
 
-func (mux *ProxyMux) Register(path string, prefix bool, backendId int) {
+func (mux *Mux) Register(path string, prefix bool, backendId int) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
