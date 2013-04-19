@@ -104,6 +104,9 @@ func (mux *Mux) Lookup(path string) (backendId int, ok bool) {
 	return entry.backendId, ok
 }
 
+// Register registers the specified route (either an exact or a prefix route)
+// and associates it with the specified backend. Requests through the mux for
+// paths matching the route will be proxied to that backend.
 func (mux *Mux) Register(path string, prefix bool, backendId int) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
