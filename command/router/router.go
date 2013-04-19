@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/nickstenning/proxymux"
 	"labix.org/v2/mgo"
 	"log"
@@ -11,8 +12,9 @@ import (
 // Router is a wrapper around a proxy multiplexer (proxymux.Mux) which retrieves
 // its routes from a passed mongo database.
 type Router struct {
-	mux *proxymux.Mux
-	db  *mgo.Database
+	mux         *proxymux.Mux
+	mongoUrl    string
+	mongoDbName string
 }
 
 type Application struct {
@@ -26,6 +28,16 @@ type Route struct {
 	RouteType     string `bson:"route_type"`
 }
 
+// NewRouter returns a new empty router instance. You will still need to call
+// ReloadRoutes() to do the initial route load.
+func NewRouter(mongoUrl, mongoDbName string) *Router {
+	return &Router{
+		mux:         proxymux.NewMux(),
+		mongoUrl:    mongoUrl,
+		mongoDbName: mongoDbName,
+	}
+}
+
 // ServeHTTP delegates responsibility for serving requests to the proxy mux
 // instance for this router.
 func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +48,31 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
 func (rt *Router) ReloadRoutes() {
+	// save a reference to the previous mux in case we have to restore it
+	oldmux := rt.mux
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("router: recovered from panic in ReloadRoutes:", r)
+			rt.mux = oldmux
+			log.Println("router: original routes have been restored")
+		}
+	}()
+
+	log.Println("mgo: connecting to", rt.mongoUrl)
+	sess, err := mgo.Dial(rt.mongoUrl)
+	if err != nil {
+		panic(fmt.Sprintln("mgo:", err))
+	}
+	defer sess.Close()
+	sess.SetMode(mgo.Monotonic, true)
+
+	db := sess.DB(rt.mongoDbName)
+
 	log.Printf("router: reloading routes")
 	newmux := proxymux.NewMux()
 
-	appMap := loadApplications(rt.db.C("applications"), newmux)
-	loadRoutes(rt.db.C("routes"), newmux, appMap)
+	appMap := loadApplications(db.C("applications"), newmux)
+	loadRoutes(db.C("routes"), newmux, appMap)
 
 	rt.mux = newmux
 	log.Printf("router: reloaded routes")
@@ -66,6 +98,10 @@ func loadApplications(c *mgo.Collection, mux *proxymux.Mux) (appMap map[string]i
 		appMap[app.ApplicationId] = mux.AddBackend(backendUrl)
 	}
 
+	if err := iter.Err(); err != nil {
+		panic(err)
+	}
+
 	return appMap
 }
 
@@ -88,5 +124,9 @@ func loadRoutes(c *mgo.Collection, mux *proxymux.Mux, appMap map[string]int) {
 		mux.Register(route.IncomingPath, prefix, backendId)
 		log.Printf("router: registered %s (prefix: %v) for %s (id: %d)",
 			route.IncomingPath, prefix, route.ApplicationId, backendId)
+	}
+
+	if err := iter.Err(); err != nil {
+		panic(err)
 	}
 }
