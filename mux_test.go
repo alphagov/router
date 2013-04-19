@@ -4,8 +4,13 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"strings"
+	"time"
 	"testing"
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 type SplitExample struct {
 	in  string
