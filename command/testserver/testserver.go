@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"math/rand"
@@ -9,6 +10,8 @@ import (
 	"sync"
 	"time"
 )
+
+var randomBody = flag.Bool("randomBody", false, "Whether or not to send large(r) randomly generated response bodies")
 
 var quit = make(chan int)
 
@@ -25,7 +28,7 @@ func (r *randomDataMaker) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func makeDebugServer(name string) http.HandlerFunc {
+func makeBenchmarkServer(name string) http.HandlerFunc {
 	var randSrc = &randomDataMaker{src: rand.NewSource(time.Now().UTC().UnixNano())}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -43,15 +46,29 @@ func makeDebugServer(name string) http.HandlerFunc {
 	}
 }
 
+func makeDebugServer(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+
+		fmt.Fprintln(w, name, ":", r.URL.Path)
+	}
+}
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	flag.Parse()
 
 	startPort := 6061
 	servers := []string{"one", "two", "three", "four", "five", "six"}
 
 	for i, s := range servers {
 		mux := http.NewServeMux()
-		mux.HandleFunc("/", makeDebugServer(s))
+		if *randomBody {
+			mux.HandleFunc("/", makeBenchmarkServer(s))
+		} else {
+			mux.HandleFunc("/", makeDebugServer(s))
+		}
 		addr := fmt.Sprintf(":%d", startPort+i)
 		go http.ListenAndServe(addr, mux)
 		fmt.Println("Server", s, "listening on", addr)
