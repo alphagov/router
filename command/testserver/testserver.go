@@ -15,9 +15,9 @@ func makeDebugServer(name string) http.HandlerFunc {
 
 func main() {
 	debug1 := http.NewServeMux()
-	debug1.HandleFunc("/", makeDebugServer("first"))
+	debug1.HandleFunc("/", makeDebugServer("whitehall"))
 	debug2 := http.NewServeMux()
-	debug2.HandleFunc("/", makeDebugServer("second"))
+	debug2.HandleFunc("/", makeDebugServer("frontend"))
 
 	go http.ListenAndServe(":6061", debug1)
 	go http.ListenAndServe(":6062", debug2)
