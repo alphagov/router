@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"runtime"
 )
 
 var pubAddr = flag.String("pubAddr", ":8080", "Address on which to serve public requests")
@@ -14,6 +15,9 @@ var mongoDbName = flag.String("mongoDbName", "router", "Name of mongo database t
 var quit = make(chan int)
 
 func main() {
+	// Use all available cores
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	flag.Parse()
 
 	rout := NewRouter(*mongoUrl, *mongoDbName)
