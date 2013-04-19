@@ -1,3 +1,6 @@
+// Package proxymux implements a reverse proxy multiplexer which can be used to
+// serve responses from multiple distinct backend servers within a single URL
+// hierarchy.
 package proxymux
 
 import (
