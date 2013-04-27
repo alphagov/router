@@ -2,17 +2,18 @@ package main
 
 import (
 	"fmt"
-	"github.com/nickstenning/proxymux"
+	"github.com/nickstenning/router/triemux"
 	"labix.org/v2/mgo"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 )
 
-// Router is a wrapper around a proxy multiplexer (proxymux.Mux) which retrieves
-// its routes from a passed mongo database.
+// Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
+// routes from a passed mongo database.
 type Router struct {
-	mux         *proxymux.Mux
+	mux         *triemux.Mux
 	mongoUrl    string
 	mongoDbName string
 }
@@ -32,7 +33,7 @@ type Route struct {
 // ReloadRoutes() to do the initial route load.
 func NewRouter(mongoUrl, mongoDbName string) *Router {
 	return &Router{
-		mux:         proxymux.NewMux(),
+		mux:         triemux.NewMux(),
 		mongoUrl:    mongoUrl,
 		mongoDbName: mongoDbName,
 	}
@@ -69,10 +70,10 @@ func (rt *Router) ReloadRoutes() {
 	db := sess.DB(rt.mongoDbName)
 
 	log.Printf("router: reloading routes")
-	newmux := proxymux.NewMux()
+	newmux := triemux.NewMux()
 
-	appMap := loadApplications(db.C("applications"), newmux)
-	loadRoutes(db.C("routes"), newmux, appMap)
+	apps := loadApplications(db.C("applications"), newmux)
+	loadRoutes(db.C("routes"), newmux, apps)
 
 	rt.mux = newmux
 	log.Printf("router: reloaded routes")
@@ -81,9 +82,9 @@ func (rt *Router) ReloadRoutes() {
 // loadApplications is a helper function which loads applications from the
 // passed mongo collection and registers them as backends with the passed proxy
 // mux.
-func loadApplications(c *mgo.Collection, mux *proxymux.Mux) (appMap map[string]int) {
+func loadApplications(c *mgo.Collection, mux *triemux.Mux) (apps map[string]http.Handler) {
 	app := &Application{}
-	appMap = make(map[string]int)
+	apps = make(map[string]http.Handler)
 
 	iter := c.Find(nil).Iter()
 
@@ -95,25 +96,30 @@ func loadApplications(c *mgo.Collection, mux *proxymux.Mux) (appMap map[string]i
 			continue
 		}
 
-		appMap[app.ApplicationId] = mux.AddBackend(backendUrl)
+		proxy := httputil.NewSingleHostReverseProxy(backendUrl)
+		// Allow the proxy to keep more than the default (2) keepalive connections
+		// per upstream.
+		proxy.Transport = &http.Transport{MaxIdleConnsPerHost: 20}
+
+		apps[app.ApplicationId] = proxy
 	}
 
 	if err := iter.Err(); err != nil {
 		panic(err)
 	}
 
-	return appMap
+	return
 }
 
 // loadRoutes is a helper function which loads routes from the passed mongo
 // collection and registers them with the passed proxy mux.
-func loadRoutes(c *mgo.Collection, mux *proxymux.Mux, appMap map[string]int) {
+func loadRoutes(c *mgo.Collection, mux *triemux.Mux, apps map[string]http.Handler) {
 	route := &Route{}
 
 	iter := c.Find(nil).Iter()
 
 	for iter.Next(&route) {
-		backendId, ok := appMap[route.ApplicationId]
+		handler, ok := apps[route.ApplicationId]
 		if !ok {
 			log.Printf("router: found route %+v which references unknown application "+
 				"%s, skipping!", route, route.ApplicationId)
@@ -121,9 +127,9 @@ func loadRoutes(c *mgo.Collection, mux *proxymux.Mux, appMap map[string]int) {
 		}
 
 		prefix := (route.RouteType == "prefix")
-		mux.Register(route.IncomingPath, prefix, backendId)
-		log.Printf("router: registered %s (prefix: %v) for %s (id: %d)",
-			route.IncomingPath, prefix, route.ApplicationId, backendId)
+		mux.Handle(route.IncomingPath, prefix, handler)
+		log.Printf("router: registered %s (prefix: %v) for %s",
+			route.IncomingPath, prefix, route.ApplicationId)
 	}
 
 	if err := iter.Err(); err != nil {

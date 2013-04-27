@@ -1,8 +1,9 @@
-package proxymux
+package triemux
 
 import (
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"strings"
 	"time"
 	"testing"
@@ -49,16 +50,21 @@ func testSplitpath(t *testing.T, ex SplitExample) {
 	}
 }
 
+type DummyHandler struct {}
+func (dh *DummyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
+
+var a, b, c *DummyHandler = &DummyHandler{}, &DummyHandler{}, &DummyHandler{}
+
 type Registration struct {
 	path    string
 	prefix  bool
-	backend int
+	handler http.Handler
 }
 
 type Check struct {
 	path    string
 	ok      bool
-	backend int
+	handler http.Handler
 }
 
 type LookupExample struct {
@@ -69,75 +75,75 @@ type LookupExample struct {
 var lookupExamples = []LookupExample{
 	{ // simple routes
 		registrations: []Registration{
-			{"/foo", false, 1},
-			{"/bar", false, 2},
+			{"/foo", false, a},
+			{"/bar", false, b},
 		},
 		checks: []Check{
-			{"/foo", true, 1},
-			{"/bar", true, 2},
-			{"/baz", false, 0},
+			{"/foo", true, a},
+			{"/bar", true, b},
+			{"/baz", false, nil},
 		},
 	},
 	{ // a prefix route
 		registrations: []Registration{
-			{"/foo", true, 1},
-			{"/bar", false, 2},
+			{"/foo", true, a},
+			{"/bar", false, b},
 		},
 		checks: []Check{
-			{"/foo", true, 1},
-			{"/bar", true, 2},
-			{"/baz", false, 0},
-			{"/foo/bar", true, 1},
+			{"/foo", true, a},
+			{"/bar", true, b},
+			{"/baz", false, nil},
+			{"/foo/bar", true, a},
 		},
 	},
 	{ // a prefix route with an exact route child
 		registrations: []Registration{
-			{"/foo", true, 1},
-			{"/foo/bar", false, 2},
+			{"/foo", true, a},
+			{"/foo/bar", false, b},
 		},
 		checks: []Check{
-			{"/foo", true, 1},
-			{"/foo/baz", true, 1},
-			{"/foo/bar", true, 2},
-			{"/foo/bar/bat", true, 1},
+			{"/foo", true, a},
+			{"/foo/baz", true, a},
+			{"/foo/bar", true, b},
+			{"/foo/bar/bat", true, a},
 		},
 	},
 	{ // a prefix route with an exact route child with a prefix route child
 		registrations: []Registration{
-			{"/foo", true, 1},
-			{"/foo/bar", false, 2},
-			{"/foo/bar/baz", true, 3},
+			{"/foo", true, a},
+			{"/foo/bar", false, b},
+			{"/foo/bar/baz", true, c},
 		},
 		checks: []Check{
-			{"/foo", true, 1},
-			{"/foo/baz", true, 1},
-			{"/foo/bar", true, 2},
-			{"/foo/bar/bat", true, 1},
-			{"/foo/bar/baz", true, 3},
-			{"/foo/bar/baz/qux", true, 3},
+			{"/foo", true, a},
+			{"/foo/baz", true, a},
+			{"/foo/bar", true, b},
+			{"/foo/bar/bat", true, a},
+			{"/foo/bar/baz", true, c},
+			{"/foo/bar/baz/qux", true, c},
 		},
 	},
 	{ // prefix route on the root
 		registrations: []Registration{
-			{"/", true, 123},
+			{"/", true, a},
 		},
 		checks: []Check{
-			{"/anything", true, 123},
-			{"", true, 123},
-			{"/the/hell", true, 123},
-			{"///you//", true, 123},
-			{"!like!", true, 123},
+			{"/anything", true, a},
+			{"", true, a},
+			{"/the/hell", true, a},
+			{"///you//", true, a},
+			{"!like!", true, a},
 		},
 	},
 	{ // exact route on the root
 		registrations: []Registration{
-			{"/", false, 123},
-			{"/foo", false, 456},
+			{"/", false, a},
+			{"/foo", false, b},
 		},
 		checks: []Check{
-			{"/", true, 123},
-			{"/foo", true, 456},
-			{"/bar", false, 0},
+			{"/", true, a},
+			{"/foo", true, b},
+			{"/bar", false, nil},
 		},
 	},
 }
@@ -151,16 +157,16 @@ func TestLookup(t *testing.T) {
 func testLookup(t *testing.T, ex LookupExample) {
 	mux := NewMux()
 	for _, r := range ex.registrations {
-		t.Logf("Register(path:%v, prefix:%v, backend:%v)", r.path, r.prefix, r.backend)
-		mux.Register(r.path, r.prefix, r.backend)
+		t.Logf("Register(path:%v, prefix:%v, handler:%v)", r.path, r.prefix, r.handler)
+		mux.Handle(r.path, r.prefix, r.handler)
 	}
 	for _, c := range ex.checks {
-		id, ok := mux.Lookup(c.path)
+		handler, ok := mux.lookup(c.path)
 		if ok != c.ok {
 			t.Errorf("Expected lookup(%v) ok to be %v, was %v", c.path, c.ok, ok)
 		}
-		if id != c.backend {
-			t.Errorf("Expected lookup(%v) to map to backend %d, was %d", c.path, c.backend, id)
+		if handler != c.handler {
+			t.Errorf("Expected lookup(%v) to map to handler %v, was %v", c.path, c.handler, handler)
 		}
 	}
 }
@@ -176,38 +182,38 @@ func loadStrings(filename string) []string {
 func benchSetup() *Mux {
 	routes := loadStrings("testdata/routes")
 
-	pm := NewMux()
-	pm.Register("/government", true, 123)
+	tm := NewMux()
+	tm.Handle("/government", true, a)
 
 	for _, l := range routes {
-		pm.Register(l, false, 456)
+		tm.Handle(l, false, b)
 	}
-	return pm
+	return tm
 }
 
 // Test behaviour looking up extant urls
 func BenchmarkLookup(b *testing.B) {
 	b.StopTimer()
-	pm := benchSetup()
+	tm := benchSetup()
 	urls := loadStrings("testdata/urls")
 	perm := rand.Perm(len(urls))
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		pm.Lookup(urls[perm[i%len(urls)]])
+		tm.lookup(urls[perm[i%len(urls)]])
 	}
 }
 
 // Test behaviour when looking up nonexistent urls
 func BenchmarkLookupBogus(b *testing.B) {
 	b.StopTimer()
-	pm := benchSetup()
+	tm := benchSetup()
 	urls := loadStrings("testdata/bogus")
 	perm := rand.Perm(len(urls))
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		pm.Lookup(urls[perm[i%len(urls)]])
+		tm.lookup(urls[perm[i%len(urls)]])
 	}
 }
 
@@ -215,10 +221,10 @@ func BenchmarkLookupBogus(b *testing.B) {
 // details)
 func BenchmarkLookupMalicious(b *testing.B) {
 	b.StopTimer()
-	pm := benchSetup()
+	tm := benchSetup()
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		pm.Lookup("/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/")
+		tm.lookup("/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/")
 	}
 }
