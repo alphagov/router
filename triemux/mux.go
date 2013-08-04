@@ -12,8 +12,9 @@ import (
 )
 
 type Mux struct {
-	mu   sync.RWMutex
-	trie *trie.Trie
+	mu         sync.RWMutex
+	exactTrie  *trie.Trie
+	prefixTrie *trie.Trie
 }
 
 type muxEntry struct {
@@ -23,7 +24,7 @@ type muxEntry struct {
 
 // NewMux makes a new empty Mux.
 func NewMux() *Mux {
-	return &Mux{trie: trie.NewTrie()}
+	return &Mux{exactTrie: trie.NewTrie(), prefixTrie: trie.NewTrie()}
 }
 
 // ServeHTTP dispatches the request to a backend with a registered route
@@ -44,7 +45,21 @@ func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
-	entry, ok := findlongestmatch(mux.trie, path)
+	pathSegments := splitpath(path)
+	val, ok := mux.exactTrie.Get(pathSegments)
+	if !ok {
+		val, ok = mux.prefixTrie.GetLongestPrefix(pathSegments)
+	}
+	if !ok {
+		return nil, false
+	}
+
+	entry, ok := val.(muxEntry)
+	if !ok {
+		log.Printf("lookup: got value (%v) from trie that wasn't a muxEntry!", val)
+		return nil, false
+	}
+
 	return entry.handler, ok
 }
 
@@ -55,7 +70,11 @@ func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	mux.trie.Set(splitpath(path), muxEntry{prefix, handler})
+	if prefix {
+		mux.prefixTrie.Set(splitpath(path), muxEntry{prefix, handler})
+	} else {
+		mux.exactTrie.Set(splitpath(path), muxEntry{prefix, handler})
+	}
 }
 
 // splitpath turns a slash-delimited string into a lookup path (a slice
@@ -69,59 +88,4 @@ func splitpath(path string) []string {
 		return []string{}
 	}
 	return strings.Split(path, "/")
-}
-
-// findlongestmatch will search the passed trie for the longest route matching
-// the passed path, taking into account whether or not each muxEntry is a prefix
-// route.
-//
-// The function first attempts an exact match, and if it fails to find one will
-// then chop slash-delimited sections off the end of the path in an attempt to
-// find a matching exact or prefix route.
-func findlongestmatch(t *trie.Trie, path string) (entry muxEntry, ok bool) {
-	origpath := splitpath(path)
-	copypath := origpath
-
-	// This search algorithm is potentially abusable -- it will take a
-	// (relatively) long time to establish that a path with an enormous number of
-	// slashes in doesn't have a corresponding route. The obvious fix is for the
-	// trie to keep track of how long its longest root-to-leaf path is and
-	// shortcut the lookup by chopping the appropriate number of elements off the
-	// end of the lookup.
-	//
-	// Worrying about the above is probably premature optimization, so I leave the
-	// mitigation described as an exercise for the reader.
-	for len(copypath) >= 0 {
-		val, ok := t.Get(copypath)
-		if !ok {
-			if len(copypath) > 0 {
-				copypath = copypath[:len(copypath)-1]
-				continue
-			}
-			break
-		}
-
-		ent, ok := val.(muxEntry)
-		if !ok {
-			log.Printf("findlongestmatch: got value (%v) from trie that wasn't a muxEntry!", val)
-			break
-		}
-
-		if len(copypath) == len(origpath) {
-			return ent, true
-		}
-
-		if ent.prefix {
-			return ent, true
-		}
-
-		if len(copypath) > 0 {
-			copypath = copypath[:len(copypath)-1]
-			continue
-		}
-
-		// Fell through without finding anything or explicitly calling continue, so:
-		break
-	}
-	return muxEntry{}, false
 }
