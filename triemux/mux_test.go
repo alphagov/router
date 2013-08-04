@@ -50,10 +50,12 @@ func testSplitpath(t *testing.T, ex SplitExample) {
 	}
 }
 
-type DummyHandler struct {}
+type DummyHandler struct {
+  id string
+}
 func (dh *DummyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
 
-var a, b, c *DummyHandler = &DummyHandler{}, &DummyHandler{}, &DummyHandler{}
+var a, b, c *DummyHandler = &DummyHandler{"a"}, &DummyHandler{"b"}, &DummyHandler{"c"}
 
 type Registration struct {
 	path    string
