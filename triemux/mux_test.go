@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
-	"time"
 	"testing"
+	"time"
 )
 
 func init() {
@@ -50,10 +50,13 @@ func testSplitpath(t *testing.T, ex SplitExample) {
 	}
 }
 
-type DummyHandler struct {}
+type DummyHandler struct {
+	id string
+}
+
 func (dh *DummyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
 
-var a, b, c *DummyHandler = &DummyHandler{}, &DummyHandler{}, &DummyHandler{}
+var a, b, c *DummyHandler = &DummyHandler{"a"}, &DummyHandler{"b"}, &DummyHandler{"c"}
 
 type Registration struct {
 	path    string
@@ -121,6 +124,18 @@ var lookupExamples = []LookupExample{
 			{"/foo/bar/bat", true, a},
 			{"/foo/bar/baz", true, c},
 			{"/foo/bar/baz/qux", true, c},
+		},
+	},
+	{ // a prefix route with an exact route at the same level
+		registrations: []Registration{
+			{"/foo", false, a},
+			{"/foo", true, b},
+		},
+		checks: []Check{
+			{"/foo", true, a},
+			{"/foo/baz", true, b},
+			{"/foo/bar", true, b},
+			{"/bar", false, nil},
 		},
 	},
 	{ // prefix route on the root
