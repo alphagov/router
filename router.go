@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/nickstenning/router/triemux"
+	"github.com/alphagov/router/triemux"
 	"labix.org/v2/mgo"
 	"log"
 	"net/http"
