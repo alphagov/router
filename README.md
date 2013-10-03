@@ -55,10 +55,10 @@ The `routes` collection uses the following data structure:
 
 ```json
 {
-  _id           : ObjectId(),
-  RouteType     : ['Prefix',nil],
-  IncomingPath  : '/url-path/here',
-  ApplicationId : 'arbitrary-slug-or-name-from-applications-collection'
+  "_id"           : ObjectId(),
+  "RouteType"     : ["Prefix",nil],
+  "IncomingPath"  : "/url-path/here",
+  "ApplicationId" : "arbitrary-slug-or-name-from-applications-collection"
 }
 ```
 
@@ -68,9 +68,9 @@ The `applications` collection uses the following data structure:
 
 ```json
 {
-  _id           : ObjectId(),
-  ApplicationId : 'arbitrary-slug-or-name',
-  BackendURL    : 'https://example.com:port/'
+  "_id"           : ObjectId(),
+  "ApplicationId" : "arbitrary-slug-or-name",
+  "BackendURL"    : "https://example.com:port/"
 }
 ```
 
