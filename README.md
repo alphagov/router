@@ -44,6 +44,36 @@ And start the router against the benchmark database with
 
 And then benchmark against the URLs in `testdata/benchurls`.
 
+Data structure
+-----------------
+
+The Router requires two MongoDB collections: `routes` and `applications`.
+
+### Routes
+
+The `routes` collection uses the following data structure:
+
+```json
+{
+  "_id"           : ObjectId(),
+  "RouteType"     : ["Prefix",nil],
+  "IncomingPath"  : "/url-path/here",
+  "ApplicationId" : "arbitrary-slug-or-name-from-applications-collection"
+}
+```
+
+### Applications
+
+The `applications` collection uses the following data structure:
+
+```json
+{
+  "_id"           : ObjectId(),
+  "ApplicationId" : "arbitrary-slug-or-name",
+  "BackendURL"    : "https://example.com:port/"
+}
+```
+
 License
 -------
 
