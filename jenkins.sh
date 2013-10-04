@@ -2,6 +2,8 @@
 set -x
 set -eu
 
+export PROJECT_NAME="router"
+
 bundle install --path "${HOME}/bundles/${JOB_NAME}"
 
 ./compile.sh

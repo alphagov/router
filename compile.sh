@@ -9,7 +9,6 @@ export GOPATH="$REPO_ROOT/gopath.tmp"
 export GOBIN="$GOPATH/bin"
 
 PROJECT_PATH="github.com/alphagov"
-PROJECT_NAME="router"
 mkdir -p ${GOPATH}/src/${PROJECT_PATH}
 
 rm -f ${GOPATH}/src/${PROJECT_PATH}/${PROJECT_NAME}
