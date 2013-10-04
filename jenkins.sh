@@ -8,12 +8,17 @@ export GOBIN="$GOPATH/bin"
 rm -rf $GOPATH
 mkdir $GOPATH
 
+PROJECT_PATH="github.com/alphagov"
+PROJECT_NAME="router"
+mkdir -p ${GOPATH}/src/${PROJECT_PATH}
+ln -s ../../../.. ${GOPATH}/src/${PROJECT_PATH}/${PROJECT_NAME}
+
 go get -v
-go build -v -o router
+go build -v -o ${PROJECT_NAME}
 
 bundle install
 bundle exec fpm \
   -s dir -t deb \
-  -n router -v ${VERSION} \
+  -n ${PROJECT_NAME} -v ${VERSION} \
   --prefix /usr/bin \
-  router
+  ${PROJECT_NAME}
