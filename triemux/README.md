@@ -11,12 +11,12 @@ API documentation for `triemux` can be found at [godoc.org][docs].
 
 [handler]: http://golang.org/pkg/net/http/#Handler
 [go]: http://golang.org
-[docs]: http://godoc.org/github.com/nickstenning/router/triemux
+[docs]: http://godoc.org/github.com/alphagov/router/triemux
 
 Install
 -------
 
-    go install github.com/nickstenning/router/triemux
+    go install github.com/alphagov/router/triemux
 
 Usage
 -----
