@@ -16,7 +16,7 @@ ln -s ../../../.. ${GOPATH}/src/${PROJECT_PATH}/${PROJECT_NAME}
 go get -v -d
 go build -v -o ${PROJECT_NAME}
 
-bundle install
+bundle install --path "${HOME}/bundles/${JOB_NAME}"
 bundle exec fpm \
   -s dir -t deb \
   -n ${PROJECT_NAME} -v ${BUILD_NUMBER} \
