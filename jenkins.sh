@@ -13,7 +13,7 @@ PROJECT_NAME="router"
 mkdir -p ${GOPATH}/src/${PROJECT_PATH}
 ln -s ../../../.. ${GOPATH}/src/${PROJECT_PATH}/${PROJECT_NAME}
 
-go get -v
+go get -v -d
 go build -v -o ${PROJECT_NAME}
 
 bundle install
