@@ -9,14 +9,14 @@ a single domain.
 Please note that this project is at a very early stage of development, so
 probably shouldn't be used in production environments without extensive testing.
 
-[tm]: https://github.com/nickstenning/router/tree/master/triemux
+[tm]: https://github.com/alphagov/router/tree/master/triemux
 
 Build
 -----
 
 If you have a working [Go][go] development setup, you should be able to run:
 
-    go install github.com/nickstenning/router
+    go install github.com/alphagov/router
     $GOPATH/bin/router -h
 
 If you've just checked out this repository and have the `go` tool on your $PATH,
