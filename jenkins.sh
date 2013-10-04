@@ -19,6 +19,6 @@ go build -v -o ${PROJECT_NAME}
 bundle install
 bundle exec fpm \
   -s dir -t deb \
-  -n ${PROJECT_NAME} -v ${VERSION} \
+  -n ${PROJECT_NAME} -v ${BUILD_NUMBER} \
   --prefix /usr/bin \
   ${PROJECT_NAME}
