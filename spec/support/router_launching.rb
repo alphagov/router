@@ -8,13 +8,21 @@ module RouterLaunchingHelpers
 
     def start_router
       port = 3169
-      router_path = File.expand_path("../../../router", __FILE__)
-
       puts "Starting router on port #{port}"
 
-      command = [router_path, "-pubAddr=:#{port}", "-apiAddr=:3168", "-mongoDbName=router_test"]
+      repo_root = File.expand_path("../../..", __FILE__)
 
-      @router_pid = spawn(*command, :pgroup => true, :out => "/dev/null", :err => "/dev/null")
+      if ENV['USE_COMPILED_ROUTER']
+        command = %w(./router)
+        env = {}
+      else
+        puts `#{repo_root}/build_gopath.sh`
+        command = %w(go run main.go router.go)
+        env = {"GOPATH" => "#{repo_root}/gopath.tmp"}
+      end
+      command += ["-pubAddr=:#{port}", "-apiAddr=:3168", "-mongoDbName=router_test"]
+
+      @router_pid = spawn(env, *command, :chdir => repo_root, :pgroup => true, :out => "/dev/null", :err => "/dev/null")
 
       begin
         s = TCPSocket.new("localhost", port)

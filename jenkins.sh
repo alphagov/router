@@ -7,7 +7,7 @@ export PROJECT_NAME="router"
 bundle install --path "${HOME}/bundles/${JOB_NAME}"
 
 ./compile.sh
-bundle exec rspec
+USE_COMPILED_ROUTER=1 bundle exec rspec
 
 bundle exec fpm \
   -s dir -t deb \
