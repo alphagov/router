@@ -2,11 +2,12 @@
 set -x
 set -eu
 
-export PROJECT_NAME="router"
+PROJECT_NAME="router"
 
 bundle install --path "${HOME}/bundles/${JOB_NAME}"
 
-./compile.sh
+source ./build_gopath.sh
+go build -v -o ${PROJECT_NAME}
 USE_COMPILED_ROUTER=1 bundle exec rspec
 
 bundle exec fpm \
