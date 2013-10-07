@@ -5,6 +5,9 @@ GEM
     arr-pm (0.0.8)
       cabin (> 0)
     backports (3.3.4)
+    bson (1.9.2)
+    bson_ext (1.9.2)
+      bson (~> 1.9.2)
     cabin (0.6.1)
     childprocess (0.3.9)
       ffi (~> 1.0, >= 1.0.11)
@@ -26,6 +29,8 @@ GEM
       http_parser.rb (= 0.5.3)
     http_parser.rb (0.5.3)
     json (1.8.0)
+    mongo (1.9.2)
+      bson (~> 1.9.2)
     rspec (2.14.1)
       rspec-core (~> 2.14.0)
       rspec-expectations (~> 2.14.0)
@@ -39,5 +44,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  bson_ext (= 1.9.2)
   fpm
+  mongo (= 1.9.2)
   rspec (= 2.14.1)
