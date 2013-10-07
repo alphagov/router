@@ -12,7 +12,7 @@ module RouterLaunchingHelpers
 
       puts "Starting router on port #{port}"
 
-      command = [router_path, "-pubAddr=:#{port}"]
+      command = [router_path, "-pubAddr=:#{port}", "-apiAddr=:3168", "-mongoDbName=router_test"]
 
       @router_pid = spawn(*command, :pgroup => true, :out => "/dev/null", :err => "/dev/null")
 
