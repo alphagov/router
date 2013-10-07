@@ -1,0 +1,41 @@
+module RouterLaunchingHelpers
+  class << self
+    def init
+      at_exit do
+        stop_router
+      end
+    end
+
+    def start_router
+      port = 3169
+      router_path = File.expand_path("../../../router", __FILE__)
+
+      puts "Starting router on port #{port}"
+
+      command = [router_path, "-pubAddr=:#{port}"]
+
+      @router_pid = spawn(*command, :pgroup => true, :out => "/dev/null", :err => "/dev/null")
+
+      begin
+        s = TCPSocket.new("localhost", port)
+      rescue Errno::ECONNREFUSED
+        sleep 0.1
+        retry
+      ensure
+        s.close if s
+      end
+    end
+
+    def stop_router
+      return unless @router_pid
+      Process.kill("-INT", @router_pid)
+      Process.wait(@router_pid)
+      @router_pid = nil
+    end
+  end
+end
+
+RouterLaunchingHelpers.init
+RSpec.configuration.before(:suite) do
+  RouterLaunchingHelpers.start_router
+end
