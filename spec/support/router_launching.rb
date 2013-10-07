@@ -24,11 +24,17 @@ module RouterLaunchingHelpers
 
       @router_pid = spawn(env, *command, :chdir => repo_root, :pgroup => true, :out => "/dev/null", :err => "/dev/null")
 
+      retries = 0
       begin
         s = TCPSocket.new("localhost", port)
       rescue Errno::ECONNREFUSED
-        sleep 0.1
-        retry
+        if retries < 10
+          retries += 1
+          sleep 0.1
+          retry
+        else
+          raise
+        end
       ensure
         s.close if s
       end
