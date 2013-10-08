@@ -1,5 +1,4 @@
 require 'mongo'
-require 'net/http'
 
 module RoutesHelpers
   def add_backend(id, url)
@@ -9,10 +8,6 @@ module RoutesHelpers
   def add_route(path, backend_id, options = {})
     route_type = options[:prefix] ? 'prefix' : 'exact'
     RoutesHelpers.db["routes"].insert({"application_id" => backend_id, "incoming_path" => path, "route_type" => route_type})
-  end
-
-  def reload_routes
-    Net::HTTP.post_form(URI.parse("http://localhost:3168/"), {})
   end
 
   def clear_routes

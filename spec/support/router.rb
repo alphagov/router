@@ -1,12 +1,21 @@
-module RouterLaunchingHelpers
+require 'net/http'
+
+module RouterHelpers
+
+  def reload_routes
+    Net::HTTP.post_form(URI.parse("http://localhost:3168/"), {})
+  end
+
+  def router_request(path, options = {})
+    Net::HTTP.get_response(URI.parse("http://localhost:3169#{path}"))
+  end
+
   class << self
-    def init
+    def start_router
       at_exit do
         stop_router
       end
-    end
 
-    def start_router
       port = 3169
       puts "Starting router on port #{port}"
 
@@ -49,7 +58,7 @@ module RouterLaunchingHelpers
   end
 end
 
-RouterLaunchingHelpers.init
+RSpec.configuration.include(RouterHelpers)
 RSpec.configuration.before(:suite) do
-  RouterLaunchingHelpers.start_router
+  RouterHelpers.start_router
 end
