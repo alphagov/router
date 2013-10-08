@@ -187,7 +187,7 @@ func testLookup(t *testing.T, ex LookupExample) {
 }
 
 func loadStrings(filename string) []string {
-	content, err := ioutil.ReadFile("testdata/routes")
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
