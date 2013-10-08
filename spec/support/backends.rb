@@ -56,6 +56,22 @@ module BackendHelpers
       type ||= "simple"
       File.expand_path("../../test_backends/#{type}_backend.go", __FILE__)
     end
+
+    def included(base)
+      base.extend(ExampleGroupMethods)
+    end
+  end
+
+  module ExampleGroupMethods
+    def start_backend_around_all(options = {})
+      backend = nil
+      before :all do
+        backend = start_test_backend(options)
+      end
+      after :all do
+        stop_test_backend(backend)
+      end
+    end
   end
 end
 
