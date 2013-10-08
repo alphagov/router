@@ -31,7 +31,7 @@ module BackendHelpers
       begin
         s = TCPSocket.new("localhost", port)
       rescue Errno::ECONNREFUSED
-        if retries < 10
+        if retries < 20
           retries += 1
           sleep 0.1
           retry
