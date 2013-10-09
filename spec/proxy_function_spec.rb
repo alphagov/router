@@ -48,6 +48,19 @@ describe "functioning as a reverse proxy" do
       headers = JSON.parse(response.body)["Request"]["Header"]
       expect(headers["X-Forwarded-For"].first).to eq("10.9.8.7, 127.0.0.1")
     end
+
+    it "should add itself to the Via header" do
+      # See https://tools.ietf.org/html/rfc2616#section-14.45
+      pending "Not yet implemented"
+
+      response = HTTPClient.get(router_url("/foo"))
+      headers = JSON.parse(response.body)["Request"]["Header"]
+      expect(headers["Via"].first).to eq("1.1 router")
+
+      response = HTTPClient.get(router_url("/foo"), :header => {"Via" => "1.0 fred, 1.1 barney"})
+      headers = JSON.parse(response.body)["Request"]["Header"]
+      expect(headers["Via"].first).to eq("1.0 fred, 1.1 barney, 1.1 router")
+    end
   end
 
   describe "supporting http/1.0 requests" do
