@@ -1,13 +1,17 @@
-require 'net/http'
+require 'httpclient'
 
 module RouterHelpers
 
   def reload_routes
-    Net::HTTP.post_form(URI.parse("http://localhost:3168/"), {})
+    HTTPClient.post("http://localhost:3168/")
   end
 
   def router_request(path, options = {})
-    Net::HTTP.get_response(URI.parse("http://localhost:3169#{path}"))
+    HTTPClient.get(router_url(path))
+  end
+
+  def router_url(path)
+    "http://localhost:3169#{path}"
   end
 
   class << self
