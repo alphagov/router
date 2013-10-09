@@ -31,6 +31,14 @@ describe "functioning as a reverse proxy" do
       expect(data["Request"]["Host"]).to eq("localhost:3163")
     end
 
+    it "should not add a default User-Agent if there isn't one in the request" do
+      pending "Need to prevent Go http lib adding a user agent"
+      headers, body = raw_http_request(router_url("/foo"), "Host" => "localhost")
+      data = JSON.parse(body)
+
+      expect(data["Request"]["Header"]["User-Agent"]).to be_nil
+    end
+
     it "should add the client IP to X-Forwardrd-For" do
       response = HTTPClient.get(router_url("/foo"))
       headers = JSON.parse(response.body)["Request"]["Header"]
