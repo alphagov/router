@@ -31,7 +31,7 @@ describe "functioning as a reverse proxy" do
     end
 
     it "should not add a default User-Agent if there isn't one in the request" do
-      pending "Need to prevent Go http lib adding a user agent"
+      # Most http libraries add a default User-Agent header.
       headers, body = raw_http_request(router_url("/foo"), "Host" => "localhost")
       data = JSON.parse(body)
 
