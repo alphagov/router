@@ -41,7 +41,9 @@ module RouterHelpers
       begin
         s = TCPSocket.new("localhost", port)
       rescue Errno::ECONNREFUSED
-        if retries < 20
+        if !Process.waitpid(@router_pid, Process::WNOHANG).nil?
+          raise "The router process is no longer running"
+        elsif retries < 20
           retries += 1
           sleep 0.1
           retry
