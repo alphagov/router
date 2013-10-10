@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
@@ -151,7 +152,17 @@ func newBackendReverseProxy(backendUrl *url.URL) (proxy *httputil.ReverseProxy) 
 		if _, present := req.Header["User-Agent"]; !present {
 			req.Header.Set("User-Agent", "")
 		}
+
+		populateViaHeader(req.Header, fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor))
 	}
 
 	return proxy
+}
+
+func populateViaHeader(header http.Header, httpVersion string) {
+	via := httpVersion + " router"
+	if prior, ok := header["Via"]; ok {
+		via = strings.Join(prior, ", ") + ", " + via
+	}
+	header.Set("Via", via)
 }
