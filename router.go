@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
@@ -134,9 +135,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, apps map[string]http.Handle
 
 func newBackendReverseProxy(backendUrl *url.URL) (proxy *httputil.ReverseProxy) {
 	proxy = httputil.NewSingleHostReverseProxy(backendUrl)
-	// Allow the proxy to keep more than the default (2) keepalive connections
-	// per upstream.
-	proxy.Transport = &http.Transport{MaxIdleConnsPerHost: 20}
+	proxy.Transport = newBackendTransport()
 
 	defaultDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
@@ -151,7 +150,38 @@ func newBackendReverseProxy(backendUrl *url.URL) (proxy *httputil.ReverseProxy) 
 		if _, present := req.Header["User-Agent"]; !present {
 			req.Header.Set("User-Agent", "")
 		}
+
+		populateViaHeader(req.Header, fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor))
 	}
 
 	return proxy
+}
+
+func populateViaHeader(header http.Header, httpVersion string) {
+	via := httpVersion + " router"
+	if prior, ok := header["Via"]; ok {
+		via = strings.Join(prior, ", ") + ", " + via
+	}
+	header.Set("Via", via)
+}
+
+// Construct a backendTransport that wraps an http.Transport and implements http.RoundTripper.
+// This allows us to intercept the response from the backend and modify it before it's copied
+// back to the client.
+func newBackendTransport() (transport *backendTransport) {
+	transport = &backendTransport{&http.Transport{}}
+	// Allow the proxy to keep more than the default (2) keepalive connections
+	// per upstream.
+	transport.wrapped.MaxIdleConnsPerHost = 20
+	return
+}
+
+type backendTransport struct {
+	wrapped *http.Transport
+}
+
+func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	resp, err = bt.wrapped.RoundTrip(req)
+	populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
+	return
 }
