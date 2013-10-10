@@ -7,7 +7,7 @@ describe "functioning as a reverse proxy" do
   start_backend_around_all :port => 3163, :type => :echo
   before :each do
     add_backend "backend", "http://localhost:3163/"
-    add_route "/foo", "backend"
+    add_route "/foo", "backend", :prefix => true
     reload_routes
   end
 
@@ -60,6 +60,36 @@ describe "functioning as a reverse proxy" do
       response = HTTPClient.get(router_url("/foo"), :header => {"Via" => "1.0 fred, 1.1 barney"})
       headers = JSON.parse(response.body)["Request"]["Header"]
       expect(headers["Via"].first).to eq("1.0 fred, 1.1 barney, 1.1 router")
+    end
+  end
+
+  describe "request verb, path, quesy and body handling" do
+    it "should use the same verb when proxying" do
+      response = HTTPClient.post(router_url("/foo"))
+      request_data = JSON.parse(response.body)["Request"]
+      expect(request_data["Method"]).to eq("POST")
+
+      response = HTTPClient.delete(router_url("/foo"))
+      request_data = JSON.parse(response.body)["Request"]
+      expect(request_data["Method"]).to eq("DELETE")
+    end
+
+    it "should pass through the request path unmodified" do
+      response = HTTPClient.post(router_url("/foo/bar/baz.json"))
+      request_data = JSON.parse(response.body)["Request"]
+      expect(request_data["RequestURI"]).to eq("/foo/bar/baz.json")
+    end
+
+    it "should pass through the query string unmodified" do
+      response = HTTPClient.post(router_url("/foo/bar?baz=qux"))
+      request_data = JSON.parse(response.body)["Request"]
+      expect(request_data["RequestURI"]).to eq("/foo/bar?baz=qux")
+    end
+
+    it "should pass through the request body unmodified" do
+      response = HTTPClient.post(router_url("/foo"), :body => "I am the request body.  Woohoo!")
+      data = JSON.parse(response.body)
+      expect(data["Body"]).to eq("I am the request body.  Woohoo!")
     end
   end
 
