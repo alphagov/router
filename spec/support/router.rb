@@ -3,7 +3,7 @@ require 'httpclient'
 module RouterHelpers
 
   def reload_routes
-    HTTPClient.post("http://localhost:3168/")
+    HTTPClient.post("http://127.0.0.1:3168/")
   end
 
   def router_request(path, options = {})
@@ -11,7 +11,7 @@ module RouterHelpers
   end
 
   def router_url(path)
-    "http://localhost:3169#{path}"
+    "http://127.0.0.1:3169#{path}"
   end
 
   class << self
