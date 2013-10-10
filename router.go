@@ -72,7 +72,7 @@ func (rt *Router) ReloadRoutes() {
 	log.Printf("router: reloading routes")
 	newmux := triemux.NewMux()
 
-	apps := loadApplications(db.C("applications"), newmux)
+	apps := loadApplications(db.C("applications"))
 	loadRoutes(db.C("routes"), newmux, apps)
 
 	rt.mux = newmux
@@ -80,9 +80,9 @@ func (rt *Router) ReloadRoutes() {
 }
 
 // loadApplications is a helper function which loads applications from the
-// passed mongo collection and registers them as backends with the passed proxy
-// mux.
-func loadApplications(c *mgo.Collection, mux *triemux.Mux) (apps map[string]http.Handler) {
+// passed mongo collection, constructs a Handler for each one, and returns
+// them in map keyed on the backend-id
+func loadApplications(c *mgo.Collection) (apps map[string]http.Handler) {
 	app := &Application{}
 	apps = make(map[string]http.Handler)
 
