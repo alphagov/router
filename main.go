@@ -1,18 +1,28 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 )
 
 var dontQuit = make(chan int)
+var (
+	pubAddr     = getenvDefault("ROUTER_PUBADDR", ":8080")
+	apiAddr     = getenvDefault("ROUTER_APIADDR", ":8081")
+	mongoUrl    = getenvDefault("ROUTER_MONGO_URL", "localhost")
+	mongoDbName = getenvDefault("ROUTER_MONGO_DB", "router")
+)
 
-var pubAddr = flag.String("pubAddr", ":8080", "Address on which to serve public requests")
-var apiAddr = flag.String("apiAddr", ":8081", "Address on which to receive reload requests")
-var mongoUrl = flag.String("mongoUrl", "localhost", "Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')")
-var mongoDbName = flag.String("mongoDbName", "router", "Name of mongo database to use")
+func getenvDefault(key string, defaultVal string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		val = defaultVal
+	}
+
+	return val
+}
 
 func catchListenAndServe(addr string, handler http.Handler) {
 	err := http.ListenAndServe(addr, handler)
@@ -25,13 +35,11 @@ func main() {
 	// Use all available cores
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	flag.Parse()
-
-	rout := NewRouter(*mongoUrl, *mongoDbName)
+	rout := NewRouter(mongoUrl, mongoDbName)
 	rout.ReloadRoutes()
 
-	go catchListenAndServe(*pubAddr, rout)
-	log.Println("router: listening for requests on " + *pubAddr)
+	go catchListenAndServe(pubAddr, rout)
+	log.Println("router: listening for requests on " + pubAddr)
 
 	// This applies to DefaultServeMux, below.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +50,8 @@ func main() {
 
 		rout.ReloadRoutes()
 	})
-	go catchListenAndServe(*apiAddr, nil)
-	log.Println("router: listening for refresh on " + *apiAddr)
+	go catchListenAndServe(apiAddr, nil)
+	log.Println("router: listening for refresh on " + apiAddr)
 
 	<-dontQuit
 }
