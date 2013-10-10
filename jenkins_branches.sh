@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -e
 
 [ -x .venv/bin/pip ] || virtualenv .venv
 . .venv/bin/activate
