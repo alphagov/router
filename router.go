@@ -96,12 +96,7 @@ func loadApplications(c *mgo.Collection, mux *triemux.Mux) (apps map[string]http
 			continue
 		}
 
-		proxy := httputil.NewSingleHostReverseProxy(backendUrl)
-		// Allow the proxy to keep more than the default (2) keepalive connections
-		// per upstream.
-		proxy.Transport = &http.Transport{MaxIdleConnsPerHost: 20}
-
-		apps[app.ApplicationId] = proxy
+		apps[app.ApplicationId] = newBackendReverseProxy(backendUrl)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -135,4 +130,13 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, apps map[string]http.Handle
 	if err := iter.Err(); err != nil {
 		panic(err)
 	}
+}
+
+func newBackendReverseProxy(backendUrl *url.URL) (proxy *httputil.ReverseProxy) {
+	proxy = httputil.NewSingleHostReverseProxy(backendUrl)
+	// Allow the proxy to keep more than the default (2) keepalive connections
+	// per upstream.
+	proxy.Transport = &http.Transport{MaxIdleConnsPerHost: 20}
+
+	return proxy
 }
