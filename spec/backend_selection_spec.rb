@@ -28,18 +28,18 @@ describe "Selecting a backend based on the routing data" do
 
     it "should 404 for children of the exact routes" do
       response = router_request("/foo/bar")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
     end
 
     it "should 404 for non-matching requests" do
       response = router_request("/wibble")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
 
       response = router_request("/")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
 
       response = router_request("/foo.json")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
     end
   end
 
@@ -80,13 +80,13 @@ describe "Selecting a backend based on the routing data" do
 
     it "should 404 for non-matching requests" do
       response = router_request("/wibble")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
 
       response = router_request("/")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
 
       response = router_request("/foo.json")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
     end
   end
 
@@ -242,7 +242,7 @@ describe "Selecting a backend based on the routing data" do
       expect(response).to have_response_body("other backend")
 
       response = router_request("/bar")
-      expect(response.code).to eq("404")
+      expect(response.code).to eq(404)
     end
 
     it "should handle a prefix route at the root level" do
