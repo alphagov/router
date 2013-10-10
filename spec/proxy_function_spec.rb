@@ -70,6 +70,19 @@ describe "functioning as a reverse proxy" do
         headers = JSON.parse(body)["Request"]["Header"]
         expect(headers["Via"].first).to eq("1.0 fred, 1.1 barney, 1.0 router")
       end
+
+      it "should add itself to the Via response heaver" do
+        response = HTTPClient.get(router_url("/foo"))
+        expect(response.headers["Via"]).to eq("1.1 router")
+
+        response = HTTPClient.get(router_url("/foo?simulate_response_via=1.0+fred,+1.1+barney"))
+        expect(response.headers["Via"]).to eq("1.0 fred, 1.1 barney, 1.1 router")
+
+        headers, body = raw_http_1_0_request(router_url("/foo"))
+        # The version here needs to be the version of the backend response to the
+        # router, not the original request
+        expect(headers.find {|h| h =~ /\AVia: / }).to eq("Via: 1.1 router")
+      end
     end
   end
 
