@@ -24,7 +24,6 @@ describe "functioning as a reverse proxy" do
     end
 
     it "should set the Host header to the backend hostname" do
-      pending "Host header munging hasn't been completed yet"
       response = HTTPClient.get(router_url("/foo"), :header => {"Host" => "www.example.com"})
       data = JSON.parse(response.body)
 

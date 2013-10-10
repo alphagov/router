@@ -138,5 +138,13 @@ func newBackendReverseProxy(backendUrl *url.URL) (proxy *httputil.ReverseProxy) 
 	// per upstream.
 	proxy.Transport = &http.Transport{MaxIdleConnsPerHost: 20}
 
+	defaultDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		defaultDirector(req)
+
+		// Set the Host header to match the backend hostname instead of the one from the incoming request.
+		req.Host = backendUrl.Host
+	}
+
 	return proxy
 }
