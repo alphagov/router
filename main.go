@@ -23,7 +23,12 @@ func main() {
 	rout := NewRouter(*mongoUrl, *mongoDbName)
 	rout.ReloadRoutes()
 
-	go http.ListenAndServe(*pubAddr, rout)
+	go func() {
+		err := http.ListenAndServe(*pubAddr, rout)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	log.Println("router: listening for requests on " + *pubAddr)
 
 	// This applies to DefaultServeMux, below.
@@ -35,7 +40,12 @@ func main() {
 
 		rout.ReloadRoutes()
 	})
-	go http.ListenAndServe(*apiAddr, nil)
+	go func() {
+		err := http.ListenAndServe(*apiAddr, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	log.Println("router: listening for refresh on " + *apiAddr)
 
 	<-quit
