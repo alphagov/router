@@ -14,6 +14,13 @@ var mongoDbName = flag.String("mongoDbName", "router", "Name of mongo database t
 
 var quit = make(chan int)
 
+func catchListenAndServe(addr string, handler http.Handler) {
+	err := http.ListenAndServe(addr, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	// Use all available cores
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -23,12 +30,7 @@ func main() {
 	rout := NewRouter(*mongoUrl, *mongoDbName)
 	rout.ReloadRoutes()
 
-	go func() {
-		err := http.ListenAndServe(*pubAddr, rout)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+	go catchListenAndServe(*pubAddr, rout)
 	log.Println("router: listening for requests on " + *pubAddr)
 
 	// This applies to DefaultServeMux, below.
@@ -40,12 +42,7 @@ func main() {
 
 		rout.ReloadRoutes()
 	})
-	go func() {
-		err := http.ListenAndServe(*apiAddr, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+	go catchListenAndServe(*apiAddr, nil)
 	log.Println("router: listening for refresh on " + *apiAddr)
 
 	<-quit
