@@ -26,6 +26,24 @@ you can just build the router in-place:
 
 [go]: http://golang.org
 
+Environment assumptions
+-----------------------
+
+Our usage of `router` places it behind and in front of Nginx and/or Varnish.
+
+As such, there are some things that we are guarded against:
+
+- Response buffering for slow clients
+- Basic request sanitisation
+
+And some features that we have no need to implement:
+
+- SSL
+- Health check probes
+- Custom header mangling
+- Response rewriting
+- Authentication
+
 Benchmarks
 ----------
 
