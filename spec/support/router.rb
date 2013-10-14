@@ -25,15 +25,19 @@ module RouterHelpers
 
       repo_root = File.expand_path("../../..", __FILE__)
 
+      env = {
+        "ROUTER_PUBADDR"  => ":#{port}",
+        "ROUTER_APIADDR"  => ":3168",
+        "ROUTER_MONGO_DB" => "router_test",
+      }
+
       if ENV['USE_COMPILED_ROUTER']
         command = %w(./router)
-        env = {}
       else
         puts `#{repo_root}/build_gopath.sh`
         command = %w(go run main.go router.go)
-        env = {"GOPATH" => "#{repo_root}/gopath.tmp"}
+        env["GOPATH"] = "#{repo_root}/gopath.tmp"
       end
-      command += ["-pubAddr=:#{port}", "-apiAddr=:3168", "-mongoDbName=router_test"]
 
       @router_pid = spawn(env, *command, :chdir => repo_root, :pgroup => true, :out => "/dev/null", :err => "/dev/null")
 
