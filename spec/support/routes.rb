@@ -2,16 +2,16 @@ require 'mongo'
 
 module RoutesHelpers
   def add_backend(id, url)
-    RoutesHelpers.db["applications"].insert({"application_id" => id, "backend_url" => url})
+    RoutesHelpers.db["backends"].insert({"backend_id" => id, "backend_url" => url})
   end
 
   def add_route(path, backend_id, options = {})
     route_type = options[:prefix] ? 'prefix' : 'exact'
-    RoutesHelpers.db["routes"].insert({"application_id" => backend_id, "incoming_path" => path, "route_type" => route_type})
+    RoutesHelpers.db["routes"].insert({"backend_id" => backend_id, "incoming_path" => path, "route_type" => route_type})
   end
 
   def clear_routes
-    RoutesHelpers.db["applications"].remove
+    RoutesHelpers.db["backends"].remove
     RoutesHelpers.db["routes"].remove
   end
 

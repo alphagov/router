@@ -65,7 +65,7 @@ And then benchmark against the URLs in `testdata/benchurls`.
 Data structure
 -----------------
 
-The Router requires two MongoDB collections: `routes` and `applications`.
+The Router requires two MongoDB collections: `routes` and `backends`.
 
 ### Routes
 
@@ -73,22 +73,22 @@ The `routes` collection uses the following data structure:
 
 ```json
 {
-  "_id"            : ObjectId(),
-  "route_type"     : ["prefix","exact"],
-  "incoming_path"  : "/url-path/here",
-  "application_id" : "arbitrary-slug-or-name-from-applications-collection"
+  "_id"           : ObjectId(),
+  "route_type"    : ["prefix","exact"],
+  "incoming_path" : "/url-path/here",
+  "backend_id"    : "arbitrary-slug-or-name-from-backends-collection"
 }
 ```
 
-### Applications
+### Backends
 
-The `applications` collection uses the following data structure:
+The `backends` collection uses the following data structure:
 
 ```json
 {
-  "_id"            : ObjectId(),
-  "application_id" : "arbitrary-slug-or-name",
-  "backend_url"    : "https://example.com:port/"
+  "_id"         : ObjectId(),
+  "backend_id"  : "arbitrary-slug-or-name",
+  "backend_url" : "https://example.com:port/"
 }
 ```
 

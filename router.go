@@ -19,15 +19,15 @@ type Router struct {
 	mongoDbName string
 }
 
-type Application struct {
-	ApplicationId string `bson:"application_id"`
-	BackendURL    string `bson:"backend_url"`
+type Backend struct {
+	BackendId  string `bson:"backend_id"`
+	BackendURL string `bson:"backend_url"`
 }
 
 type Route struct {
-	IncomingPath  string `bson:"incoming_path"`
-	ApplicationId string `bson:"application_id"`
-	RouteType     string `bson:"route_type"`
+	IncomingPath string `bson:"incoming_path"`
+	BackendId    string `bson:"backend_id"`
+	RouteType    string `bson:"route_type"`
 }
 
 // NewRouter returns a new empty router instance. You will still need to call
@@ -73,31 +73,31 @@ func (rt *Router) ReloadRoutes() {
 	log.Printf("router: reloading routes")
 	newmux := triemux.NewMux()
 
-	apps := loadApplications(db.C("applications"))
-	loadRoutes(db.C("routes"), newmux, apps)
+	backends := loadBackends(db.C("backends"))
+	loadRoutes(db.C("routes"), newmux, backends)
 
 	rt.mux = newmux
 	log.Printf("router: reloaded routes")
 }
 
-// loadApplications is a helper function which loads applications from the
+// loadBackends is a helper function which loads backends from the
 // passed mongo collection, constructs a Handler for each one, and returns
-// them in map keyed on the backend-id
-func loadApplications(c *mgo.Collection) (apps map[string]http.Handler) {
-	app := &Application{}
-	apps = make(map[string]http.Handler)
+// them in map keyed on the backend_id
+func loadBackends(c *mgo.Collection) (backends map[string]http.Handler) {
+	backend := &Backend{}
+	backends = make(map[string]http.Handler)
 
 	iter := c.Find(nil).Iter()
 
-	for iter.Next(&app) {
-		backendUrl, err := url.Parse(app.BackendURL)
+	for iter.Next(&backend) {
+		backendUrl, err := url.Parse(backend.BackendURL)
 		if err != nil {
 			log.Printf("router: couldn't parse URL %s for backend %s "+
-				"(error: %v), skipping!", app.BackendURL, app.ApplicationId, err)
+				"(error: %v), skipping!", backend.BackendURL, backend.BackendId, err)
 			continue
 		}
 
-		apps[app.ApplicationId] = newBackendReverseProxy(backendUrl)
+		backends[backend.BackendId] = newBackendReverseProxy(backendUrl)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -109,23 +109,23 @@ func loadApplications(c *mgo.Collection) (apps map[string]http.Handler) {
 
 // loadRoutes is a helper function which loads routes from the passed mongo
 // collection and registers them with the passed proxy mux.
-func loadRoutes(c *mgo.Collection, mux *triemux.Mux, apps map[string]http.Handler) {
+func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Handler) {
 	route := &Route{}
 
 	iter := c.Find(nil).Iter()
 
 	for iter.Next(&route) {
-		handler, ok := apps[route.ApplicationId]
+		handler, ok := backends[route.BackendId]
 		if !ok {
 			log.Printf("router: found route %+v which references unknown application "+
-				"%s, skipping!", route, route.ApplicationId)
+				"%s, skipping!", route, route.BackendId)
 			continue
 		}
 
 		prefix := (route.RouteType == "prefix")
 		mux.Handle(route.IncomingPath, prefix, handler)
 		log.Printf("router: registered %s (prefix: %v) for %s",
-			route.IncomingPath, prefix, route.ApplicationId)
+			route.IncomingPath, prefix, route.BackendId)
 	}
 
 	if err := iter.Err(); err != nil {
