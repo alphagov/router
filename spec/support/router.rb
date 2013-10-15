@@ -2,16 +2,20 @@ require 'httpclient'
 
 module RouterHelpers
 
-  def reload_routes
-    HTTPClient.post("http://127.0.0.1:3168/")
+  def api_url(path)
+    "http://127.0.0.1:3168#{path}"
   end
 
-  def router_request(path, options = {})
-    HTTPClient.get(router_url(path))
+  def reload_routes
+    HTTPClient.post(api_url("/reload"))
   end
 
   def router_url(path)
     "http://127.0.0.1:3169#{path}"
+  end
+
+  def router_request(path, options = {})
+    HTTPClient.get(router_url(path))
   end
 
   class << self
