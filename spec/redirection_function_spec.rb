@@ -4,15 +4,9 @@ require 'json'
 
 describe "functioning as a redirector" do
 
-  start_backend_around_all :port => 3165, :type => :echo
-
-  before :each do
-    add_backend "backend-redirect", "http://localhost:3165/"
-  end
-
   describe "basic redirection" do
     before :all do
-      add_route "/foo", "backend-redirect", :redirect_to => "/bar"
+      add_redirect "/foo", :redirect_to => "/bar"
       reload_routes
     end
 
@@ -35,7 +29,7 @@ describe "functioning as a redirector" do
 
   describe "friendly URL redirection" do
     before :all do
-      add_route "/xyz", "backend-redirect", :redirect_to => "/abc", :temporary_redirect => true
+      add_redirect "/xyz", :redirect_to => "/abc", :temporary_redirect => true
     end
 
     it "should issue a temporary redirect when required" do
