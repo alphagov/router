@@ -13,6 +13,11 @@ describe "reload API endpoint" do
       expect(response.status).to eq(200)
     end
 
+    it "should return 404 for POST /foo" do
+      response = HTTPClient.post(api_url("/foo"))
+      expect(response.status).to eq(404)
+    end
+
     it "should return 404 for GET /" do
       response = HTTPClient.get(api_url("/"))
       expect(response.status).to eq(404)
