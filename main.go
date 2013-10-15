@@ -61,13 +61,21 @@ func main() {
 	log.Println("router: listening for requests on " + pubAddr)
 
 	// This applies to DefaultServeMux, below.
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" || r.RequestURI != "/reload" {
-			http.NotFound(w, r)
+	http.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		rout.ReloadRoutes()
+	})
+	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Write([]byte("OK"))
 	})
 	go catchListenAndServe(apiAddr, nil)
 	log.Println("router: listening for refresh on " + apiAddr)
