@@ -3,12 +3,8 @@ require 'httpclient'
 
 describe "reload API endpoint" do
 
-  before :each do
-    reload_routes
-  end
-
   describe "request handling" do
-    it "should return 200 for POST /" do
+    it "should return 200 for POST /reload" do
       response = HTTPClient.post(api_url("/reload"))
       expect(response.status).to eq(200)
     end
@@ -18,9 +14,27 @@ describe "reload API endpoint" do
       expect(response.status).to eq(404)
     end
 
-    it "should return 404 for GET /" do
-      response = HTTPClient.get(api_url("/"))
+    it "should return 404 for POST /reload/foo" do
+      response = HTTPClient.post(api_url("/reload/foo"))
       expect(response.status).to eq(404)
+    end
+
+    it "should return 405 for GET /reload" do
+      response = HTTPClient.get(api_url("/reload"))
+      expect(response.status).to eq(405)
+    end
+  end
+
+  describe "healthcheck" do
+    it "should respond with 200 and string 'OK' on /healthcheck" do
+      response = HTTPClient.get(api_url("/healthcheck"))
+      expect(response.status).to eq(200)
+      expect(response).to have_response_body('OK')
+    end
+
+    it "should respond with 405 for other verbs" do
+      response = HTTPClient.post(api_url("/healthcheck"))
+      expect(response.status).to eq(405)
     end
   end
 
