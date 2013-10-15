@@ -7,7 +7,7 @@ module RouterHelpers
   end
 
   def reload_routes
-    HTTPClient.post(api_url("/"))
+    HTTPClient.post(api_url("/reload"))
   end
 
   def router_url(path)

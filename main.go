@@ -62,7 +62,7 @@ func main() {
 
 	// This applies to DefaultServeMux, below.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" || r.RequestURI != "/" {
+		if r.Method != "POST" || r.RequestURI != "/reload" {
 			http.NotFound(w, r)
 			return
 		}

@@ -9,7 +9,7 @@ describe "reload API endpoint" do
 
   describe "request handling" do
     it "should return 200 for POST /" do
-      response = HTTPClient.post(api_url("/"))
+      response = HTTPClient.post(api_url("/reload"))
       expect(response.status).to eq(200)
     end
 
