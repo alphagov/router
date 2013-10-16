@@ -72,7 +72,8 @@ func newApiServeMux(rout *Router) (mux *http.ServeMux) {
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -80,7 +81,8 @@ func newApiServeMux(rout *Router) (mux *http.ServeMux) {
 	})
 	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
-			http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
