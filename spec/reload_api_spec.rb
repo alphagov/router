@@ -22,6 +22,8 @@ describe "reload API endpoint" do
     it "should return 405 for GET /reload" do
       response = HTTPClient.get(api_url("/reload"))
       expect(response.status).to eq(405)
+      expect(response.reason).to eq("Method Not Allowed")
+      expect(response.headers["Allow"]).to eq("POST")
     end
   end
 
@@ -35,6 +37,8 @@ describe "reload API endpoint" do
     it "should respond with 405 for other verbs" do
       response = HTTPClient.post(api_url("/healthcheck"))
       expect(response.status).to eq(405)
+      expect(response.reason).to eq("Method Not Allowed")
+      expect(response.headers["Allow"]).to eq("GET")
     end
   end
 
