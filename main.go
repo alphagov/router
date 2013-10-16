@@ -48,8 +48,11 @@ func catchListenAndServe(addr string, handler http.Handler) {
 }
 
 func main() {
-	// Use all available cores
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	if os.Getenv("GOMAXPROCS") == "" {
+		// Use all available cores if not otherwise specified
+		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
+	log.Printf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0))
 
 	flag.Usage = usage
 	flag.Parse()
