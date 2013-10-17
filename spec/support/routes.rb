@@ -5,9 +5,16 @@ module RoutesHelpers
     RoutesHelpers.db["backends"].insert({"backend_id" => id, "backend_url" => url})
   end
 
-  def add_route(path, backend_id, options = {})
-    route_type = options[:prefix] ? 'prefix' : 'exact'
-    RoutesHelpers.db["routes"].insert({"backend_id" => backend_id, "incoming_path" => path, "route_type" => route_type})
+  def add_backend_route(path, backend_id, options = {})
+    add_route path, options.merge(:handler => "backend", :backend_id => backend_id)
+  end
+
+  def add_route(path, attrs = {})
+    route_type = attrs.delete(:prefix) ? 'prefix' : 'exact'
+    RoutesHelpers.db["routes"].insert(attrs.merge({
+      "incoming_path" => path,
+      "route_type" => route_type,
+    }))
   end
 
   def clear_routes

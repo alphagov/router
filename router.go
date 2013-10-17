@@ -26,8 +26,9 @@ type Backend struct {
 
 type Route struct {
 	IncomingPath string `bson:"incoming_path"`
-	BackendId    string `bson:"backend_id"`
 	RouteType    string `bson:"route_type"`
+	Handler      string `bson:"handler"`
+	BackendId    string `bson:"backend_id"`
 }
 
 // NewRouter returns a new empty router instance. You will still need to call
@@ -115,17 +116,24 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	iter := c.Find(nil).Iter()
 
 	for iter.Next(&route) {
-		handler, ok := backends[route.BackendId]
-		if !ok {
-			log.Printf("router: found route %+v which references unknown application "+
-				"%s, skipping!", route, route.BackendId)
+		prefix := (route.RouteType == "prefix")
+		switch route.Handler {
+		case "backend":
+			handler, ok := backends[route.BackendId]
+			if !ok {
+				log.Printf("router: found route %+v which references unknown application "+
+					"%s, skipping!", route, route.BackendId)
+				continue
+			}
+			mux.Handle(route.IncomingPath, prefix, handler)
+			log.Printf("router: registered %s (prefix: %v) for %s",
+				route.IncomingPath, prefix, route.BackendId)
+		default:
+			log.Printf("router: found route %+v with unknown handler type "+
+				"%s, skipping!", route, route.Handler)
 			continue
 		}
 
-		prefix := (route.RouteType == "prefix")
-		mux.Handle(route.IncomingPath, prefix, handler)
-		log.Printf("router: registered %s (prefix: %v) for %s",
-			route.IncomingPath, prefix, route.BackendId)
 	}
 
 	if err := iter.Err(); err != nil {
