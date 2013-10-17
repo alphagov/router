@@ -9,9 +9,9 @@ describe "Selecting a backend based on the routing data" do
     before :each do
       add_backend("backend-1", "http://localhost:3160/")
       add_backend("backend-2", "http://localhost:3161/")
-      add_route("/foo", "backend-1")
-      add_route("/bar", "backend-2")
-      add_route("/baz", "backend-1")
+      add_backend_route("/foo", "backend-1")
+      add_backend_route("/bar", "backend-2")
+      add_backend_route("/baz", "backend-1")
       reload_routes
     end
 
@@ -50,9 +50,9 @@ describe "Selecting a backend based on the routing data" do
     before :each do
       add_backend("backend-1", "http://localhost:3160/")
       add_backend("backend-2", "http://localhost:3161/")
-      add_route("/foo", "backend-1", :prefix => true)
-      add_route("/bar", "backend-2", :prefix => true)
-      add_route("/baz", "backend-1", :prefix => true)
+      add_backend_route("/foo", "backend-1", :prefix => true)
+      add_backend_route("/bar", "backend-2", :prefix => true)
+      add_backend_route("/baz", "backend-1", :prefix => true)
       reload_routes
     end
 
@@ -97,12 +97,12 @@ describe "Selecting a backend based on the routing data" do
     before :each do
       add_backend("outer-backend", "http://localhost:3160/")
       add_backend("inner-backend", "http://localhost:3161/")
-      add_route("/foo", "outer-backend", :prefix => true)
+      add_backend_route("/foo", "outer-backend", :prefix => true)
     end
 
     describe "with an exact child" do
       before :each do
-        add_route("/foo/bar", "inner-backend")
+        add_backend_route("/foo/bar", "inner-backend")
         reload_routes
       end
 
@@ -124,7 +124,7 @@ describe "Selecting a backend based on the routing data" do
 
     describe "with a prefix child" do
       before :each do
-        add_route("/foo/bar", "inner-backend", :prefix => true)
+        add_backend_route("/foo/bar", "inner-backend", :prefix => true)
         reload_routes
       end
 
@@ -157,8 +157,8 @@ describe "Selecting a backend based on the routing data" do
 
       before :each do
         add_backend("innerer-backend", "http://localhost:3162/")
-        add_route("/foo/bar", "inner-backend")
-        add_route("/foo/bar/baz", "innerer-backend", :prefix => true)
+        add_backend_route("/foo/bar", "inner-backend")
+        add_backend_route("/foo/bar/baz", "innerer-backend", :prefix => true)
         reload_routes
       end
 
@@ -205,8 +205,8 @@ describe "Selecting a backend based on the routing data" do
     before :each do
       add_backend("backend-1", "http://localhost:3160/")
       add_backend("backend-2", "http://localhost:3161/")
-      add_route("/foo", "backend-1", :prefix => true)
-      add_route("/foo", "backend-2")
+      add_backend_route("/foo", "backend-1", :prefix => true)
+      add_backend_route("/foo", "backend-2")
       reload_routes
     end
 
@@ -228,11 +228,11 @@ describe "Selecting a backend based on the routing data" do
     before :each do
       add_backend("root", "http://localhost:3160/")
       add_backend("other", "http://localhost:3161/")
-      add_route("/foo", "other")
+      add_backend_route("/foo", "other")
     end
 
     it "should handle an exact route at the root level" do
-      add_route("/", "root")
+      add_backend_route("/", "root")
       reload_routes
 
       response = router_request("/")
@@ -246,7 +246,7 @@ describe "Selecting a backend based on the routing data" do
     end
 
     it "should handle a prefix route at the root level" do
-      add_route("/", "root", :prefix => true)
+      add_backend_route("/", "root", :prefix => true)
       reload_routes
 
       response = router_request("/")

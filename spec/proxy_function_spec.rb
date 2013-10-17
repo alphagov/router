@@ -7,7 +7,7 @@ describe "functioning as a reverse proxy" do
   start_backend_around_all :port => 3163, :type => :echo
   before :each do
     add_backend "backend", "http://localhost:3163/"
-    add_route "/foo", "backend", :prefix => true
+    add_backend_route "/foo", "backend", :prefix => true
     reload_routes
   end
 

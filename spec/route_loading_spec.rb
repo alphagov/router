@@ -11,10 +11,10 @@ describe "loading routes from the db" do
 
   context "a route with a non-existent backend" do
     before :each do
-      add_route("/foo", "backend-1")
-      add_route("/bar", "backend-bar")
-      add_route("/baz", "backend-2")
-      add_route("/qux", "backend-1")
+      add_backend_route("/foo", "backend-1")
+      add_backend_route("/bar", "backend-bar")
+      add_backend_route("/baz", "backend-2")
+      add_backend_route("/qux", "backend-1")
       reload_routes
     end
 
