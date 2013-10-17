@@ -9,6 +9,28 @@ describe "loading routes from the db" do
     add_backend("backend-2", "http://localhost:3161/")
   end
 
+  context "a route with an unrecognised handler type" do
+    before :each do
+      add_backend_route("/foo", "backend-1")
+      add_route("/bar", :backend_id => "backend-2", :handler => "fooey")
+      add_backend_route("/baz", "backend-2")
+      reload_routes
+    end
+
+    it "should skip the invalid route" do
+      response = router_request("/bar")
+      expect(response.code).to eq(404)
+    end
+
+    it "should continue to load other routes" do
+      response = router_request("/foo")
+      expect(response).to have_response_body("backend 1")
+
+      response = router_request("/baz")
+      expect(response).to have_response_body("backend 2")
+    end
+  end
+
   context "a route with a non-existent backend" do
     before :each do
       add_backend_route("/foo", "backend-1")
