@@ -116,6 +116,26 @@ describe "functioning as a reverse proxy" do
     end
   end
 
+  describe "handling a backend with a non '/' path" do
+    before :each do
+      add_backend "backend-with-path", "http://localhost:3163/something"
+      add_backend_route "/foo/bar", "backend-with-path", :prefix => true
+      reload_routes
+    end
+
+    it "should merge the 2 paths" do
+      response = HTTPClient.get(router_url("/foo/bar"))
+      request_data = JSON.parse(response.body)["Request"]
+      expect(request_data["RequestURI"]).to eq("/something/foo/bar")
+    end
+
+    it "should preserve the request query string" do
+      response = HTTPClient.get(router_url("/foo/bar?baz=qux"))
+      request_data = JSON.parse(response.body)["Request"]
+      expect(request_data["RequestURI"]).to eq("/something/foo/bar?baz=qux")
+    end
+  end
+
   describe "supporting http/1.0 requests" do
     it "should work with incoming http/1.0 requests" do
       headers, body = raw_http_1_0_request(router_url("/foo"), "Host" => "www.example.com")
