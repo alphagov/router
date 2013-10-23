@@ -1,17 +1,9 @@
 module BackendHelpers
-  def start_test_backend(options = {})
-    BackendHelpers.start_backend(options)
-  end
-
-  def stop_test_backend(backend)
-    BackendHelpers.stop_backend(backend)
-  end
-
   class << self
     def init
       @running_backends = []
       at_exit do
-        @running_backends.each do |pid|
+        @running_backends.dup.each do |pid|
           puts "Stopping backend #{pid}"
           stop_backend(pid)
         end
@@ -66,10 +58,10 @@ module BackendHelpers
     def start_backend_around_all(options = {})
       backend = nil
       before :all do
-        backend = start_test_backend(options)
+        backend = BackendHelpers.start_backend(options)
       end
       after :all do
-        stop_test_backend(backend)
+        BackendHelpers.stop_backend(backend)
       end
     end
   end
