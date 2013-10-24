@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -219,9 +220,11 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 	} else {
 		// Intercept timeout errors and generate an HTTP error response
 		switch typedError := err.(type) {
-		case net.Error:
+		case *net.OpError:
 			if typedError.Timeout() {
 				return newErrorResponse(504), nil
+			} else if typedError.Err == syscall.ECONNREFUSED {
+				return newErrorResponse(502), nil
 			}
 		default:
 			if err.Error() == "net/http: timeout awaiting response headers" {
@@ -233,7 +236,7 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 }
 
 func newErrorResponse(status int) (resp *http.Response) {
-	resp = &http.Response{StatusCode: 504}
+	resp = &http.Response{StatusCode: status}
 	resp.Body = ioutil.NopCloser(strings.NewReader(""))
 	return
 }
