@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"labix.org/v2/mgo"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -116,7 +117,7 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 			continue
 		}
 
-		backends[backend.BackendId] = newBackendReverseProxy(backendUrl, rt.backendHeaderTimeout)
+		backends[backend.BackendId] = newBackendReverseProxy(backendUrl, rt.backendConnectTimeout, rt.backendHeaderTimeout)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -159,9 +160,9 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	}
 }
 
-func newBackendReverseProxy(backendUrl *url.URL, headerTimeout time.Duration) (proxy *httputil.ReverseProxy) {
+func newBackendReverseProxy(backendUrl *url.URL, connectTimeout, headerTimeout time.Duration) (proxy *httputil.ReverseProxy) {
 	proxy = httputil.NewSingleHostReverseProxy(backendUrl)
-	proxy.Transport = newBackendTransport(headerTimeout)
+	proxy.Transport = newBackendTransport(connectTimeout, headerTimeout)
 
 	defaultDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
@@ -194,8 +195,12 @@ func populateViaHeader(header http.Header, httpVersion string) {
 // Construct a backendTransport that wraps an http.Transport and implements http.RoundTripper.
 // This allows us to intercept the response from the backend and modify it before it's copied
 // back to the client.
-func newBackendTransport(headerTimeout time.Duration) (transport *backendTransport) {
+func newBackendTransport(connectTimeout, headerTimeout time.Duration) (transport *backendTransport) {
 	transport = &backendTransport{&http.Transport{}}
+
+	transport.wrapped.Dial = func(network, address string) (net.Conn, error) {
+		return net.DialTimeout(network, address, connectTimeout)
+	}
 	// Allow the proxy to keep more than the default (2) keepalive connections
 	// per upstream.
 	transport.wrapped.MaxIdleConnsPerHost = 20
@@ -212,10 +217,16 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 	if err == nil {
 		populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
 	} else {
-		switch err.Error() {
-		case "net/http: timeout awaiting response headers":
-			// Intercept timeout errors and generate an HTTP error response
-			return newErrorResponse(504), nil
+		// Intercept timeout errors and generate an HTTP error response
+		switch typedError := err.(type) {
+		case net.Error:
+			if typedError.Timeout() {
+				return newErrorResponse(504), nil
+			}
+		default:
+			if err.Error() == "net/http: timeout awaiting response headers" {
+				return newErrorResponse(504), nil
+			}
 		}
 	}
 	return
