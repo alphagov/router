@@ -53,7 +53,13 @@ module RouterHelpers
         env["GOPATH"] = "#{repo_root}/gopath.tmp"
       end
 
-      pid = spawn(env, *command, :chdir => repo_root, :pgroup => true, :out => "/dev/null", :err => "/dev/null")
+      spawn_args = {
+        :chdir => repo_root,
+        :pgroup => true
+      }
+      spawn_args.merge!(:out => "/dev/null", :err => "/dev/null") unless options[:debug]
+
+      pid = spawn(env, *command, spawn_args)
 
       retries = 0
       begin
