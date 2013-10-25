@@ -11,10 +11,12 @@ import (
 
 var dontQuit = make(chan int)
 var (
-	pubAddr     = getenvDefault("ROUTER_PUBADDR", ":8080")
-	apiAddr     = getenvDefault("ROUTER_APIADDR", ":8081")
-	mongoUrl    = getenvDefault("ROUTER_MONGO_URL", "localhost")
-	mongoDbName = getenvDefault("ROUTER_MONGO_DB", "router")
+	pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
+	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
+	mongoUrl              = getenvDefault("ROUTER_MONGO_URL", "localhost")
+	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
+	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
+	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "15s")
 )
 
 func usage() {
@@ -26,6 +28,11 @@ ROUTER_PUBADDR=:8080        Address on which to serve public requests
 ROUTER_APIADDR=:8081        Address on which to receive reload requests
 ROUTER_MONGO_URL=localhost  Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')
 ROUTER_MONGO_DB=router      Name of mongo database to use
+
+Timeouts: (values must be parseable by http://golang.org/pkg/time/#ParseDuration)
+
+ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
+ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
 `
 	fmt.Fprintf(os.Stderr, helpstring)
 	os.Exit(2)
@@ -57,7 +64,10 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	rout := NewRouter(mongoUrl, mongoDbName)
+	rout, err := NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout)
+	if err != nil {
+		log.Fatal(err)
+	}
 	rout.ReloadRoutes()
 
 	go catchListenAndServe(pubAddr, rout)

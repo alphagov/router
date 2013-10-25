@@ -3,20 +3,26 @@ package main
 import (
 	"fmt"
 	"github.com/alphagov/router/triemux"
+	"io/ioutil"
 	"labix.org/v2/mgo"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"syscall"
+	"time"
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
 // routes from a passed mongo database.
 type Router struct {
-	mux         *triemux.Mux
-	mongoUrl    string
-	mongoDbName string
+	mux                   *triemux.Mux
+	mongoUrl              string
+	mongoDbName           string
+	backendConnectTimeout time.Duration
+	backendHeaderTimeout  time.Duration
 }
 
 type Backend struct {
@@ -33,12 +39,26 @@ type Route struct {
 
 // NewRouter returns a new empty router instance. You will still need to call
 // ReloadRoutes() to do the initial route load.
-func NewRouter(mongoUrl, mongoDbName string) *Router {
-	return &Router{
-		mux:         triemux.NewMux(),
-		mongoUrl:    mongoUrl,
-		mongoDbName: mongoDbName,
+func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout string) (rt *Router, err error) {
+	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
+	if err != nil {
+		return nil, err
 	}
+	beHeaderTimeout, err := time.ParseDuration(backendHeaderTimeout)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("router: using backend connect timeout: %v", beConnTimeout)
+	log.Printf("router: using backend header timeout: %v", beHeaderTimeout)
+
+	rt = &Router{
+		mux:                   triemux.NewMux(),
+		mongoUrl:              mongoUrl,
+		mongoDbName:           mongoDbName,
+		backendConnectTimeout: beConnTimeout,
+		backendHeaderTimeout:  beHeaderTimeout,
+	}
+	return rt, nil
 }
 
 // ServeHTTP delegates responsibility for serving requests to the proxy mux
@@ -74,7 +94,7 @@ func (rt *Router) ReloadRoutes() {
 	log.Printf("router: reloading routes")
 	newmux := triemux.NewMux()
 
-	backends := loadBackends(db.C("backends"))
+	backends := rt.loadBackends(db.C("backends"))
 	loadRoutes(db.C("routes"), newmux, backends)
 
 	rt.mux = newmux
@@ -84,7 +104,7 @@ func (rt *Router) ReloadRoutes() {
 // loadBackends is a helper function which loads backends from the
 // passed mongo collection, constructs a Handler for each one, and returns
 // them in map keyed on the backend_id
-func loadBackends(c *mgo.Collection) (backends map[string]http.Handler) {
+func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Handler) {
 	backend := &Backend{}
 	backends = make(map[string]http.Handler)
 
@@ -98,7 +118,7 @@ func loadBackends(c *mgo.Collection) (backends map[string]http.Handler) {
 			continue
 		}
 
-		backends[backend.BackendId] = newBackendReverseProxy(backendUrl)
+		backends[backend.BackendId] = newBackendReverseProxy(backendUrl, rt.backendConnectTimeout, rt.backendHeaderTimeout)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -141,9 +161,9 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	}
 }
 
-func newBackendReverseProxy(backendUrl *url.URL) (proxy *httputil.ReverseProxy) {
+func newBackendReverseProxy(backendUrl *url.URL, connectTimeout, headerTimeout time.Duration) (proxy *httputil.ReverseProxy) {
 	proxy = httputil.NewSingleHostReverseProxy(backendUrl)
-	proxy.Transport = newBackendTransport()
+	proxy.Transport = newBackendTransport(connectTimeout, headerTimeout)
 
 	defaultDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
@@ -176,11 +196,16 @@ func populateViaHeader(header http.Header, httpVersion string) {
 // Construct a backendTransport that wraps an http.Transport and implements http.RoundTripper.
 // This allows us to intercept the response from the backend and modify it before it's copied
 // back to the client.
-func newBackendTransport() (transport *backendTransport) {
+func newBackendTransport(connectTimeout, headerTimeout time.Duration) (transport *backendTransport) {
 	transport = &backendTransport{&http.Transport{}}
+
+	transport.wrapped.Dial = func(network, address string) (net.Conn, error) {
+		return net.DialTimeout(network, address, connectTimeout)
+	}
 	// Allow the proxy to keep more than the default (2) keepalive connections
 	// per upstream.
 	transport.wrapped.MaxIdleConnsPerHost = 20
+	transport.wrapped.ResponseHeaderTimeout = headerTimeout
 	return
 }
 
@@ -190,6 +215,28 @@ type backendTransport struct {
 
 func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	resp, err = bt.wrapped.RoundTrip(req)
-	populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
+	if err == nil {
+		populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
+	} else {
+		// Intercept timeout errors and generate an HTTP error response
+		switch typedError := err.(type) {
+		case *net.OpError:
+			if typedError.Timeout() {
+				return newErrorResponse(504), nil
+			} else if typedError.Err == syscall.ECONNREFUSED {
+				return newErrorResponse(502), nil
+			}
+		default:
+			if err.Error() == "net/http: timeout awaiting response headers" {
+				return newErrorResponse(504), nil
+			}
+		}
+	}
+	return
+}
+
+func newErrorResponse(status int) (resp *http.Response) {
+	resp = &http.Response{StatusCode: status}
+	resp.Body = ioutil.NopCloser(strings.NewReader(""))
 	return
 }

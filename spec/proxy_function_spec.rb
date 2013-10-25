@@ -11,6 +11,15 @@ describe "functioning as a reverse proxy" do
     reload_routes
   end
 
+  it "should return 502 if the connection to the backend is refused" do
+    add_backend "not-running", "http://localhost:3164/"
+    add_backend_route "/not-running", "not-running"
+    reload_routes
+
+    response = router_request("/not-running")
+    expect(response.code).to eq(502)
+  end
+
   describe "header handling" do
     it "should pass through most http headers to the backend" do
       response = HTTPClient.get(router_url("/foo"), :header => {
