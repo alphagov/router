@@ -24,4 +24,16 @@ describe "Redirection" do
       expect(response.code).to eq(302)
     end
   end
+
+  describe "prefix redirects" do
+    before :each do
+      add_redirect_route("/foo", "/bar", :prefix => true)
+      reload_routes
+    end
+
+    it "should skip prefix routes" do
+      response = router_request("/foo")
+      expect(response.code).to eq(404)
+    end
+  end
 end
