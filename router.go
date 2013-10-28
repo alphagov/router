@@ -31,6 +31,8 @@ type Route struct {
 	RouteType    string `bson:"route_type"`
 	Handler      string `bson:"handler"`
 	BackendId    string `bson:"backend_id"`
+	RedirectTo   string `bson:"redirect_to"`
+	RedirectType string `bson:"redirect_type"`
 }
 
 // NewRouter returns a new empty router instance. You will still need to call
@@ -144,6 +146,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			mux.Handle(route.IncomingPath, prefix, handler)
 			log.Printf("router: registered %s (prefix: %v) for %s",
 				route.IncomingPath, prefix, route.BackendId)
+		case "redirect":
+			redirectTemporarily := (route.RedirectType == "temporary")
+			handler := handlers.NewRedirectHandler(route.RedirectTo, redirectTemporarily)
+			mux.Handle(route.IncomingPath, false, handler)
+			log.Printf("router: registered %s -> %s",
+				route.IncomingPath, route.RedirectTo)
 		default:
 			log.Printf("router: found route %+v with unknown handler type "+
 				"%s, skipping!", route, route.Handler)
