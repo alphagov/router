@@ -64,7 +64,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	rout, err := NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout)
+	rout, err := NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout, "/tmp/router.error.json")
 	if err != nil {
 		log.Fatal(err)
 	}

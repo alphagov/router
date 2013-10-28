@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/alphagov/router/handlers"
+	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
 	"labix.org/v2/mgo"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 )
 
@@ -19,6 +21,7 @@ type Router struct {
 	mongoDbName           string
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
+	logger                *logger.Logger
 }
 
 type Backend struct {
@@ -37,7 +40,7 @@ type Route struct {
 
 // NewRouter returns a new empty router instance. You will still need to call
 // ReloadRoutes() to do the initial route load.
-func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout string) (rt *Router, err error) {
+func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
 	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
 	if err != nil {
 		return nil, err
@@ -49,12 +52,19 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	log.Printf("router: using backend connect timeout: %v", beConnTimeout)
 	log.Printf("router: using backend header timeout: %v", beHeaderTimeout)
 
+	logFile, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("router: logging errors as JSON to %v", logFileName)
+
 	rt = &Router{
 		mux:                   triemux.NewMux(),
 		mongoUrl:              mongoUrl,
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
+		logger:                logger.New(logFile),
 	}
 	return rt, nil
 }
@@ -66,6 +76,7 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if r := recover(); r != nil {
 			log.Println("router: recovered from panic in ServeHTTP:", r)
 			w.WriteHeader(http.StatusInternalServerError)
+			rt.logger.Log(&map[string]interface{}{"error": fmt.Sprintf("panic: %v", r), "status": 500})
 		}
 	}()
 
