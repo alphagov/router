@@ -17,6 +17,10 @@ module RoutesHelpers
     }))
   end
 
+  def add_redirect(path, options = {})
+    RoutesHelpers.db["routes"].insert ({"incoming_path" => path}).merge(options)
+  end
+
   def clear_routes
     RoutesHelpers.db["backends"].remove
     RoutesHelpers.db["routes"].remove
