@@ -4,8 +4,8 @@ describe "Redirection" do
 
   describe "simple exact redirect" do
     before :each do
-      add_route("/foo", :redirect_to => '/bar', :handler => 'redirect')
-      add_route("/foo-temp", :redirect_to => '/bar', :handler => 'redirect', :redirect_type => 'temporary')
+      add_redirect_route("/foo", "/bar")
+      add_redirect_route("/foo-temp", "/bar", :redirect_type => 'temporary')
       reload_routes
     end
 
