@@ -62,6 +62,13 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 // ServeHTTP delegates responsibility for serving requests to the proxy mux
 // instance for this router.
 func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("router: recovered from panic in ServeHTTP:", r)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}()
+
 	rt.mux.ServeHTTP(w, r)
 }
 
@@ -156,6 +163,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			mux.Handle(route.IncomingPath, false, handler)
 			log.Printf("router: registered %s -> %s",
 				route.IncomingPath, route.RedirectTo)
+		case "boom":
+			// Special handler so that we can test failure behaviour.
+			mux.Handle(route.IncomingPath, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				panic("Boom!!!")
+			}))
+			log.Printf("router: registered %s (prefix: %v) -> Boom!!!", route.IncomingPath, prefix)
 		default:
 			log.Printf("router: found route %+v with unknown handler type "+
 				"%s, skipping!", route, route.Handler)
