@@ -27,18 +27,30 @@ type jsonLogger struct {
 	writer io.Writer
 }
 
+// New creates a new Logger.   The output variable sets the
+// destination to which log data will be written.  This can be
+// either an io.Writer, or a string.  With the latter, this is either
+// one of "STDOUT" or "STDERR", or the path to the file to log to.
 func New(output interface{}) (logger Logger, err error) {
 	l := &jsonLogger{}
+	l.writer, err = openWriter(output)
+	if err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
+func openWriter(output interface{}) (w io.Writer, err error) {
 	switch out := output.(type) {
 	case io.Writer:
-		l.writer = out
+		w = out
 	case string:
 		if out == "STDERR" {
-			l.writer = os.Stderr
+			w = os.Stderr
 		} else if out == "STDOUT" {
-			l.writer = os.Stdout
+			w = os.Stdout
 		} else {
-			l.writer, err = os.OpenFile(out, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+			w, err = os.OpenFile(out, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 			if err != nil {
 				return nil, err
 			}
@@ -46,7 +58,7 @@ func New(output interface{}) (logger Logger, err error) {
 	default:
 		return nil, fmt.Errorf("Invalid output type %T(%v)", output, output)
 	}
-	return l, nil
+	return
 }
 
 func (l *jsonLogger) writeLine(line []byte) (err error) {
