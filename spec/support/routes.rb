@@ -13,6 +13,10 @@ module RoutesHelpers
     add_route path, options.merge(:handler => "redirect", :redirect_to => redirect_to)
   end
 
+  def add_gone_route(path, options = {})
+    add_route path, options.merge(:handler => "gone")
+  end
+
   def add_route(path, attrs = {})
     route_type = attrs.delete(:prefix) ? 'prefix' : 'exact'
     RoutesHelpers.db["routes"].insert(attrs.merge({
