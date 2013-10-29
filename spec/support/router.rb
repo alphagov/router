@@ -75,7 +75,7 @@ module RouterHelpers
         :chdir => repo_root,
         :pgroup => true
       }
-      spawn_args.merge!(:out => "/dev/null", :err => "/dev/null") unless options[:debug]
+      spawn_args.merge!(:out => "/dev/null", :err => "/dev/null") unless ENV['DEBUG_ROUTER']
 
       pid = spawn(env, *command, spawn_args)
 
