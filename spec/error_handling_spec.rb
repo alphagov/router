@@ -21,6 +21,7 @@ describe "error handling" do
         "error" => "panic: Boom!!!",
         "status" => 500,
       })
+      expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
     end
   end
 end
