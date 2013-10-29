@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 )
 
@@ -21,7 +20,7 @@ type Router struct {
 	mongoDbName           string
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
-	logger                *logger.Logger
+	logger                logger.Logger
 }
 
 type Backend struct {
@@ -52,7 +51,7 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	log.Printf("router: using backend connect timeout: %v", beConnTimeout)
 	log.Printf("router: using backend header timeout: %v", beHeaderTimeout)
 
-	logFile, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0)
+	l, err := logger.New(logFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
-		logger:                logger.New(logFile),
+		logger:                l,
 	}
 	return rt, nil
 }

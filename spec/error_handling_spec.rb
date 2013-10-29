@@ -16,7 +16,7 @@ describe "error handling" do
     it "should log the fact" do
       response = router_request("/boom")
 
-      log_details = last_error_log_details
+      log_details = last_router_error_log_entry
       expect(log_details["@fields"]).to eq({
         "error" => "panic: Boom!!!",
         "status" => 500,

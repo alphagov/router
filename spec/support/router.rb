@@ -1,4 +1,6 @@
 require 'httpclient'
+require 'tempfile'
+require 'json'
 
 module RouterHelpers
 
@@ -18,6 +20,21 @@ module RouterHelpers
 
   def router_request(path, options = {})
     HTTPClient.get(router_url(path, options[:port]))
+  end
+
+  LOGFILE = Tempfile.new("router_error_log")
+
+  def last_router_error_log_line
+    LOGFILE.readlines.last
+  end
+
+  def last_router_error_log_entry
+    JSON.parse(last_router_error_log_line)
+  end
+
+  def reset_router_error_log
+    LOGFILE.rewind
+    LOGFILE.truncate(0)
   end
 
   class << self
@@ -43,6 +60,7 @@ module RouterHelpers
         "ROUTER_PUBADDR"  => ":#{port}",
         "ROUTER_APIADDR"  => ":#{api_port}",
         "ROUTER_MONGO_DB" => "router_test",
+        "ROUTER_ERROR_LOG" => LOGFILE.path,
       }.merge(extra_env)
 
       if ENV['USE_COMPILED_ROUTER']
@@ -107,4 +125,7 @@ RSpec.configuration.include(RouterHelpers)
 RSpec.configuration.before(:suite) do
   RouterHelpers.init
   RouterHelpers.start_router(:verbose => true)
+end
+RSpec.configuration.before :each do
+  reset_router_error_log
 end
