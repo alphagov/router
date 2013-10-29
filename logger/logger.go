@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -23,8 +22,8 @@ type logEntry struct {
 }
 
 type jsonLogger struct {
-	mu     sync.Mutex
 	writer io.Writer
+	lines  chan *[]byte
 }
 
 // New creates a new Logger.   The output variable sets the
@@ -37,6 +36,8 @@ func New(output interface{}) (logger Logger, err error) {
 	if err != nil {
 		return nil, err
 	}
+	l.lines = make(chan *[]byte, 100)
+	go l.writeLoop()
 	return l, nil
 }
 
@@ -61,11 +62,19 @@ func openWriter(output interface{}) (w io.Writer, err error) {
 	return
 }
 
-func (l *jsonLogger) writeLine(line []byte) (err error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	_, err = l.writer.Write(append(line, 10))
-	return
+func (l *jsonLogger) writeLoop() {
+	for {
+		line := <-l.lines
+		_, err := l.writer.Write(*line)
+		if err != nil {
+			log.Printf("router: Error writing to error log: %v", err)
+		}
+	}
+}
+
+func (l *jsonLogger) writeLine(line []byte) {
+	line = append(line, 10) // Append a newline
+	l.lines <- &line
 }
 
 func (l *jsonLogger) Log(fields map[string]interface{}) {
@@ -74,8 +83,7 @@ func (l *jsonLogger) Log(fields map[string]interface{}) {
 	if err != nil {
 		log.Printf("router/logger: Error encoding JSON: %v", err)
 	}
-	err = l.writeLine(line)
-	return
+	l.writeLine(line)
 }
 
 func (l *jsonLogger) LogFromClientRequest(fields map[string]interface{}, req *http.Request) {
