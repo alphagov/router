@@ -70,16 +70,16 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 
 // ServeHTTP delegates responsibility for serving requests to the proxy mux
 // instance for this router.
-func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("router: recovered from panic in ServeHTTP:", r)
+			rt.logger.LogFromClientRequest(map[string]interface{}{"error": fmt.Sprintf("panic: %v", r), "status": 500}, req)
 			w.WriteHeader(http.StatusInternalServerError)
-			rt.logger.Log(&map[string]interface{}{"error": fmt.Sprintf("panic: %v", r), "status": 500})
 		}
 	}()
 
-	rt.mux.ServeHTTP(w, r)
+	rt.mux.ServeHTTP(w, req)
 }
 
 // ReloadRoutes reloads the routes for this Router instance on the fly. It will

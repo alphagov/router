@@ -26,12 +26,11 @@ describe "functioning as a reverse proxy" do
       log_details = last_router_error_log_entry
       expect(log_details["@fields"]).to eq({
         "error" => "dial tcp 127.0.0.1:3164: connection refused",
-        #"remote_addr" => "127.0.0.1",
-        #"request" => "GET /not-running HTTP/1.1",
-        #"request_method" => "GET",
+        "request" => "GET /not-running HTTP/1.1",
+        "request_method" => "GET",
         "status" => 502,
-        #"upstream_addr" => "localhost:3164",
-        #"varnish_id" => "12345678",
+        "upstream_addr" => "localhost:3164",
+        "varnish_id" => "12345678",
       })
       expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
     end
@@ -54,7 +53,9 @@ describe "functioning as a reverse proxy" do
         end
 
         start = Time.now
-        response = router_request("/blocked", :port => 3167)
+        response = HTTPClient.get(router_url("/blocked", 3167), :header => {
+          "X-Varnish" => "12341111",
+        })
         duration = Time.now - start
 
         expect(response.code).to eq(504)
@@ -63,12 +64,11 @@ describe "functioning as a reverse proxy" do
         log_details = last_router_error_log_entry
         expect(log_details["@fields"]).to eq({
           "error" => "dial tcp 127.0.0.1:3170: i/o timeout",
-          #"remote_addr" => "127.0.0.1",
-          #"request" => "GET /not-running HTTP/1.1",
-          #"request_method" => "GET",
+          "request" => "GET /blocked HTTP/1.1",
+          "request_method" => "GET",
           "status" => 504,
-          #"upstream_addr" => "localhost:3164",
-          #"varnish_id" => "12345678",
+          "upstream_addr" => "localhost:3170",
+          "varnish_id" => "12341111",
         })
         expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
       end
@@ -88,18 +88,19 @@ describe "functioning as a reverse proxy" do
       end
 
       it "should log and return a 504 if a backend takes longer than the configured response timeout to start returning a response" do
-        response = router_request("/tarpit1", :port => 3167)
+        response = HTTPClient.get(router_url("/tarpit1", 3167), :header => {
+          "X-Varnish" => "12341112",
+        })
         expect(response.code).to eq(504)
 
         log_details = last_router_error_log_entry
         expect(log_details["@fields"]).to eq({
           "error" => "net/http: timeout awaiting response headers",
-          #"remote_addr" => "127.0.0.1",
-          #"request" => "GET /not-running HTTP/1.1",
-          #"request_method" => "GET",
+          "request" => "GET /tarpit1 HTTP/1.1",
+          "request_method" => "GET",
           "status" => 504,
-          #"upstream_addr" => "localhost:3164",
-          #"varnish_id" => "12345678",
+          "upstream_addr" => "localhost:3160",
+          "varnish_id" => "12341112",
         })
         expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
       end

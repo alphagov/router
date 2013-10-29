@@ -19,7 +19,10 @@ describe "error handling" do
       log_details = last_router_error_log_entry
       expect(log_details["@fields"]).to eq({
         "error" => "panic: Boom!!!",
+        "request" => "GET /boom HTTP/1.1",
+        "request_method" => "GET",
         "status" => 500,
+        "varnish_id" => "",
       })
       expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
     end

@@ -5,18 +5,21 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 	"time"
 )
 
 type Logger interface {
-	Log(fields *map[string]interface{})
+	Log(fields map[string]interface{})
+	LogFromClientRequest(fields map[string]interface{}, req *http.Request)
+	LogFromBackendRequest(fields map[string]interface{}, req *http.Request)
 }
 
 type logEntry struct {
-	Timestamp time.Time               `json:"@timestamp"`
-	Fields    *map[string]interface{} `json:"@fields"`
+	Timestamp time.Time              `json:"@timestamp"`
+	Fields    map[string]interface{} `json:"@fields"`
 }
 
 type jsonLogger struct {
@@ -53,7 +56,7 @@ func (l *jsonLogger) writeLine(line []byte) (err error) {
 	return
 }
 
-func (l *jsonLogger) Log(fields *map[string]interface{}) {
+func (l *jsonLogger) Log(fields map[string]interface{}) {
 	entry := &logEntry{time.Now(), fields}
 	line, err := json.Marshal(entry)
 	if err != nil {
@@ -61,4 +64,20 @@ func (l *jsonLogger) Log(fields *map[string]interface{}) {
 	}
 	err = l.writeLine(line)
 	return
+}
+
+func (l *jsonLogger) LogFromClientRequest(fields map[string]interface{}, req *http.Request) {
+	fields["request_method"] = req.Method
+	fields["request"] = fmt.Sprintf("%s %s %s", req.Method, req.RequestURI, req.Proto)
+	fields["varnish_id"] = req.Header.Get("X-Varnish")
+
+	l.Log(fields)
+}
+
+func (l *jsonLogger) LogFromBackendRequest(fields map[string]interface{}, req *http.Request) {
+	// The request at this point is the request to the backend, not the original client request,
+	// hence the backend host details are in the req.Host field
+	fields["upstream_addr"] = req.Host
+
+	l.LogFromClientRequest(fields, req)
 }
