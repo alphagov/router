@@ -76,7 +76,7 @@ The `routes` collection uses the following data structure:
   "_id"           : ObjectId(),
   "route_type"    : ["prefix","exact"],
   "incoming_path" : "/url-path/here",
-  "handler"       : ["backend", "redirect"],
+  "handler"       : ["backend", "redirect", "gone"],
 }
 ```
 
@@ -106,6 +106,10 @@ extra fields are supported:
   "redirect_type" : ["permanent", "temporary"]
 }
 ```
+
+#### `gone` handler
+
+The `gone` handler causes the Router to return a 410 response.
 
 ### Backends
 
