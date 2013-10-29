@@ -11,14 +11,28 @@ describe "functioning as a reverse proxy" do
     reload_routes
   end
 
-  describe "connectiong to the backend" do
-    it "should return 502 if the connection to the backend is refused" do
+  describe "connecting to the backend" do
+
+    it "should log and return 502 if the connection to the backend is refused" do
       add_backend "not-running", "http://localhost:3164/"
       add_backend_route "/not-running", "not-running"
       reload_routes
 
-      response = router_request("/not-running")
+      response = HTTPClient.get(router_url("/not-running"), :header => {
+        "X-Varnish" => "12345678",
+      })
       expect(response.code).to eq(502)
+
+      log_details = last_router_error_log_entry
+      expect(log_details["@fields"]).to eq({
+        "error" => "dial tcp 127.0.0.1:3164: connection refused",
+        "request" => "GET /not-running HTTP/1.1",
+        "request_method" => "GET",
+        "status" => 502,
+        "upstream_addr" => "localhost:3164",
+        "varnish_id" => "12345678",
+      })
+      expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
     end
 
     describe "handling connect timeout" do
@@ -33,17 +47,30 @@ describe "functioning as a reverse proxy" do
         reload_routes(3166)
       end
 
-      it "should return a 504 if the connection times out in the configured time" do
+      it "should log and return a 504 if the connection times out in the configured time" do
         unless ENV["RUN_FIREWALL_DEPENDENT_TESTS"]
           pending "Need firewall block rule"
         end
 
         start = Time.now
-        response = router_request("/blocked", :port => 3167)
+        response = HTTPClient.get(router_url("/blocked", 3167), :header => {
+          "X-Varnish" => "12341111",
+        })
         duration = Time.now - start
 
         expect(response.code).to eq(504)
         expect(duration).to be_within(0.11).of(0.4) # Expect between 0.29 and 0.51
+
+        log_details = last_router_error_log_entry
+        expect(log_details["@fields"]).to eq({
+          "error" => "dial tcp 127.0.0.1:3170: i/o timeout",
+          "request" => "GET /blocked HTTP/1.1",
+          "request_method" => "GET",
+          "status" => 504,
+          "upstream_addr" => "localhost:3170",
+          "varnish_id" => "12341111",
+        })
+        expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
       end
     end
 
@@ -60,9 +87,22 @@ describe "functioning as a reverse proxy" do
         reload_routes(3166)
       end
 
-      it "should return a 504 if a backend takes longer than the configured response timeout to start returning a response" do
-        response = router_request("/tarpit1", :port => 3167)
+      it "should log and return a 504 if a backend takes longer than the configured response timeout to start returning a response" do
+        response = HTTPClient.get(router_url("/tarpit1", 3167), :header => {
+          "X-Varnish" => "12341112",
+        })
         expect(response.code).to eq(504)
+
+        log_details = last_router_error_log_entry
+        expect(log_details["@fields"]).to eq({
+          "error" => "net/http: timeout awaiting response headers",
+          "request" => "GET /tarpit1 HTTP/1.1",
+          "request_method" => "GET",
+          "status" => 504,
+          "upstream_addr" => "localhost:3160",
+          "varnish_id" => "12341112",
+        })
+        expect(Time.parse(log_details["@timestamp"]).to_i).to be_within(5).of(Time.now.to_i)
       end
 
       it "should still return the response if the body takes longer than the header timeout" do

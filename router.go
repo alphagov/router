@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/alphagov/router/handlers"
+	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
 	"labix.org/v2/mgo"
 	"log"
@@ -19,6 +20,7 @@ type Router struct {
 	mongoDbName           string
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
+	logger                logger.Logger
 }
 
 type Backend struct {
@@ -37,7 +39,7 @@ type Route struct {
 
 // NewRouter returns a new empty router instance. You will still need to call
 // ReloadRoutes() to do the initial route load.
-func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout string) (rt *Router, err error) {
+func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
 	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
 	if err != nil {
 		return nil, err
@@ -49,20 +51,35 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	log.Printf("router: using backend connect timeout: %v", beConnTimeout)
 	log.Printf("router: using backend header timeout: %v", beHeaderTimeout)
 
+	l, err := logger.New(logFileName)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("router: logging errors as JSON to %v", logFileName)
+
 	rt = &Router{
 		mux:                   triemux.NewMux(),
 		mongoUrl:              mongoUrl,
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
+		logger:                l,
 	}
 	return rt, nil
 }
 
 // ServeHTTP delegates responsibility for serving requests to the proxy mux
 // instance for this router.
-func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	rt.mux.ServeHTTP(w, r)
+func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("router: recovered from panic in ServeHTTP:", r)
+			rt.logger.LogFromClientRequest(map[string]interface{}{"error": fmt.Sprintf("panic: %v", r), "status": 500}, req)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}()
+
+	rt.mux.ServeHTTP(w, req)
 }
 
 // ReloadRoutes reloads the routes for this Router instance on the fly. It will
@@ -116,7 +133,7 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 			continue
 		}
 
-		backends[backend.BackendId] = handlers.NewBackendHandler(backendUrl, rt.backendConnectTimeout, rt.backendHeaderTimeout)
+		backends[backend.BackendId] = handlers.NewBackendHandler(backendUrl, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -156,6 +173,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			mux.Handle(route.IncomingPath, false, handler)
 			log.Printf("router: registered %s -> %s",
 				route.IncomingPath, route.RedirectTo)
+		case "boom":
+			// Special handler so that we can test failure behaviour.
+			mux.Handle(route.IncomingPath, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				panic("Boom!!!")
+			}))
+			log.Printf("router: registered %s (prefix: %v) -> Boom!!!", route.IncomingPath, prefix)
 		default:
 			log.Printf("router: found route %+v with unknown handler type "+
 				"%s, skipping!", route, route.Handler)

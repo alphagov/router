@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/alphagov/router/logger"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -12,9 +13,9 @@ import (
 	"time"
 )
 
-func NewBackendHandler(backendUrl *url.URL, connectTimeout, headerTimeout time.Duration) http.Handler {
+func NewBackendHandler(backendUrl *url.URL, connectTimeout, headerTimeout time.Duration, logger logger.Logger) http.Handler {
 	proxy := httputil.NewSingleHostReverseProxy(backendUrl)
-	proxy.Transport = newBackendTransport(connectTimeout, headerTimeout)
+	proxy.Transport = newBackendTransport(connectTimeout, headerTimeout, logger)
 
 	defaultDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
@@ -46,13 +47,14 @@ func populateViaHeader(header http.Header, httpVersion string) {
 
 type backendTransport struct {
 	wrapped *http.Transport
+	logger  logger.Logger
 }
 
 // Construct a backendTransport that wraps an http.Transport and implements http.RoundTripper.
 // This allows us to intercept the response from the backend and modify it before it's copied
 // back to the client.
-func newBackendTransport(connectTimeout, headerTimeout time.Duration) (transport *backendTransport) {
-	transport = &backendTransport{&http.Transport{}}
+func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger logger.Logger) (transport *backendTransport) {
+	transport = &backendTransport{&http.Transport{}, logger}
 
 	transport.wrapped.Dial = func(network, address string) (net.Conn, error) {
 		return net.DialTimeout(network, address, connectTimeout)
@@ -69,16 +71,23 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 	if err == nil {
 		populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
 	} else {
+		// Log the error (deferred to allow special case error handling to add/change details)
+		logDetails := map[string]interface{}{"error": err.Error(), "status": 500}
+		defer bt.logger.LogFromBackendRequest(logDetails, req)
+
 		// Intercept timeout errors and generate an HTTP error response
 		switch typedError := err.(type) {
 		case *net.OpError:
 			if typedError.Timeout() {
+				logDetails["status"] = 504
 				return newErrorResponse(504), nil
 			} else if typedError.Err == syscall.ECONNREFUSED {
+				logDetails["status"] = 502
 				return newErrorResponse(502), nil
 			}
 		default:
 			if err.Error() == "net/http: timeout awaiting response headers" {
+				logDetails["status"] = 504
 				return newErrorResponse(504), nil
 			}
 		}
