@@ -1,13 +1,10 @@
 router
 ======
 
-This is an experimental HTTP(S) reverse proxy router built on top of
+This is a HTTP(S) reverse proxy router built on top of
 [`triemux`][tm]. It loads a routing table into memory from a MongoDB database,
 and acts as a reverse proxy, serving responses from multiple backend servers on
 a single domain.
-
-Please note that this project is at a very early stage of development, so
-probably shouldn't be used in production environments without extensive testing.
 
 [tm]: https://github.com/alphagov/router/tree/master/triemux
 
