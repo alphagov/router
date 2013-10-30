@@ -170,7 +170,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			log.Printf("router: registered %s (prefix: %v) -> %s",
 				route.IncomingPath, prefix, route.RedirectTo)
 		case "gone":
-			handler := http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusGone)
 			})
 			mux.Handle(route.IncomingPath, prefix, handler)
