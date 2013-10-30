@@ -28,12 +28,20 @@ describe "Redirection" do
   describe "prefix redirects" do
     before :each do
       add_redirect_route("/foo", "/bar", :prefix => true)
+      add_redirect_route("/foo-temp", "/bar-temp", :prefix => true, :redirect_type => 'temporary')
       reload_routes
     end
 
-    it "should skip prefix routes" do
+    it "should redirect permanently to the destination" do
       response = router_request("/foo")
-      expect(response.code).to eq(404)
+      expect(response.code).to eq(301)
+      expect(response.headers['Location']).to eq("/bar")
+    end
+
+    it "should redirect temporarily to the destination when asked to" do
+      response = router_request("/foo-temp")
+      expect(response.code).to eq(302)
+      expect(response.headers['Location']).to eq("/bar-temp")
     end
   end
 end
