@@ -164,17 +164,13 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			log.Printf("router: registered %s (prefix: %v) for %s",
 				route.IncomingPath, prefix, route.BackendId)
 		case "redirect":
-			if prefix {
-				log.Printf("router: found redirect route %+v which is a prefix route, skipping!", route)
-				continue
-			}
 			redirectTemporarily := (route.RedirectType == "temporary")
-			handler := handlers.NewRedirectHandler(route.RedirectTo, redirectTemporarily)
-			mux.Handle(route.IncomingPath, false, handler)
-			log.Printf("router: registered %s -> %s",
-				route.IncomingPath, route.RedirectTo)
+			handler := handlers.NewRedirectHandler(route.IncomingPath, route.RedirectTo, prefix, redirectTemporarily)
+			mux.Handle(route.IncomingPath, prefix, handler)
+			log.Printf("router: registered %s (prefix: %v) -> %s",
+				route.IncomingPath, prefix, route.RedirectTo)
 		case "gone":
-			handler := http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusGone)
 			})
 			mux.Handle(route.IncomingPath, prefix, handler)
