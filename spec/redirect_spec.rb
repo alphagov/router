@@ -23,6 +23,11 @@ describe "Redirection" do
       response = router_request("/foo-temp")
       expect(response.code).to eq(302)
     end
+
+    it "should not preserve the query string" do
+      response = router_request("/foo?baz=qux")
+      expect(response.headers['Location']).to eq("/bar")
+    end
   end
 
   describe "prefix redirects" do
@@ -42,6 +47,16 @@ describe "Redirection" do
       response = router_request("/foo-temp")
       expect(response.code).to eq(302)
       expect(response.headers['Location']).to eq("/bar-temp")
+    end
+
+    it "should preserve extra path sections when redirecting" do
+      response = router_request("/foo/baz")
+      expect(response.headers['Location']).to eq("/bar/baz")
+    end
+
+    it "should preserve the query string when redirecting" do
+      response = router_request("/foo?baz=qux")
+      expect(response.headers['Location']).to eq("/bar?baz=qux")
     end
   end
 end

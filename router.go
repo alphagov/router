@@ -165,7 +165,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 				route.IncomingPath, prefix, route.BackendId)
 		case "redirect":
 			redirectTemporarily := (route.RedirectType == "temporary")
-			handler := handlers.NewRedirectHandler(route.RedirectTo, redirectTemporarily)
+			handler := handlers.NewRedirectHandler(route.IncomingPath, route.RedirectTo, prefix, redirectTemporarily)
 			mux.Handle(route.IncomingPath, prefix, handler)
 			log.Printf("router: registered %s (prefix: %v) -> %s",
 				route.IncomingPath, prefix, route.RedirectTo)
