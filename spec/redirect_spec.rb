@@ -59,4 +59,42 @@ describe "Redirection" do
       expect(response.headers['Location']).to eq("/bar?baz=qux")
     end
   end
+
+  describe "external redirects" do
+    before :each do
+      add_redirect_route("/foo", "http://foo.example.com/foo")
+      add_redirect_route("/bar", "http://bar.example.com/bar", :prefix => true)
+      reload_routes
+    end
+
+    describe "exact redirect" do
+      it "should redirect to the external URL" do
+        response = router_request("/foo")
+        expect(response.headers['Location']).to eq("http://foo.example.com/foo")
+      end
+
+      it "should not preserve the query string" do
+        response = router_request("/foo?bar=baz")
+        expect(response.headers['Location']).to eq("http://foo.example.com/foo")
+      end
+    end
+
+    describe "prefix redirect" do
+
+      it "should redirect to the external URL" do
+        response = router_request("/bar")
+        expect(response.headers['Location']).to eq("http://bar.example.com/bar")
+      end
+
+      it "should preserve the path" do
+        response = router_request("/bar/baz")
+        expect(response.headers['Location']).to eq("http://bar.example.com/bar/baz")
+      end
+
+      it "should preserve the query string" do
+        response = router_request("/bar?baz=qux")
+        expect(response.headers['Location']).to eq("http://bar.example.com/bar?baz=qux")
+      end
+    end
+  end
 end
