@@ -261,25 +261,32 @@ describe "Selecting a backend based on the routing data" do
   end
 
   describe "double slashes" do
-    start_backend_around_all :port => 3160, :identifier => "root"
-    start_backend_around_all :port => 3161, :identifier => "prefix"
+    start_backend_around_all :port => 3160, :identifier => "fallthrough"
+    start_backend_around_all :port => 3161, :type => :echo
 
     before :each do
-      add_backend("root", "http://localhost:3160/")
-      add_backend("prefix", "http://localhost:3161/")
-      add_backend_route("/", "root", :prefix => true)
-      add_backend_route("/foo/bar", "prefix", :prefix => true)
+      add_backend("fallthrough", "http://localhost:3160/")
+      add_backend("backend", "http://localhost:3161/")
+      add_backend_route("/", "fallthrough", :prefix => true)
+      add_backend_route("/foo/bar", "backend", :prefix => true)
       reload_routes
     end
 
-    it "should not be redirected by our test backend" do
+    it "should not be redirected by our simple test backend" do
       response = router_request("//")
-      expect(response).to have_response_body("root")
+      expect(response).to have_response_body("fallthrough")
     end
 
-    it "should collapse double slashes when looking up route" do
-      response = router_request("/foo//bar")
-      expect(response).to have_response_body("prefix")
+    it "should not be redirected by our echo test backend" do
+      resp = HTTPClient.get(router_url("/foo/bar/baz//qux"))
+      data = JSON.parse(resp.body)["Request"]
+      expect(data["RequestURI"]).to eq("/foo/bar/baz//qux")
+    end
+
+    it "should collapse double slashes when looking up route but pass request as-is" do
+      resp = HTTPClient.get(router_url("/foo//bar"))
+      data = JSON.parse(resp.body)["Request"]
+      expect(data["RequestURI"]).to eq("/foo//bar")
     end
   end
 end
