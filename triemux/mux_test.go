@@ -27,8 +27,9 @@ var splitExamples = []SplitExample{
 	{"/foo/bar", []string{"foo", "bar"}},
 	{"///foo/bar", []string{"foo", "bar"}},
 	{"foo/bar", []string{"foo", "bar"}},
-	{"/foo/bar/", []string{"foo", "bar", ""}},
-	{"/foo//bar/", []string{"foo", "", "bar", ""}},
+	{"/foo/bar/", []string{"foo", "bar"}},
+	{"/foo//bar/", []string{"foo", "bar"}},
+	{"/foo/////bar/", []string{"foo", "bar"}},
 }
 
 func TestSplitpath(t *testing.T) {

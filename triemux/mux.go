@@ -78,14 +78,17 @@ func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 }
 
 // splitpath turns a slash-delimited string into a lookup path (a slice
-// containing the strings between slashes). Any leading slashes are stripped
-// before the string is split.
+// containing the strings between slashes). Empty items produced by
+// leading, trailing, or adjacent slashes are removed.
 func splitpath(path string) []string {
-	for strings.HasPrefix(path, "/") {
-		path = path[1:]
+	partsWithBlanks := strings.Split(path, "/")
+
+	parts := make([]string, 0, len(partsWithBlanks))
+	for _, part := range partsWithBlanks {
+		if part != "" {
+			parts = append(parts, part)
+		}
 	}
-	if path == "" {
-		return []string{}
-	}
-	return strings.Split(path, "/")
+
+	return parts
 }
