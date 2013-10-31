@@ -2,6 +2,11 @@
 
 set -eu
 
+if [ `uname` == "Darwin" ]; then
+  echo "OSX readlink does not support the necessary functionality"
+  exit 1
+fi
+
 REPO_ROOT=$(dirname $(readlink -f ${BASH_SOURCE[0]}))
 cd $REPO_ROOT
 
