@@ -35,10 +35,8 @@ func echoResponse(w http.ResponseWriter, r *http.Request) {
 func main() {
 	flag.Parse()
 
-	http.HandleFunc("/", echoResponse)
-
 	addr := fmt.Sprintf(":%d", *port)
-	err := http.ListenAndServe(addr, nil)
+	err := http.ListenAndServe(addr, http.HandlerFunc(echoResponse))
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
