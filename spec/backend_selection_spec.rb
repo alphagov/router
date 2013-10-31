@@ -259,4 +259,27 @@ describe "Selecting a backend based on the routing data" do
       expect(response).to have_response_body("root backend")
     end
   end
+
+  describe "double slashes" do
+    start_backend_around_all :port => 3160, :identifier => "root"
+    start_backend_around_all :port => 3161, :identifier => "prefix"
+
+    before :each do
+      add_backend("root", "http://localhost:3160/")
+      add_backend("prefix", "http://localhost:3161/")
+      add_backend_route("/", "root", :prefix => true)
+      add_backend_route("/foo/bar", "prefix", :prefix => true)
+      reload_routes
+    end
+
+    it "should not be redirected by our test backend" do
+      response = router_request("//")
+      expect(response).to have_response_body("root")
+    end
+
+    it "should collapse double slashes when looking up route" do
+      response = router_request("/foo//bar")
+      expect(response).to have_response_body("prefix")
+    end
+  end
 end
