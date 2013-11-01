@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'open3'
+require 'pp'
 
 def vegeta(requests)
   rate = 1000
@@ -39,15 +40,18 @@ GET #{router_url("/one")}
 GET #{router_url("/two")}
 EOF
 
-    puts "95th percentile results."
-    direct_95th = direct['latencies']['95th'].to_f
-    router_95th = router['latencies']['95th'].to_f
+    results = {}
+    direct['latencies'].each_key do |key|
+      d = direct['latencies'][key].to_f
+      r = router['latencies'][key].to_f
+      results[key] = {
+        :direct => "%.2f us" % [d / 1000],
+        :router => "%.2f us" % [r / 1000],
+        :difference => "%.2f us" % [(r - d) / 1000],
+        :percentage => "%d%%" % [(r / d) * 100],
+      }
+    end
 
-    puts "direct: %.2f us" % [direct_95th / 1000]
-    puts "router: %.2f us" % [router_95th / 1000]
-
-    diff = router_95th - direct_95th
-    perc = (router_95th / direct_95th) * 100
-    puts "difference: %.2f us (%d%%)" % [diff / 1000, perc]
+    pp results
   end
 end
