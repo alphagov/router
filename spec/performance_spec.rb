@@ -18,6 +18,14 @@ describe "performance" do
       results_router = vegeta_request_stats([router_url("/one"), router_url("/two")])
 
       res = {
+        :router => results_router["status_codes"]["200"] || 0,
+        :direct => results_direct["status_codes"]["200"] || 0,
+      }
+      expect(results_router["requests"]).to eq(results_direct["requests"])
+      expect(res[:router]).to eq(results_router["requests"])
+      expect(res[:direct]).to eq(results_direct["requests"])
+
+      res = {
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
@@ -58,6 +66,14 @@ describe "performance" do
       )
 
       res = {
+        :router => results_router["status_codes"]["200"] || 0,
+        :direct => results_direct["status_codes"]["200"] || 0,
+      }
+      expect(results_router["requests"]).to eq(results_direct["requests"])
+      expect(res[:router]).to eq(results_router["requests"])
+      expect(res[:direct]).to eq(results_direct["requests"])
+
+      res = {
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
@@ -95,6 +111,14 @@ describe "performance" do
         [router_url("/one"), router_url("/two")],
         opts
       )
+
+      res = {
+        :router => results_router["status_codes"]["200"] || 0,
+        :direct => results_direct["status_codes"]["200"] || 0,
+      }
+      expect(results_router["requests"]).to eq(results_direct["requests"])
+      expect(res[:router]).to eq(results_router["requests"])
+      expect(res[:direct]).to eq(results_direct["requests"])
 
       res = {
         :direct => results_direct["latencies"],
