@@ -3,7 +3,7 @@ require 'open3'
 
 module VegetaHelpers
 
-  def vegeta_request_latency(urls, options = {})
+  def vegeta_request_stats(urls, options = {})
     urls = urls.map { |u| "GET #{u}" }.join("\n")
 
     attack_cmd = %w(vegeta attack)
@@ -18,7 +18,7 @@ module VegetaHelpers
       Open3.popen2(*report_cmd) {|report_in, report_out|
         report_in.puts attack_out.read
         report_in.close
-        json = JSON.parse(report_out.read)["latencies"]
+        json = JSON.parse(report_out.read)
       }
     }
 

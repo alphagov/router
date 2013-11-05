@@ -14,13 +14,17 @@ describe "performance" do
     end
 
     it "should not increase latency by more than twofold" do
-      results_direct = vegeta_request_latency(["http://localhost:3160/one", "http://localhost:3161/two"])
-      results_router = vegeta_request_latency([router_url("/one"), router_url("/two")])
+      results_direct = vegeta_request_stats(["http://localhost:3160/one", "http://localhost:3161/two"])
+      results_router = vegeta_request_stats([router_url("/one"), router_url("/two")])
 
-      expect(results_router["max"]).to  be_within(200).percent_of(results_direct["max"])
-      expect(results_router["mean"]).to be_within(200).percent_of(results_direct["mean"])
-      expect(results_router["95th"]).to be_within(200).percent_of(results_direct["95th"])
-      expect(results_router["99th"]).to be_within(200).percent_of(results_direct["99th"])
+      res = {
+        :direct => results_direct["latencies"],
+        :router => results_router["latencies"],
+      }
+      expect(res[:router]["max"]).to  be_within(200).percent_of(res[:direct]["max"])
+      expect(res[:router]["mean"]).to be_within(200).percent_of(res[:direct]["mean"])
+      expect(res[:router]["95th"]).to be_within(200).percent_of(res[:direct]["95th"])
+      expect(res[:router]["99th"]).to be_within(200).percent_of(res[:direct]["99th"])
     end
   end
 
@@ -44,19 +48,23 @@ describe "performance" do
     it "should not impact other backends" do
       opts = {:duration => "11s"}
 
-      results_direct = vegeta_request_latency(
+      results_direct = vegeta_request_stats(
         ["http://localhost:3160/one", "http://localhost:3161/two"],
         opts
       )
-      results_router = vegeta_request_latency(
+      results_router = vegeta_request_stats(
         [router_url("/one"), router_url("/two")],
         opts
       )
 
-      expect(results_router["max"]).to  be_within(200).percent_of(results_direct["max"])
-      expect(results_router["mean"]).to be_within(200).percent_of(results_direct["mean"])
-      expect(results_router["95th"]).to be_within(200).percent_of(results_direct["95th"])
-      expect(results_router["99th"]).to be_within(200).percent_of(results_direct["99th"])
+      res = {
+        :direct => results_direct["latencies"],
+        :router => results_router["latencies"],
+      }
+      expect(res[:router]["max"]).to  be_within(200).percent_of(res[:direct]["max"])
+      expect(res[:router]["mean"]).to be_within(200).percent_of(res[:direct]["mean"])
+      expect(res[:router]["95th"]).to be_within(200).percent_of(res[:direct]["95th"])
+      expect(res[:router]["99th"]).to be_within(200).percent_of(res[:direct]["99th"])
     end
   end
 
@@ -79,19 +87,23 @@ describe "performance" do
     it "should not be impacted by a missing backend" do
       opts = {:duration => "11s"}
 
-      results_direct = vegeta_request_latency(
+      results_direct = vegeta_request_stats(
         ["http://localhost:3160/one", "http://localhost:3161/two"],
         opts
       )
-      results_router = vegeta_request_latency(
+      results_router = vegeta_request_stats(
         [router_url("/one"), router_url("/two")],
         opts
       )
 
-      expect(results_router["max"]).to  be_within(200).percent_of(results_direct["max"])
-      expect(results_router["mean"]).to be_within(200).percent_of(results_direct["mean"])
-      expect(results_router["95th"]).to be_within(200).percent_of(results_direct["95th"])
-      expect(results_router["99th"]).to be_within(200).percent_of(results_direct["99th"])
+      res = {
+        :direct => results_direct["latencies"],
+        :router => results_router["latencies"],
+      }
+      expect(res[:router]["max"]).to  be_within(200).percent_of(res[:direct]["max"])
+      expect(res[:router]["mean"]).to be_within(200).percent_of(res[:direct]["mean"])
+      expect(res[:router]["95th"]).to be_within(200).percent_of(res[:direct]["95th"])
+      expect(res[:router]["99th"]).to be_within(200).percent_of(res[:direct]["99th"])
     end
   end
 end
