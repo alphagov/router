@@ -12,4 +12,4 @@ Read the documentation on [godoc.org][docs] for details of how to use `trie`.
 
 [trie]: https://en.wikipedia.org/wiki/Trie
 [go]: http://golang.org
-[docs]: http://godoc.org/github.com/nickstenning/trie
+[docs]: http://godoc.org/github.com/alphagov/router/trie
