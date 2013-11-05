@@ -4,7 +4,7 @@
 package triemux
 
 import (
-	"github.com/nickstenning/trie"
+	"github.com/alphagov/router/trie"
 	"log"
 	"net/http"
 	"strings"
