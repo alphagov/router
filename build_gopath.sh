@@ -15,5 +15,3 @@ mkdir -p $(dirname ${GOPATH_TMP}/src/${PROJECT_PATH})
 
 rm -f ${GOPATH_TMP}/src/${PROJECT_PATH}
 ln -s ../../../.. ${GOPATH_TMP}/src/${PROJECT_PATH}
-
-go get -v -d
