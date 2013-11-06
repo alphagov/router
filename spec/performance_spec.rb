@@ -1,6 +1,8 @@
 require 'spec_helper'
 
 describe "performance" do
+  ROUTER_LATENCY_THRESHOLD = 20_000_000 # 20 miliseconds in nanoseconds
+
   describe "two healthy backends" do
     start_backend_around_all :port => 3160, :identifier => "backend 1"
     start_backend_around_all :port => 3161, :identifier => "backend 2"
@@ -32,10 +34,10 @@ describe "performance" do
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
-      expect(res[:router]["max"]).to  be_within(200).percent_of(res[:direct]["max"])
-      expect(res[:router]["mean"]).to be_within(200).percent_of(res[:direct]["mean"])
-      expect(res[:router]["95th"]).to be_within(200).percent_of(res[:direct]["95th"])
-      expect(res[:router]["99th"]).to be_within(200).percent_of(res[:direct]["99th"])
+      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
+      expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
+      expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
+      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["99th"])
     end
   end
 
@@ -87,10 +89,10 @@ describe "performance" do
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
-      expect(res[:router]["max"]).to  be_within(200).percent_of(res[:direct]["max"])
-      expect(res[:router]["mean"]).to be_within(200).percent_of(res[:direct]["mean"])
-      expect(res[:router]["95th"]).to be_within(200).percent_of(res[:direct]["95th"])
-      expect(res[:router]["99th"]).to be_within(200).percent_of(res[:direct]["99th"])
+      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
+      expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
+      expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
+      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["99th"])
     end
   end
 
@@ -141,10 +143,10 @@ describe "performance" do
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
-      expect(res[:router]["max"]).to  be_within(200).percent_of(res[:direct]["max"])
-      expect(res[:router]["mean"]).to be_within(200).percent_of(res[:direct]["mean"])
-      expect(res[:router]["95th"]).to be_within(200).percent_of(res[:direct]["95th"])
-      expect(res[:router]["99th"]).to be_within(200).percent_of(res[:direct]["99th"])
+      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
+      expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
+      expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
+      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["99th"])
     end
   end
 end
