@@ -34,6 +34,9 @@ describe "performance" do
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
+      puts "\ntwo healthy backends latencies"
+      pp res
+
       expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
       expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
       expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
@@ -89,6 +92,9 @@ describe "performance" do
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
+      puts "\none slow backend latencies"
+      pp res
+
       expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
       expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
       expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
@@ -143,6 +149,9 @@ describe "performance" do
         :direct => results_direct["latencies"],
         :router => results_router["latencies"],
       }
+      puts "\none downed backend latencies"
+      pp res
+
       expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
       expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
       expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
