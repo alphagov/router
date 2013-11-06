@@ -14,8 +14,11 @@ describe "performance" do
     end
 
     it "should not increase latency by more than twofold" do
-      results_direct = vegeta_request_stats(["http://localhost:3160/one", "http://localhost:3161/two"])
-      results_router = vegeta_request_stats([router_url("/one"), router_url("/two")])
+      results_direct = results_router = nil
+      t1 = Thread.new { results_direct = vegeta_request_stats(["http://localhost:3160/one", "http://localhost:3161/two"]) }
+      t2 = Thread.new { results_router = vegeta_request_stats([router_url("/one"), router_url("/two")]) }
+      t1.join
+      t2.join
 
       res = {
         :router => results_router["status_codes"]["200"] || 0,
@@ -56,14 +59,21 @@ describe "performance" do
     it "should not impact other backends" do
       opts = {:duration => "11s"}
 
-      results_direct = vegeta_request_stats(
-        ["http://localhost:3160/one", "http://localhost:3161/two"],
-        opts
-      )
-      results_router = vegeta_request_stats(
-        [router_url("/one"), router_url("/two")],
-        opts
-      )
+      results_direct = results_router = nil
+      t1 = Thread.new do
+        results_direct = vegeta_request_stats(
+          ["http://localhost:3160/one", "http://localhost:3161/two"],
+          opts
+        )
+      end
+      t2 = Thread.new do
+        results_router = vegeta_request_stats(
+          [router_url("/one"), router_url("/two")],
+          opts
+        )
+      end
+      t1.join
+      t2.join
 
       res = {
         :router => results_router["status_codes"]["200"] || 0,
@@ -103,14 +113,21 @@ describe "performance" do
     it "should not be impacted by a missing backend" do
       opts = {:duration => "11s"}
 
-      results_direct = vegeta_request_stats(
-        ["http://localhost:3160/one", "http://localhost:3161/two"],
-        opts
-      )
-      results_router = vegeta_request_stats(
-        [router_url("/one"), router_url("/two")],
-        opts
-      )
+      results_direct = results_router = nil
+      t1 = Thread.new do
+        results_direct = vegeta_request_stats(
+          ["http://localhost:3160/one", "http://localhost:3161/two"],
+          opts
+        )
+      end
+      t2 = Thread.new do
+        results_router = vegeta_request_stats(
+          [router_url("/one"), router_url("/two")],
+          opts
+        )
+      end
+      t1.join
+      t2.join
 
       res = {
         :router => results_router["status_codes"]["200"] || 0,
