@@ -49,6 +49,25 @@ describe "performance" do
     end
 
     it_behaves_like "a performant router"
+
+    context "when the routes are being reloaded repeatedly" do
+      before :each do
+        @stop_reloading = false
+        @reload_thread = Thread.new do
+          until @stop_reloading
+            reload_routes
+            sleep 0.1
+          end
+        end
+      end
+
+      after :each do
+        @stop_reloading = true
+        @reload_thread.join
+      end
+
+      it_behaves_like "a performant router"
+    end
   end
 
   describe "one slow backend" do
