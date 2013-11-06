@@ -1,10 +1,14 @@
 router
 ======
 
-This is a HTTP(S) reverse proxy router built on top of
-[`triemux`][tm]. It loads a routing table into memory from a MongoDB database,
-and acts as a reverse proxy, serving responses from multiple backend servers on
-a single domain.
+This is a HTTP reverse proxy router built on top of [`triemux`][tm]. It
+loads a routing table into memory from a MongoDB database and acts as a:
+
+- Reverse proxy, forwarding requests to and serving responses from multiple
+  backend servers on a single domain.
+- Redirector, serving HTTP `301` and `302` redirects to new URLs.
+- Gone responder, serving HTTP `410` responses for resources that used to
+  but no longer exist.
 
 [tm]: https://github.com/alphagov/router/tree/master/triemux
 
