@@ -37,10 +37,10 @@ describe "performance" do
       puts "\ntwo healthy backends latencies"
       pp res
 
-      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
       expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
       expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
-      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["99th"])
+      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD * 2).of(res[:direct]["99th"])
+      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD * 2).of(res[:direct]["max"])
     end
   end
 
@@ -95,10 +95,10 @@ describe "performance" do
       puts "\none slow backend latencies"
       pp res
 
-      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
       expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
       expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
-      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["99th"])
+      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD * 2).of(res[:direct]["99th"])
+      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD * 2).of(res[:direct]["max"])
     end
   end
 
@@ -152,10 +152,10 @@ describe "performance" do
       puts "\none downed backend latencies"
       pp res
 
-      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["max"])
       expect(res[:router]["mean"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["mean"])
       expect(res[:router]["95th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["95th"])
-      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD).of(res[:direct]["99th"])
+      expect(res[:router]["99th"]).to be_within(ROUTER_LATENCY_THRESHOLD * 2).of(res[:direct]["99th"])
+      expect(res[:router]["max"]).to  be_within(ROUTER_LATENCY_THRESHOLD * 2).of(res[:direct]["max"])
     end
   end
 end
