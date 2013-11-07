@@ -93,5 +93,24 @@ describe "performance" do
 
       it_behaves_like "a performant router"
     end
+
+    describe "high request throughput", :ulimits => true do
+      it_behaves_like "a performant router", :rate => 3000
+    end
+  end
+
+  context "many concurrent (slow) connections", :ulimits => true do
+    start_backend_around_all :port => 3160, :type => :tarpit, "response-delay" => "1s"
+    start_backend_around_all :port => 3161, :type => :tarpit, "response-delay" => "1s"
+
+    before :each do
+      add_backend("backend-1", "http://localhost:3160/")
+      add_backend("backend-2", "http://localhost:3161/")
+      add_backend_route("/one", "backend-1")
+      add_backend_route("/two", "backend-1")
+      reload_routes
+    end
+
+    it_behaves_like "a performant router", :rate => 1000
   end
 end
