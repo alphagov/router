@@ -1,6 +1,8 @@
 package triemux
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -184,6 +186,27 @@ func testLookup(t *testing.T, ex LookupExample) {
 		if handler != c.handler {
 			t.Errorf("Expected lookup(%v) to map to handler %v, was %v", c.path, c.handler, handler)
 		}
+	}
+}
+
+
+func TestChecksum(t *testing.T) {
+	checksumExample := []Registration{
+		{"/", false, a},
+		{"/foo", false, a},
+		{"/bar", false, a},
+	}
+
+	mux := NewMux()
+	hash := sha1.New()
+	for _, reg := range checksumExample {
+		mux.Handle(reg.path, reg.prefix, reg.handler)
+		hash.Write([]byte(fmt.Sprintf("%s(%v)", reg.path, reg.prefix)))
+	}
+	expected := fmt.Sprintf("%x", hash.Sum(nil))
+	actual := fmt.Sprintf("%x", mux.Checksum())
+	if expected != actual {
+		t.Errorf("Expected checksum to be %s, was %s", expected, actual)
 	}
 }
 

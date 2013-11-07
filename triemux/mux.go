@@ -4,7 +4,9 @@
 package triemux
 
 import (
+	"crypto/sha1"
 	"github.com/alphagov/router/trie"
+	"hash"
 	"log"
 	"net/http"
 	"strings"
@@ -15,6 +17,7 @@ type Mux struct {
 	mu         sync.RWMutex
 	exactTrie  *trie.Trie
 	prefixTrie *trie.Trie
+	checksum   hash.Hash
 }
 
 type muxEntry struct {
@@ -24,7 +27,7 @@ type muxEntry struct {
 
 // NewMux makes a new empty Mux.
 func NewMux() *Mux {
-	return &Mux{exactTrie: trie.NewTrie(), prefixTrie: trie.NewTrie()}
+	return &Mux{exactTrie: trie.NewTrie(), prefixTrie: trie.NewTrie(), checksum: sha1.New()}
 }
 
 // ServeHTTP dispatches the request to a backend with a registered route
@@ -70,11 +73,25 @@ func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
+	mux.addToChecksum(path, prefix)
 	if prefix {
 		mux.prefixTrie.Set(splitpath(path), muxEntry{prefix, handler})
 	} else {
 		mux.exactTrie.Set(splitpath(path), muxEntry{prefix, handler})
 	}
+}
+
+func (mux *Mux) addToChecksum(path string, prefix bool) {
+	mux.checksum.Write([]byte(path))
+	if prefix {
+		mux.checksum.Write([]byte("(true)"))
+	} else {
+		mux.checksum.Write([]byte("(false)"))
+	}
+}
+
+func (mux *Mux) Checksum() []byte {
+	return mux.checksum.Sum(nil)
 }
 
 // splitpath turns a slash-delimited string into a lookup path (a slice

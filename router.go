@@ -113,7 +113,7 @@ func (rt *Router) ReloadRoutes() {
 	loadRoutes(db.C("routes"), newmux, backends)
 
 	rt.mux = newmux
-	log.Printf("router: reloaded routes")
+	log.Printf("router: reloaded routes (checksum: %x)", rt.mux.Checksum())
 }
 
 // loadBackends is a helper function which loads backends from the
@@ -148,7 +148,7 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Handler) {
 	route := &Route{}
 
-	iter := c.Find(nil).Iter()
+	iter := c.Find(nil).Sort("incoming_path", "route_type").Iter()
 
 	for iter.Next(&route) {
 		prefix := (route.RouteType == "prefix")
