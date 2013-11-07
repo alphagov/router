@@ -67,7 +67,7 @@ module RouterHelpers
         command = %w(./router)
       else
         print `#{repo_root}/build_gopath.sh`
-        command = %w(go run main.go router.go)
+        command = %w(go run main.go router.go router_api.go)
         env["GOPATH"] = "#{repo_root}/gopath.tmp:#{repo_root}/vendor"
       end
 
