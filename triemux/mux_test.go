@@ -189,22 +189,32 @@ func testLookup(t *testing.T, ex LookupExample) {
 	}
 }
 
+var statsExample = []Registration{
+	{"/", false, a},
+	{"/foo", true, a},
+	{"/bar", false, a},
+}
+
+func TestRouteCount(t *testing.T) {
+	mux := NewMux()
+	for _, reg := range statsExample {
+		mux.Handle(reg.path, reg.prefix, reg.handler)
+	}
+	actual := mux.RouteCount()
+	if actual != 3 {
+		t.Errorf("Expected count to be 3, was %d", actual)
+	}
+}
 
 func TestChecksum(t *testing.T) {
-	checksumExample := []Registration{
-		{"/", false, a},
-		{"/foo", false, a},
-		{"/bar", false, a},
-	}
-
 	mux := NewMux()
 	hash := sha1.New()
-	for _, reg := range checksumExample {
+	for _, reg := range statsExample {
 		mux.Handle(reg.path, reg.prefix, reg.handler)
 		hash.Write([]byte(fmt.Sprintf("%s(%v)", reg.path, reg.prefix)))
 	}
 	expected := fmt.Sprintf("%x", hash.Sum(nil))
-	actual := fmt.Sprintf("%x", mux.Checksum())
+	actual := fmt.Sprintf("%x", mux.RouteChecksum())
 	if expected != actual {
 		t.Errorf("Expected checksum to be %s, was %s", expected, actual)
 	}

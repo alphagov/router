@@ -17,6 +17,7 @@ type Mux struct {
 	mu         sync.RWMutex
 	exactTrie  *trie.Trie
 	prefixTrie *trie.Trie
+	count      int
 	checksum   hash.Hash
 }
 
@@ -73,7 +74,7 @@ func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	mux.addToChecksum(path, prefix)
+	mux.addToStats(path, prefix)
 	if prefix {
 		mux.prefixTrie.Set(splitpath(path), muxEntry{prefix, handler})
 	} else {
@@ -81,7 +82,8 @@ func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 	}
 }
 
-func (mux *Mux) addToChecksum(path string, prefix bool) {
+func (mux *Mux) addToStats(path string, prefix bool) {
+	mux.count++
 	mux.checksum.Write([]byte(path))
 	if prefix {
 		mux.checksum.Write([]byte("(true)"))
@@ -90,7 +92,11 @@ func (mux *Mux) addToChecksum(path string, prefix bool) {
 	}
 }
 
-func (mux *Mux) Checksum() []byte {
+func (mux *Mux) RouteCount() int {
+	return mux.count
+}
+
+func (mux *Mux) RouteChecksum() []byte {
 	return mux.checksum.Sum(nil)
 }
 

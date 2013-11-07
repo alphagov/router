@@ -113,7 +113,7 @@ func (rt *Router) ReloadRoutes() {
 	loadRoutes(db.C("routes"), newmux, backends)
 
 	rt.mux = newmux
-	log.Printf("router: reloaded routes (checksum: %x)", rt.mux.Checksum())
+	log.Printf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum())
 }
 
 // loadBackends is a helper function which loads backends from the
@@ -186,10 +186,16 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 				"%s, skipping!", route, route.Handler)
 			continue
 		}
-
 	}
 
 	if err := iter.Err(); err != nil {
 		panic(err)
 	}
+}
+
+func (rt *Router) RouteStats() (stats map[string]interface{}) {
+	stats = make(map[string]interface{})
+	stats["count"] = rt.mux.RouteCount()
+	stats["checksum"] = fmt.Sprintf("%x", rt.mux.RouteChecksum())
+	return
 }
