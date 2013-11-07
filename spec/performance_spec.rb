@@ -3,11 +3,13 @@ require 'spec_helper'
 describe "performance" do
   ROUTER_LATENCY_THRESHOLD = 20_000_000 # 20 miliseconds in nanoseconds
 
-  shared_examples "a performant router" do
+  shared_examples "a performant router" do |vegeta_opts|
+    vegeta_opts ||= {}
+
     it "should not significantly increase latency" do
       results_direct = results_router = nil
-      t1 = Thread.new { results_direct = vegeta_request_stats(["http://localhost:3160/one", "http://localhost:3161/two"]) }
-      t2 = Thread.new { results_router = vegeta_request_stats([router_url("/one"), router_url("/two")]) }
+      t1 = Thread.new { results_direct = vegeta_request_stats(["http://localhost:3160/one", "http://localhost:3161/two"], vegeta_opts) }
+      t2 = Thread.new { results_router = vegeta_request_stats([router_url("/one"), router_url("/two")], vegeta_opts) }
       t1.join
       t2.join
 
