@@ -33,18 +33,15 @@ describe "performance" do
     end
   end
 
-  start_backend_around_all :port => 3160, :identifier => "backend 1"
-  start_backend_around_all :port => 3161, :identifier => "backend 2"
+  context "two healthy backends" do
+    start_backend_around_all :port => 3160, :identifier => "backend 1"
+    start_backend_around_all :port => 3161, :identifier => "backend 2"
 
-  before :each do
-    add_backend("backend-1", "http://localhost:3160/")
-    add_backend("backend-2", "http://localhost:3161/")
-    add_backend_route("/one", "backend-1")
-    add_backend_route("/two", "backend-2")
-  end
-
-  describe "two healthy backends" do
     before :each do
+      add_backend("backend-1", "http://localhost:3160/")
+      add_backend("backend-2", "http://localhost:3161/")
+      add_backend_route("/one", "backend-1")
+      add_backend_route("/two", "backend-2")
       reload_routes
     end
 
@@ -68,31 +65,31 @@ describe "performance" do
 
       it_behaves_like "a performant router"
     end
-  end
 
-  describe "one slow backend" do
-    start_backend_around_all :port => 3162, :type => :tarpit, "response-delay" => "1s"
+    describe "one slow backend hit separately" do
+      start_backend_around_all :port => 3162, :type => :tarpit, "response-delay" => "1s"
 
-    before :each do
-      add_backend("backend-slow", "http://localhost:3162/")
-      add_backend_route("/slow", "backend-slow")
-      reload_routes
+      before :each do
+        add_backend("backend-slow", "http://localhost:3162/")
+        add_backend_route("/slow", "backend-slow")
+        reload_routes
+      end
+
+      start_vegeta_load_around_all("/slow")
+
+      it_behaves_like "a performant router"
     end
 
-    start_vegeta_load_around_all("/slow")
+    describe "one downed backend hit seperately" do
+      before :each do
+        add_backend("backend-down", "http://localhost:3162/")
+        add_backend_route("/down", "backend-down")
+        reload_routes
+      end
 
-    it_behaves_like "a performant router"
-  end
+      start_vegeta_load_around_all("/down")
 
-  describe "one downed backend" do
-    before :each do
-      add_backend("backend-down", "http://localhost:3162/")
-      add_backend_route("/down", "backend-down")
-      reload_routes
+      it_behaves_like "a performant router"
     end
-
-    start_vegeta_load_around_all("/down")
-
-    it_behaves_like "a performant router"
   end
 end
