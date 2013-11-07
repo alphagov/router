@@ -66,9 +66,7 @@ module RouterHelpers
       if ENV['USE_COMPILED_ROUTER']
         command = %w(./router)
       else
-        print `#{repo_root}/build_gopath.sh`
-        command = %w(go run main.go router.go router_api.go)
-        env["GOPATH"] = "#{repo_root}/gopath.tmp:#{repo_root}/vendor"
+        command = %w(./run_router.sh)
       end
 
       spawn_args = {
