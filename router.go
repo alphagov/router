@@ -155,7 +155,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		case "backend":
 			handler, ok := backends[route.BackendId]
 			if !ok {
-				logWarn(fmt.Sprintf("router: found route %+v which references unknown application "+
+				logWarn(fmt.Sprintf("router: found route %+v which references unknown backend "+
 					"%s, skipping!", route, route.BackendId))
 				continue
 			}
