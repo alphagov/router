@@ -16,6 +16,7 @@ var (
 	mongoUrl              = getenvDefault("ROUTER_MONGO_URL", "localhost")
 	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
+	enableDebugOutput     = getenvDefault("DEBUG", "") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "15s")
 )
@@ -49,6 +50,20 @@ func getenvDefault(key string, defaultVal string) string {
 	return val
 }
 
+func logWarn(msg ...interface{}) {
+	log.Println(msg...)
+}
+
+func logInfo(msg ...interface{}) {
+	log.Println(msg...)
+}
+
+func logDebug(msg ...interface{}) {
+	if enableDebugOutput {
+		log.Println(msg...)
+	}
+}
+
 func catchListenAndServe(addr string, handler http.Handler) {
 	err := http.ListenAndServe(addr, handler)
 	if err != nil {
@@ -61,7 +76,7 @@ func main() {
 		// Use all available cores if not otherwise specified
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
-	log.Printf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0))
+	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
 
 	flag.Usage = usage
 	flag.Parse()
@@ -73,11 +88,11 @@ func main() {
 	rout.ReloadRoutes()
 
 	go catchListenAndServe(pubAddr, rout)
-	log.Println("router: listening for requests on " + pubAddr)
+	logInfo("router: listening for requests on " + pubAddr)
 
 	api := newApiHandler(rout)
 	go catchListenAndServe(apiAddr, api)
-	log.Println("router: listening for refresh on " + apiAddr)
+	logInfo("router: listening for refresh on " + apiAddr)
 
 	<-dontQuit
 }

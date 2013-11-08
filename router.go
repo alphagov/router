@@ -6,7 +6,6 @@ import (
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
 	"labix.org/v2/mgo"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -48,14 +47,14 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("router: using backend connect timeout: %v", beConnTimeout)
-	log.Printf("router: using backend header timeout: %v", beHeaderTimeout)
+	logInfo("router: using backend connect timeout:", beConnTimeout)
+	logInfo("router: using backend header timeout:", beHeaderTimeout)
 
 	l, err := logger.New(logFileName)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("router: logging errors as JSON to %v", logFileName)
+	logInfo("router: logging errors as JSON to", logFileName)
 
 	rt = &Router{
 		mux:                   triemux.NewMux(),
@@ -73,7 +72,7 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("router: recovered from panic in ServeHTTP:", r)
+			logWarn("router: recovered from panic in ServeHTTP:", r)
 			rt.logger.LogFromClientRequest(map[string]interface{}{"error": fmt.Sprintf("panic: %v", r), "status": 500}, req)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
@@ -90,13 +89,13 @@ func (rt *Router) ReloadRoutes() {
 	oldmux := rt.mux
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("router: recovered from panic in ReloadRoutes:", r)
+			logWarn("router: recovered from panic in ReloadRoutes:", r)
 			rt.mux = oldmux
-			log.Println("router: original routes have been restored")
+			logInfo("router: original routes have been restored")
 		}
 	}()
 
-	log.Println("mgo: connecting to", rt.mongoUrl)
+	logDebug("mgo: connecting to", rt.mongoUrl)
 	sess, err := mgo.Dial(rt.mongoUrl)
 	if err != nil {
 		panic(fmt.Sprintln("mgo:", err))
@@ -106,14 +105,14 @@ func (rt *Router) ReloadRoutes() {
 
 	db := sess.DB(rt.mongoDbName)
 
-	log.Printf("router: reloading routes")
+	logInfo("router: reloading routes")
 	newmux := triemux.NewMux()
 
 	backends := rt.loadBackends(db.C("backends"))
 	loadRoutes(db.C("routes"), newmux, backends)
 
 	rt.mux = newmux
-	log.Printf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum())
+	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
 }
 
 // loadBackends is a helper function which loads backends from the
@@ -128,8 +127,8 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 	for iter.Next(&backend) {
 		backendUrl, err := url.Parse(backend.BackendURL)
 		if err != nil {
-			log.Printf("router: couldn't parse URL %s for backend %s "+
-				"(error: %v), skipping!", backend.BackendURL, backend.BackendId, err)
+			logWarn(fmt.Sprintf("router: couldn't parse URL %s for backend %s "+
+				"(error: %v), skipping!", backend.BackendURL, backend.BackendId, err))
 			continue
 		}
 
@@ -156,34 +155,34 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		case "backend":
 			handler, ok := backends[route.BackendId]
 			if !ok {
-				log.Printf("router: found route %+v which references unknown application "+
-					"%s, skipping!", route, route.BackendId)
+				logWarn(fmt.Sprintf("router: found route %+v which references unknown application "+
+					"%s, skipping!", route, route.BackendId))
 				continue
 			}
 			mux.Handle(route.IncomingPath, prefix, handler)
-			log.Printf("router: registered %s (prefix: %v) for %s",
-				route.IncomingPath, prefix, route.BackendId)
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
+				route.IncomingPath, prefix, route.BackendId))
 		case "redirect":
 			redirectTemporarily := (route.RedirectType == "temporary")
 			handler := handlers.NewRedirectHandler(route.IncomingPath, route.RedirectTo, prefix, redirectTemporarily)
 			mux.Handle(route.IncomingPath, prefix, handler)
-			log.Printf("router: registered %s (prefix: %v) -> %s",
-				route.IncomingPath, prefix, route.RedirectTo)
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
+				route.IncomingPath, prefix, route.RedirectTo))
 		case "gone":
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusGone)
 			})
 			mux.Handle(route.IncomingPath, prefix, handler)
-			log.Printf("router: registered %s (prefix: %v) -> Gone", route.IncomingPath, prefix)
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", route.IncomingPath, prefix))
 		case "boom":
 			// Special handler so that we can test failure behaviour.
 			mux.Handle(route.IncomingPath, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				panic("Boom!!!")
 			}))
-			log.Printf("router: registered %s (prefix: %v) -> Boom!!!", route.IncomingPath, prefix)
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Boom!!!", route.IncomingPath, prefix))
 		default:
-			log.Printf("router: found route %+v with unknown handler type "+
-				"%s, skipping!", route, route.Handler)
+			logWarn(fmt.Sprintf("router: found route %+v with unknown handler type "+
+				"%s, skipping!", route, route.Handler))
 			continue
 		}
 	}
