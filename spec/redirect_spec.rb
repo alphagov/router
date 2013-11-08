@@ -1,6 +1,8 @@
 require 'spec_helper'
+require 'time'
 
 describe "Redirection" do
+  CACHE_EXPIRES_PERIOD = 86_400 # 24 hours in seconds
 
   describe "simple exact redirect" do
     before :each do
@@ -27,6 +29,13 @@ describe "Redirection" do
     it "should not preserve the query string" do
       response = router_request("/foo?baz=qux")
       expect(response.headers['Location']).to eq("/bar")
+    end
+
+    it "should contain cache headers of 24hrs" do
+      response = router_request("/foo")
+      expect(response.headers['Cache-Control']).to eq("max-age=86400, public")
+      expires = Time.parse(response.headers['Expires'])
+      expect(expires).to be_within(10).of(Time.now + CACHE_EXPIRES_PERIOD)
     end
   end
 
@@ -57,6 +66,13 @@ describe "Redirection" do
     it "should preserve the query string when redirecting" do
       response = router_request("/foo?baz=qux")
       expect(response.headers['Location']).to eq("/bar?baz=qux")
+    end
+
+    it "should contain cache headers of 24hrs" do
+      response = router_request("/foo")
+      expect(response.headers['Cache-Control']).to eq("max-age=86400, public")
+      expires = Time.parse(response.headers['Expires'])
+      expect(expires).to be_within(10).of(Time.now + CACHE_EXPIRES_PERIOD)
     end
   end
 
