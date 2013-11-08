@@ -45,23 +45,30 @@ And some features that we have no need to implement:
 - Response rewriting
 - Authentication
 
-Benchmarks
-----------
+Tests
+-----
 
-If you have a local mongo instance, you can load a set of routes which are
-useful for running benchmark tools with
+You can run all tests with the shell script used by CI:
 
-    ./tools/benchsetup
+    ./jenkins.sh
 
-You can then run a test backend with
+The `trie` and `triemux` sub-packages have unit tests and benchmarks written
+in Go's own testing framework. To run them:
 
-    go run testserver/testserver.go -randomBody
+    go test -bench=. ./trie ./triemux
 
-And start the router against the benchmark database with
+The `router` itself doesn't really benefit from having unit tests around
+individual functions. Instead it has a comprehensive set of integration
+tests to exercise it's HTTP handling, error reporting, and performance.
+These are written/orchestrated in Ruby rspec and deliberately agnostic of
+the Go code beneath.
 
-    go run *.go -mongoDbName=routerbench
+These require a local MongoDB instance and can be run with:
 
-And then benchmark against the URLs in `testdata/benchurls`.
+    bundle exec rspec
+
+Some of the integration tests are optional because they have certain
+environment requirements that make them unfeasible to run within CI.
 
 Data structure
 -----------------
