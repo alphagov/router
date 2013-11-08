@@ -32,8 +32,6 @@ describe "Redirection" do
     end
 
     it "should contain cache headers of 24hrs" do
-      pending
-
       response = router_request("/foo")
       expect(response.headers['Cache-Control']).to eq("max-age=86400, public")
       expires = Time.parse(response.headers['Expires'])
