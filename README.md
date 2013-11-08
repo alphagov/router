@@ -28,6 +28,7 @@ As such, there are some things that we are guarded against:
 
 And some features that we have no need to implement:
 
+- Access logging (but error logging is implemented)
 - SSL
 - Health check probes
 - Custom header mangling
