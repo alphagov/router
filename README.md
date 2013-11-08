@@ -10,7 +10,11 @@ loads a routing table into memory from a MongoDB database and acts as a:
 - Gone responder, serving HTTP `410` responses for resources that used to
   but no longer exist.
 
+The sister project [`router-api`][router-api] provides a read/write
+interface to the underlying database and route reloading.
+
 [tm]: https://github.com/alphagov/router/tree/master/triemux
+[router-api]: https://github.com/alphagov/router-api
 
 Environment assumptions
 -----------------------
