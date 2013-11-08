@@ -10,7 +10,30 @@ loads a routing table into memory from a MongoDB database and acts as a:
 - Gone responder, serving HTTP `410` responses for resources that used to
   but no longer exist.
 
+The sister project [`router-api`][router-api] provides a read/write
+interface to the underlying database and route reloading.
+
 [tm]: https://github.com/alphagov/router/tree/master/triemux
+[router-api]: https://github.com/alphagov/router-api
+
+Environment assumptions
+-----------------------
+
+Our usage of `router` places it behind and in front of Nginx and/or Varnish.
+
+As such, there are some things that we are guarded against:
+
+- Response buffering for slow clients
+- Basic request sanitisation
+
+And some features that we have no need to implement:
+
+- Access logging (but error logging is implemented)
+- SSL
+- Health check probes
+- Custom header mangling
+- Response rewriting
+- Authentication
 
 Build
 -----
@@ -26,24 +49,6 @@ you can just build the router in-place:
     go build
 
 [go]: http://golang.org
-
-Environment assumptions
------------------------
-
-Our usage of `router` places it behind and in front of Nginx and/or Varnish.
-
-As such, there are some things that we are guarded against:
-
-- Response buffering for slow clients
-- Basic request sanitisation
-
-And some features that we have no need to implement:
-
-- SSL
-- Health check probes
-- Custom header mangling
-- Response rewriting
-- Authentication
 
 Tests
 -----
