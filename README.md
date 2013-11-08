@@ -12,21 +12,6 @@ loads a routing table into memory from a MongoDB database and acts as a:
 
 [tm]: https://github.com/alphagov/router/tree/master/triemux
 
-Build
------
-
-If you have a working [Go][go] development setup, you should be able to run:
-
-    go install github.com/alphagov/router
-    $GOPATH/bin/router -h
-
-If you've just checked out this repository and have the `go` tool on your $PATH,
-you can just build the router in-place:
-
-    go build
-
-[go]: http://golang.org
-
 Environment assumptions
 -----------------------
 
@@ -44,6 +29,21 @@ And some features that we have no need to implement:
 - Custom header mangling
 - Response rewriting
 - Authentication
+
+Build
+-----
+
+If you have a working [Go][go] development setup, you should be able to run:
+
+    go install github.com/alphagov/router
+    $GOPATH/bin/router -h
+
+If you've just checked out this repository and have the `go` tool on your $PATH,
+you can just build the router in-place:
+
+    go build
+
+[go]: http://golang.org
 
 Tests
 -----
