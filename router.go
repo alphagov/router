@@ -102,7 +102,7 @@ func (rt *Router) ReloadRoutes() {
 		panic(fmt.Sprintln("mgo:", err))
 	}
 	defer sess.Close()
-	sess.SetMode(mgo.Monotonic, true)
+	sess.SetMode(mgo.Strong, true)
 
 	db := sess.DB(rt.mongoDbName)
 
