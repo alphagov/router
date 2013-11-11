@@ -33,7 +33,7 @@ describe "Redirection" do
 
     it "should contain cache headers of 24hrs" do
       response = router_request("/foo")
-      expect(response.headers['Cache-Control']).to eq("max-age=86400, public")
+      expect(response.headers['Cache-Control']).to eq("max-age=#{CACHE_EXPIRES_PERIOD}, public")
       expires = Time.parse(response.headers['Expires'])
       expect(expires).to be_within(10).of(Time.now + CACHE_EXPIRES_PERIOD)
     end
@@ -70,7 +70,7 @@ describe "Redirection" do
 
     it "should contain cache headers of 24hrs" do
       response = router_request("/foo")
-      expect(response.headers['Cache-Control']).to eq("max-age=86400, public")
+      expect(response.headers['Cache-Control']).to eq("max-age=#{CACHE_EXPIRES_PERIOD}, public")
       expires = Time.parse(response.headers['Expires'])
       expect(expires).to be_within(10).of(Time.now + CACHE_EXPIRES_PERIOD)
     end
