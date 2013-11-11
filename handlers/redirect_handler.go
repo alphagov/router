@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const CachePeriod = 24 * time.Hour
+const cacheDuration = 24 * time.Hour
 
 func NewRedirectHandler(sourcePath, targetPath string, prefix, temporary bool) http.Handler {
 	statusMoved := http.StatusMovedPermanently
@@ -21,8 +21,8 @@ func NewRedirectHandler(sourcePath, targetPath string, prefix, temporary bool) h
 }
 
 func addCacheHeaders(w http.ResponseWriter) {
-	w.Header().Set("Expires", time.Now().Add(CachePeriod).Format(time.RFC1123))
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", CachePeriod / time.Second))
+	w.Header().Set("Expires", time.Now().Add(cacheDuration).Format(time.RFC1123))
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", cacheDuration / time.Second))
 }
 
 type redirectHandler struct {
