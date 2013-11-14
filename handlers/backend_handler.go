@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -66,6 +67,8 @@ func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger log
 	return
 }
 
+var invalidContentLengthRegexp = regexp.MustCompile(`http: Request.ContentLength=\d+ with Body length \d+`)
+
 func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	resp, err = bt.wrapped.RoundTrip(req)
 	if err == nil {
@@ -88,6 +91,9 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		if err.Error() == "net/http: timeout awaiting response headers" {
 			logDetails["status"] = 504
 			return newErrorResponse(504), nil
+		} else if invalidContentLengthRegexp.MatchString(err.Error()) {
+			logDetails["status"] = 400
+			return newErrorResponse(400), nil
 		}
 
 		// 500 for all other errors
