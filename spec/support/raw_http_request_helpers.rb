@@ -2,13 +2,14 @@ require 'socket'
 
 module RawHTTPRequestHelpers
 
-  def raw_http_request(url, headers = {})
+  def raw_http_request(url, headers = {}, body = nil)
     http_version = headers.delete(:http_version) || "1.1"
     uri = URI.parse(url)
     s = TCPSocket.new(uri.host, uri.port)
     s.write("GET #{uri.request_uri} HTTP/#{http_version}\r\n")
     headers.each { |k, v| s.write("#{k}: #{v}\r\n") }
     s.write("\r\n")
+    s.write(body) if body
     s.close_write
 
     headers, body, found_body = [], "", false

@@ -262,4 +262,39 @@ describe "functioning as a reverse proxy" do
       expect(data["Request"]["Proto"]).to eq("HTTP/1.1")
     end
   end
+
+  describe "handling invalid Content-Length request headers" do
+
+    it "should log and return a 400 error if Content-Length is set with no request body" do
+      headers, body = raw_http_request(router_url("/foo"), "Host" => "www.example.com", "Content-Length" => 12)
+
+      expect(headers.first).to eq("HTTP/1.1 400 Bad Request")
+
+      log_details = last_router_error_log_entry
+      expect(log_details["@fields"]).to eq({
+        "error" => "http: Request.ContentLength=12 with Body length 0",
+        "request" => "GET /foo HTTP/1.1",
+        "request_method" => "GET",
+        "status" => 400,
+        "upstream_addr" => "localhost:3163",
+        "varnish_id" => "",
+      })
+    end
+
+    it "should log and return a 400 error if Content-Length is bigger than the request body size" do
+      headers, body = raw_http_request(router_url("/foo"), {"Host" => "www.example.com", "Content-Length" => 20}, "Short body")
+
+      expect(headers.first).to eq("HTTP/1.1 400 Bad Request")
+
+      log_details = last_router_error_log_entry
+      expect(log_details["@fields"]).to eq({
+        "error" => "http: Request.ContentLength=20 with Body length 10",
+        "request" => "GET /foo HTTP/1.1",
+        "request_method" => "GET",
+        "status" => 400,
+        "upstream_addr" => "localhost:3163",
+        "varnish_id" => "",
+      })
+    end
+  end
 end
