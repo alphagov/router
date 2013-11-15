@@ -75,22 +75,23 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		logDetails := map[string]interface{}{"error": err.Error(), "status": 500}
 		defer bt.logger.LogFromBackendRequest(logDetails, req)
 
-		// Intercept timeout errors and generate an HTTP error response
-		switch typedError := err.(type) {
-		case *net.OpError:
-			if typedError.Timeout() {
+		// Intercept some specific errors and generate an appropriate HTTP error response
+		if opErr, ok := err.(*net.OpError); ok {
+			if opErr.Timeout() {
 				logDetails["status"] = 504
 				return newErrorResponse(504), nil
-			} else if typedError.Err == syscall.ECONNREFUSED {
+			} else if opErr.Err == syscall.ECONNREFUSED {
 				logDetails["status"] = 502
 				return newErrorResponse(502), nil
 			}
-		default:
-			if err.Error() == "net/http: timeout awaiting response headers" {
-				logDetails["status"] = 504
-				return newErrorResponse(504), nil
-			}
 		}
+		if err.Error() == "net/http: timeout awaiting response headers" {
+			logDetails["status"] = 504
+			return newErrorResponse(504), nil
+		}
+
+		// 500 for all other errors
+		return newErrorResponse(500), nil
 	}
 	return
 }
