@@ -8,6 +8,7 @@ import (
 	"labix.org/v2/mgo"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,7 @@ import (
 // routes from a passed mongo database.
 type Router struct {
 	mux                   *triemux.Mux
+	mu                    sync.RWMutex
 	mongoUrl              string
 	mongoDbName           string
 	backendConnectTimeout time.Duration
@@ -77,21 +79,21 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}()
+	rt.mu.RLock()
+	mux := rt.mux
+	rt.mu.RUnlock()
 
-	rt.mux.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 }
 
 // ReloadRoutes reloads the routes for this Router instance on the fly. It will
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
 func (rt *Router) ReloadRoutes() {
-	// save a reference to the previous mux in case we have to restore it
-	oldmux := rt.mux
 	defer func() {
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ReloadRoutes:", r)
-			rt.mux = oldmux
-			logInfo("router: original routes have been restored")
+			logInfo("router: original routes have not been modified")
 		}
 	}()
 
@@ -111,7 +113,10 @@ func (rt *Router) ReloadRoutes() {
 	backends := rt.loadBackends(db.C("backends"))
 	loadRoutes(db.C("routes"), newmux, backends)
 
+	rt.mu.Lock()
 	rt.mux = newmux
+	rt.mu.Unlock()
+
 	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
 }
 
@@ -193,8 +198,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 }
 
 func (rt *Router) RouteStats() (stats map[string]interface{}) {
+	rt.mu.RLock()
+	mux := rt.mux
+	rt.mu.RUnlock()
+
 	stats = make(map[string]interface{})
-	stats["count"] = rt.mux.RouteCount()
-	stats["checksum"] = fmt.Sprintf("%x", rt.mux.RouteChecksum())
+	stats["count"] = mux.RouteCount()
+	stats["checksum"] = fmt.Sprintf("%x", mux.RouteChecksum())
 	return
 }
