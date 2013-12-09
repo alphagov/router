@@ -16,7 +16,7 @@ import (
 // routes from a passed mongo database.
 type Router struct {
 	mux                   *triemux.Mux
-	mu                    sync.RWMutex
+	lock                  sync.RWMutex
 	mongoUrl              string
 	mongoDbName           string
 	backendConnectTimeout time.Duration
@@ -79,9 +79,9 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}()
-	rt.mu.RLock()
+	rt.lock.RLock()
 	mux := rt.mux
-	rt.mu.RUnlock()
+	rt.lock.RUnlock()
 
 	mux.ServeHTTP(w, req)
 }
@@ -113,9 +113,9 @@ func (rt *Router) ReloadRoutes() {
 	backends := rt.loadBackends(db.C("backends"))
 	loadRoutes(db.C("routes"), newmux, backends)
 
-	rt.mu.Lock()
+	rt.lock.Lock()
 	rt.mux = newmux
-	rt.mu.Unlock()
+	rt.lock.Unlock()
 
 	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
 }
@@ -198,9 +198,9 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 }
 
 func (rt *Router) RouteStats() (stats map[string]interface{}) {
-	rt.mu.RLock()
+	rt.lock.RLock()
 	mux := rt.mux
-	rt.mu.RUnlock()
+	rt.lock.RUnlock()
 
 	stats = make(map[string]interface{})
 	stats["count"] = mux.RouteCount()
