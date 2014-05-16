@@ -266,6 +266,7 @@ describe "functioning as a reverse proxy" do
   describe "handling invalid Content-Length request headers" do
 
     it "should log and return a 400 error if Content-Length is set with no request body" do
+      pending "This behaviour has changed as of Go 1.2. See: https://code.google.com/p/go/issues/detail?id=8003"
       headers, body = raw_http_request(router_url("/foo"), "Host" => "www.example.com", "Content-Length" => 12)
 
       expect(headers.first).to eq("HTTP/1.1 400 Bad Request")
@@ -281,17 +282,17 @@ describe "functioning as a reverse proxy" do
       })
     end
 
-    it "should log and return a 400 error if Content-Length is bigger than the request body size" do
+    it "should log and return a 500 error if Content-Length is bigger than the request body size" do
       headers, body = raw_http_request(router_url("/foo"), {"Host" => "www.example.com", "Content-Length" => 20}, "Short body")
 
-      expect(headers.first).to eq("HTTP/1.1 400 Bad Request")
+      expect(headers.first).to eq("HTTP/1.1 500 Internal Server Error")
 
       log_details = last_router_error_log_entry
       expect(log_details["@fields"]).to eq({
-        "error" => "http: Request.ContentLength=20 with Body length 10",
+        "error" => "unexpected EOF",
         "request" => "GET /foo HTTP/1.1",
         "request_method" => "GET",
-        "status" => 400,
+        "status" => 500,
         "upstream_addr" => "localhost:3163",
         "varnish_id" => "",
       })
