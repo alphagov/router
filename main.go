@@ -9,7 +9,6 @@ import (
 	"runtime"
 )
 
-var dontQuit = make(chan int)
 var (
 	pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
 	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
@@ -95,5 +94,6 @@ func main() {
 	go catchListenAndServe(apiAddr, api)
 	logInfo("router: listening for refresh on " + apiAddr)
 
+	dontQuit := make(chan struct{})
 	<-dontQuit
 }
