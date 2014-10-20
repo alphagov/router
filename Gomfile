@@ -1,0 +1,1 @@
+gom 'labix.org/v2/mgo', :commit => '245'
