@@ -3,11 +3,20 @@ package integration
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
+
+	. "github.com/onsi/gomega"
 )
+
+func reloadRoutes() {
+	resp, err := http.Post("http://localhost:3168/reload", "", nil)
+	Expect(err).To(BeNil())
+	Expect(resp.StatusCode).To(Equal(200))
+}
 
 var runningRouters = make(map[int]*exec.Cmd)
 
