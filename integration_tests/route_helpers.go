@@ -29,10 +29,14 @@ func addBackend(id, url string) {
 	Expect(err).To(BeNil())
 }
 
-func addBackendRoute(path, backendId string) {
+func addBackendRoute(path, backendId string, possibleRouteType ...string) {
+	routeType := "exact"
+	if len(possibleRouteType) > 0 {
+		routeType = possibleRouteType[0]
+	}
 	routerDB.C("routes").Insert(bson.M{
 		"incoming_path": path,
-		"route_type":    "exact",
+		"route_type":    routeType,
 		"handler":       "backend",
 		"backend_id":    backendId,
 	})
