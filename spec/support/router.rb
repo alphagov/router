@@ -66,7 +66,7 @@ module RouterHelpers
       if ENV['USE_COMPILED_ROUTER']
         command = %w(./router)
       else
-        command = %w(./run_router.sh)
+        command = %w(make run)
       end
 
       spawn_args = {
