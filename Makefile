@@ -11,8 +11,9 @@ build: _vendor
 run: _vendor
 	gom run $(BUILDFILES)
 
-test: _vendor
+test: _vendor build
 	gom test ./trie ./triemux
+	gom test -v ./integration_tests
 	bundle exec rspec
 
 clean:
