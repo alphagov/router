@@ -31,31 +31,36 @@ func addBackend(id, url string) {
 
 func addBackendRoute(path, backendId string, possibleRouteType ...string) {
 	route := bson.M{
-		"incoming_path": path,
-		"route_type":    "exact",
-		"handler":       "backend",
-		"backend_id":    backendId,
+		"handler":    "backend",
+		"backend_id": backendId,
 	}
-	if len(possibleRouteType) > 0 {
-		route["route_type"] = possibleRouteType[0]
-	}
-	routerDB.C("routes").Insert(route)
+	addRoute(path, route, possibleRouteType...)
 }
 
 func addRedirectRoute(path, destination string, extraParams ...string) {
 	route := bson.M{
-		"incoming_path": path,
-		"route_type":    "exact",
-		"handler":       "redirect",
-		"redirect_to":   destination,
+		"handler":     "redirect",
+		"redirect_to": destination,
 	}
-	if len(extraParams) > 0 {
-		route["route_type"] = extraParams[0]
-	}
+	// extraParams[0] handled by addRoute
 	if len(extraParams) > 1 {
 		route["redirect_type"] = extraParams[1]
 	}
-	routerDB.C("routes").Insert(route)
+	addRoute(path, route, extraParams...)
+}
+
+func addGoneRoute(path string, possibleRouteType ...string) {
+	addRoute(path, bson.M{"handler": "gone"}, possibleRouteType...)
+}
+
+func addRoute(path string, details bson.M, possibleRouteType ...string) {
+	details["incoming_path"] = path
+	details["route_type"] = "exact"
+	if len(possibleRouteType) > 0 {
+		details["route_type"] = possibleRouteType[0]
+	}
+	err := routerDB.C("routes").Insert(details)
+	Expect(err).To(BeNil())
 }
 
 func clearRoutes() {
