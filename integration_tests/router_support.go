@@ -12,6 +12,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func routerURL(path string) string {
+	return "http://localhost:3169" + path
+}
+
 func reloadRoutes() {
 	resp, err := http.Post("http://localhost:3168/reload", "", nil)
 	Expect(err).To(BeNil())

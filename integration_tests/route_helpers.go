@@ -30,16 +30,32 @@ func addBackend(id, url string) {
 }
 
 func addBackendRoute(path, backendId string, possibleRouteType ...string) {
-	routeType := "exact"
-	if len(possibleRouteType) > 0 {
-		routeType = possibleRouteType[0]
-	}
-	routerDB.C("routes").Insert(bson.M{
+	route := bson.M{
 		"incoming_path": path,
-		"route_type":    routeType,
+		"route_type":    "exact",
 		"handler":       "backend",
 		"backend_id":    backendId,
-	})
+	}
+	if len(possibleRouteType) > 0 {
+		route["route_type"] = possibleRouteType[0]
+	}
+	routerDB.C("routes").Insert(route)
+}
+
+func addRedirectRoute(path, destination string, extraParams ...string) {
+	route := bson.M{
+		"incoming_path": path,
+		"route_type":    "exact",
+		"handler":       "redirect",
+		"redirect_to":   destination,
+	}
+	if len(extraParams) > 0 {
+		route["route_type"] = extraParams[0]
+	}
+	if len(extraParams) > 1 {
+		route["redirect_type"] = extraParams[1]
+	}
+	routerDB.C("routes").Insert(route)
 }
 
 func clearRoutes() {

@@ -8,7 +8,9 @@ import (
 )
 
 func routerRequest(path string) *http.Response {
-	resp, err := http.Get("http://localhost:3169" + path)
+	req, err := http.NewRequest("GET", routerURL(path), nil)
+	Expect(err).To(BeNil())
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	Expect(err).To(BeNil())
 	return resp
 }
