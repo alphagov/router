@@ -13,12 +13,22 @@ func TestEverything(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	err := startRouter(3169, 3168)
+	var err error
+	err = setupTempLogfile()
+	if err != nil {
+		Fail(err.Error())
+	}
+	err = startRouter(3169, 3168)
 	if err != nil {
 		Fail(err.Error())
 	}
 })
 
+var _ = BeforeEach(func() {
+	resetTempLogfile()
+})
+
 var _ = AfterSuite(func() {
 	stopRouter(3169)
+	cleanupTempLogfile()
 })

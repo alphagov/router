@@ -34,7 +34,7 @@ func startRouter(port, apiPort int) error {
 	env["ROUTER_PUBADDR"] = pubaddr
 	env["ROUTER_APIADDR"] = apiaddr
 	env["ROUTER_MONGO_DB"] = "router_test"
-	env["ROUTER_ERROR_LOG"] = "/dev/null"
+	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
 	cmd.Env = env.ToEnv()
 
 	if os.Getenv("DEBUG_ROUTER") != "" {
