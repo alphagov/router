@@ -12,19 +12,27 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func routerURL(path string) string {
-	return "http://localhost:3169" + path
+func routerURL(path string, optionalPort ...int) string {
+	port := 3169
+	if len(optionalPort) > 0 {
+		port = optionalPort[0]
+	}
+	return fmt.Sprintf("http://localhost:%d%s", port, path)
 }
 
-func reloadRoutes() {
-	resp, err := http.Post("http://localhost:3168/reload", "", nil)
+func reloadRoutes(optionalPort ...int) {
+	port := 3168
+	if len(optionalPort) > 0 {
+		port = optionalPort[0]
+	}
+	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/reload", port), "", nil)
 	Expect(err).To(BeNil())
 	Expect(resp.StatusCode).To(Equal(200))
 }
 
 var runningRouters = make(map[int]*exec.Cmd)
 
-func startRouter(port, apiPort int) error {
+func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	pubaddr := fmt.Sprintf(":%d", port)
 	apiaddr := fmt.Sprintf(":%d", apiPort)
 
@@ -35,6 +43,11 @@ func startRouter(port, apiPort int) error {
 	env["ROUTER_APIADDR"] = apiaddr
 	env["ROUTER_MONGO_DB"] = "router_test"
 	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
+	if len(optionalExtraEnv) > 0 {
+		for k, v := range optionalExtraEnv[0] {
+			env[k] = v
+		}
+	}
 	cmd.Env = env.ToEnv()
 
 	if os.Getenv("DEBUG_ROUTER") != "" {

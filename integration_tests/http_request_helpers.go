@@ -7,9 +7,17 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func routerRequest(path string) *http.Response {
-	req, err := http.NewRequest("GET", routerURL(path), nil)
+func routerRequest(path string, optionalPort ...int) *http.Response {
+	return doRequest(newRequest("GET", routerURL(path, optionalPort...)))
+}
+
+func newRequest(method, url string) *http.Request {
+	req, err := http.NewRequest(method, url, nil)
 	Expect(err).To(BeNil())
+	return req
+}
+
+func doRequest(req *http.Request) *http.Response {
 	resp, err := http.DefaultTransport.RoundTrip(req)
 	Expect(err).To(BeNil())
 	return resp
