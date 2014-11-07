@@ -1,11 +1,13 @@
 package integration
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -250,6 +252,138 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				Expect(resp.StatusCode).To(Equal(200))
 				Expect(resp.Header.Get("Via")).To(Equal("1.0 fred, 1.1 barney, 1.1 router"))
 			})
+		})
+	})
+
+	Describe("request verb, path, query and body handling", func() {
+		var (
+			recorder *ghttp.Server
+		)
+
+		BeforeEach(func() {
+			recorder = startRecordingBackend()
+			addBackend("backend", recorder.URL())
+			addBackendRoute("/foo", "backend", "prefix")
+			reloadRoutes()
+		})
+
+		AfterEach(func() {
+			recorder.Close()
+		})
+
+		It("should use the same verb and path when proxying", func() {
+			recorder.AppendHandlers(
+				ghttp.VerifyRequest("POST", "/foo"),
+				ghttp.VerifyRequest("DELETE", "/foo/bar/baz.json"),
+			)
+
+			req := newRequest("POST", routerURL("/foo"))
+			resp := doRequest(req)
+			Expect(resp.StatusCode).To(Equal(200))
+
+			req = newRequest("DELETE", routerURL("/foo/bar/baz.json"))
+			resp = doRequest(req)
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(2))
+		})
+
+		It("should pass through the query string unmodified", func() {
+			recorder.AppendHandlers(
+				ghttp.VerifyRequest("GET", "/foo/bar", "baz=qux"),
+			)
+			resp := routerRequest("/foo/bar?baz=qux")
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+		})
+
+		It("should pass through the body unmodified", func() {
+			recorder.AppendHandlers(func(w http.ResponseWriter, req *http.Request) {
+				body, err := ioutil.ReadAll(req.Body)
+				req.Body.Close()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(body)).To(Equal("I am the request body.  Woohoo!"))
+			})
+
+			req := newRequest("POST", routerURL("/foo"))
+			req.Body = ioutil.NopCloser(strings.NewReader("I am the request body.  Woohoo!"))
+			resp := doRequest(req)
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+		})
+	})
+
+	Describe("handling a backend with a non '/' path", func() {
+		var (
+			recorder *ghttp.Server
+		)
+
+		BeforeEach(func() {
+			recorder = startRecordingBackend()
+			addBackend("backend", recorder.URL()+"/something")
+			addBackendRoute("/foo/bar", "backend", "prefix")
+			reloadRoutes()
+		})
+
+		AfterEach(func() {
+			recorder.Close()
+		})
+
+		It("should merge the 2 paths", func() {
+			resp := routerRequest("/foo/bar")
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.URL.RequestURI()).To(Equal("/something/foo/bar"))
+		})
+
+		It("should preserve the request query string", func() {
+			resp := routerRequest("/foo/bar?baz=qux")
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.URL.RequestURI()).To(Equal("/something/foo/bar?baz=qux"))
+		})
+	})
+
+	Describe("handling HTTP/1.0 requests", func() {
+		var (
+			recorder *ghttp.Server
+		)
+
+		BeforeEach(func() {
+			recorder = startRecordingBackend()
+			addBackend("backend", recorder.URL())
+			addBackendRoute("/foo", "backend", "prefix")
+			reloadRoutes()
+		})
+
+		AfterEach(func() {
+			recorder.Close()
+		})
+
+		It("should work with incoming HTTP/1.1 requests", func() {
+			req := newRequest("GET", routerURL("/foo"))
+			resp := doHTTP10Request(req)
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.URL.RequestURI()).To(Equal("/foo"))
+		})
+
+		It("should proxy to the backend as HTTP/1.1 requests", func() {
+			req := newRequest("GET", routerURL("/foo"))
+			resp := doHTTP10Request(req)
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.Proto).To(Equal("HTTP/1.1"))
 		})
 	})
 })
