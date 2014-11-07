@@ -3,12 +3,14 @@ package integration
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
 	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/ghttp"
 )
 
 var _ = Describe("Functioning as a reverse proxy", func() {
@@ -120,6 +122,133 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				resp := routerRequest("/tarpit2", 3167)
 				Expect(resp.StatusCode).To(Equal(200))
 				Expect(readBody(resp)).To(Equal("Tarpit\n"))
+			})
+		})
+	})
+
+	Describe("header handling", func() {
+		var (
+			recorder    *ghttp.Server
+			recorderUrl *url.URL
+		)
+
+		BeforeEach(func() {
+			recorder = startRecordingBackend()
+			recorderUrl, _ = url.Parse(recorder.URL())
+			addBackend("backend", recorder.URL())
+			addBackendRoute("/foo", "backend", "prefix")
+			reloadRoutes()
+		})
+
+		AfterEach(func() {
+			recorder.Close()
+		})
+
+		It("should pass through most http headers to the backend", func() {
+			resp := routerRequestWithHeaders("/foo", map[string]string{
+				"Foo":        "bar",
+				"User-Agent": "Router test suite 2.7182",
+			})
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.Header.Get("Foo")).To(Equal("bar"))
+			Expect(beReq.Header.Get("User-Agent")).To(Equal("Router test suite 2.7182"))
+		})
+
+		It("should set the Host header to the backend hostname", func() {
+			resp := routerRequestWithHeaders("/foo", map[string]string{
+				"Host": "www.example.com",
+			})
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.Host).To(Equal(recorderUrl.Host))
+		})
+
+		It("should not add a default User-Agent if there isn't one in the request", func() {
+			// Most http libraries add a default User-Agent header.
+			resp := routerRequest("/foo")
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			_, ok := beReq.Header[textproto.CanonicalMIMEHeaderKey("User-Agent")]
+			Expect(ok).To(BeFalse())
+		})
+
+		It("should add the client IP to X-Forwardrd-For", func() {
+			resp := routerRequest("/foo")
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.Header.Get("X-Forwarded-For")).To(Equal("127.0.0.1"))
+
+			resp = routerRequestWithHeaders("/foo", map[string]string{
+				"X-Forwarded-For": "10.9.8.7",
+			})
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(2))
+			beReq = recorder.ReceivedRequests()[1]
+			Expect(beReq.Header.Get("X-Forwarded-For")).To(Equal("10.9.8.7, 127.0.0.1"))
+		})
+
+		Describe("setting the Via header", func() {
+			// See https://tools.ietf.org/html/rfc2616#section-14.45
+
+			It("should add itself to the Via request header for an HTTP/1.1 request", func() {
+				resp := routerRequest("/foo")
+				Expect(resp.StatusCode).To(Equal(200))
+
+				Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+				beReq := recorder.ReceivedRequests()[0]
+				Expect(beReq.Header.Get("Via")).To(Equal("1.1 router"))
+
+				resp = routerRequestWithHeaders("/foo", map[string]string{
+					"Via": "1.0 fred, 1.1 barney",
+				})
+				Expect(resp.StatusCode).To(Equal(200))
+
+				Expect(recorder.ReceivedRequests()).To(HaveLen(2))
+				beReq = recorder.ReceivedRequests()[1]
+				Expect(beReq.Header.Get("Via")).To(Equal("1.0 fred, 1.1 barney, 1.1 router"))
+			})
+
+			It("should add itself to the Via request header for an HTTP/1.0 request", func() {
+				req := newRequest("GET", routerURL("/foo"))
+				resp := doHTTP10Request(req)
+				Expect(resp.StatusCode).To(Equal(200))
+
+				Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+				beReq := recorder.ReceivedRequests()[0]
+				Expect(beReq.Header.Get("Via")).To(Equal("1.0 router"))
+
+				req = newRequestWithHeaders("GET", routerURL("/foo"), map[string]string{
+					"Via": "1.0 fred, 1.1 barney",
+				})
+				resp = doHTTP10Request(req)
+				Expect(resp.StatusCode).To(Equal(200))
+
+				Expect(recorder.ReceivedRequests()).To(HaveLen(2))
+				beReq = recorder.ReceivedRequests()[1]
+				Expect(beReq.Header.Get("Via")).To(Equal("1.0 fred, 1.1 barney, 1.0 router"))
+			})
+
+			It("should add itself to the Via response heaver", func() {
+				resp := routerRequest("/foo")
+				Expect(resp.StatusCode).To(Equal(200))
+				Expect(resp.Header.Get("Via")).To(Equal("1.1 router"))
+
+				recorder.AppendHandlers(ghttp.RespondWith(200, "body", http.Header{
+					"Via": []string{"1.0 fred, 1.1 barney"},
+				}))
+				resp = routerRequest("/foo")
+				Expect(resp.StatusCode).To(Equal(200))
+				Expect(resp.Header.Get("Via")).To(Equal("1.0 fred, 1.1 barney, 1.1 router"))
 			})
 		})
 	})
