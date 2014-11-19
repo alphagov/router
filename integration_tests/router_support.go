@@ -20,6 +20,10 @@ func routerURL(path string, optionalPort ...int) string {
 	return fmt.Sprintf("http://localhost:%d%s", port, path)
 }
 
+func routerAPIURL(path string, optionalPort ...int) string {
+	return routerURL(path, 3168)
+}
+
 func reloadRoutes(optionalPort ...int) {
 	port := 3168
 	if len(optionalPort) > 0 {

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -69,4 +70,11 @@ func readBody(resp *http.Response) string {
 	bytes, err := ioutil.ReadAll(resp.Body)
 	Expect(err).To(BeNil())
 	return string(bytes)
+}
+
+func readJSONBody(resp *http.Response, data interface{}) {
+	bytes, err := ioutil.ReadAll(resp.Body)
+	Expect(err).To(BeNil())
+	err = json.Unmarshal(bytes, data)
+	Expect(err).To(BeNil())
 }
