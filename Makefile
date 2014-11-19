@@ -14,7 +14,6 @@ run: _vendor
 test: _vendor build
 	gom test ./trie ./triemux
 	gom test -v ./integration_tests
-	bundle exec rspec
 
 clean:
 	rm -f $(BINARY)
