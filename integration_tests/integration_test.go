@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"runtime"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -13,6 +14,7 @@ func TestEverything(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	var err error
 	err = setupTempLogfile()
 	if err != nil {
