@@ -35,42 +35,45 @@ And some features that we have no need to implement:
 - Response rewriting
 - Authentication
 
+Dependencies
+------------
+
+This project uses [gom][gom] to manage it's dependencies.  If you have a
+working [Go][go] development setup, you should be able to install [gom][gom] by
+running:
+
+    go install github.com/mattn/gom
+
+[gom]: https://github.com/mattn/gom#readme
+[go]: http://golang.org
+
 Build
 -----
 
-If you have a working [Go][go] development setup, you should be able to run:
+Once you have gom installed, you should be able to run:
 
-    go install github.com/alphagov/router
-    $GOPATH/bin/router -h
-
-If you've just checked out this repository and have the `go` tool on your $PATH,
-you can just build the router in-place:
-
-    go build
-
-[go]: http://golang.org
+    make
+    ./router -h
 
 Tests
 -----
 
-You can run all tests with the shell script used by CI:
+You can run all tests by running:
 
-    ./jenkins.sh
+    make test
 
 The `trie` and `triemux` sub-packages have unit tests and benchmarks written
-in Go's own testing framework. To run them:
+in Go's own testing framework. To run them individually:
 
-    go test -bench=. ./trie ./triemux
+    gom test -bench=. ./trie ./triemux
 
 The `router` itself doesn't really benefit from having unit tests around
 individual functions. Instead it has a comprehensive set of integration
 tests to exercise it's HTTP handling, error reporting, and performance.
-These are written/orchestrated in Ruby rspec and deliberately agnostic of
-the Go code beneath.
 
 These require a local MongoDB instance and can be run with:
 
-    bundle exec rspec
+    gom test ./integration_tests
 
 Some of the integration tests are optional because they have certain
 environment requirements that make them unfeasible to run within CI.
