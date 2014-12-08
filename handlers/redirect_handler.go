@@ -9,15 +9,15 @@ import (
 
 const cacheDuration = 24 * time.Hour
 
-func NewRedirectHandler(sourcePath, targetPath string, prefix, temporary bool) http.Handler {
+func NewRedirectHandler(source, target string, prefix, temporary bool) http.Handler {
 	statusMoved := http.StatusMovedPermanently
 	if temporary {
 		statusMoved = http.StatusFound
 	}
 	if prefix {
-		return &pathPreservingRedirectHandler{sourcePath, targetPath, statusMoved}
+		return &pathPreservingRedirectHandler{source, target, statusMoved}
 	}
-	return &redirectHandler{targetPath, statusMoved}
+	return &redirectHandler{target, statusMoved}
 }
 
 func addCacheHeaders(w http.ResponseWriter) {
