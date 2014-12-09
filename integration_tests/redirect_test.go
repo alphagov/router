@@ -13,6 +13,7 @@ var _ = Describe("Redirection", func() {
 		BeforeEach(func() {
 			addRedirectRoute("/foo", "/bar")
 			addRedirectRoute("/foo-temp", "/bar", "exact", "temporary")
+			addRedirectRoute("/query-temp", "/bar?query=true", "exact")
 			reloadRoutes()
 		})
 
@@ -31,9 +32,14 @@ var _ = Describe("Redirection", func() {
 			Expect(resp.Header.Get("Location")).To(Equal("/bar"))
 		})
 
-		It("should not preserve the query string", func() {
+		It("should not preserve the query string for the source", func() {
 			resp := routerRequest("/foo?baz=qux")
 			Expect(resp.Header.Get("Location")).To(Equal("/bar"))
+		})
+
+		It("should preserve the query string for the target", func() {
+			resp := routerRequest("/query-temp")
+			Expect(resp.Header.Get("Location")).To(Equal("/bar?query=true"))
 		})
 
 		It("should contain cache headers of 24hrs", func() {
