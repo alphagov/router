@@ -14,6 +14,7 @@ var _ = Describe("Redirection", func() {
 			addRedirectRoute("/foo", "/bar")
 			addRedirectRoute("/foo-temp", "/bar", "exact", "temporary")
 			addRedirectRoute("/query-temp", "/bar?query=true", "exact")
+			addRedirectRoute("/fragment", "/bar#section", "exact")
 			reloadRoutes()
 		})
 
@@ -40,6 +41,11 @@ var _ = Describe("Redirection", func() {
 		It("should preserve the query string for the target", func() {
 			resp := routerRequest("/query-temp")
 			Expect(resp.Header.Get("Location")).To(Equal("/bar?query=true"))
+		})
+
+		It("should preserve the fragment for the target", func() {
+			resp := routerRequest("/fragment")
+			Expect(resp.Header.Get("Location")).To(Equal("/bar#section"))
 		})
 
 		It("should contain cache headers of 24hrs", func() {
