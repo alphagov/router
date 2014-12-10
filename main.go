@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"sync"
+
+	"github.com/alext/tablecloth"
 )
 
 var (
@@ -64,8 +67,9 @@ func logDebug(msg ...interface{}) {
 	}
 }
 
-func catchListenAndServe(addr string, handler http.Handler) {
-	err := http.ListenAndServe(addr, handler)
+func catchListenAndServe(addr string, handler http.Handler, ident string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	err := tablecloth.ListenAndServe(addr, handler, ident)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,6 +82,13 @@ func main() {
 	}
 	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
 
+	// Set working dir for tablecloth if available This is to allow restarts to
+	// pick up new versions.
+	// See http://godoc.org/github.com/alext/tablecloth#pkg-variables for details
+	if wd := os.Getenv("GOVUK_APP_ROOT"); wd != "" {
+		tablecloth.WorkingDir = wd
+	}
+
 	flag.Usage = usage
 	flag.Parse()
 
@@ -87,13 +98,14 @@ func main() {
 	}
 	rout.ReloadRoutes()
 
-	go catchListenAndServe(pubAddr, rout)
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go catchListenAndServe(pubAddr, rout, "proxy", wg)
 	logInfo("router: listening for requests on " + pubAddr)
 
 	api := newApiHandler(rout)
-	go catchListenAndServe(apiAddr, api)
+	go catchListenAndServe(apiAddr, api, "api", wg)
 	logInfo("router: listening for refresh on " + apiAddr)
 
-	dontQuit := make(chan struct{})
-	<-dontQuit
+	wg.Wait()
 }
