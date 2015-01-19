@@ -2,16 +2,16 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/alphagov/router/logger"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/alphagov/router/logger"
 )
 
 func NewBackendHandler(backendUrl *url.URL, connectTimeout, headerTimeout time.Duration, logger logger.Logger) http.Handler {
@@ -67,8 +67,6 @@ func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger log
 	return
 }
 
-var invalidContentLengthRegexp = regexp.MustCompile(`http: Request.ContentLength=\d+ with Body length \d+`)
-
 func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	resp, err = bt.wrapped.RoundTrip(req)
 	if err == nil {
@@ -79,21 +77,15 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		defer bt.logger.LogFromBackendRequest(logDetails, req)
 
 		// Intercept some specific errors and generate an appropriate HTTP error response
-		if opErr, ok := err.(*net.OpError); ok {
-			if opErr.Timeout() {
+		if netErr, ok := err.(net.Error); ok {
+			if netErr.Timeout() {
 				logDetails["status"] = 504
 				return newErrorResponse(504), nil
-			} else if opErr.Err == syscall.ECONNREFUSED {
+			}
+			if opErr, ok := netErr.(*net.OpError); ok && opErr.Err == syscall.ECONNREFUSED {
 				logDetails["status"] = 502
 				return newErrorResponse(502), nil
 			}
-		}
-		if err.Error() == "net/http: timeout awaiting response headers" {
-			logDetails["status"] = 504
-			return newErrorResponse(504), nil
-		} else if invalidContentLengthRegexp.MatchString(err.Error()) {
-			logDetails["status"] = 400
-			return newErrorResponse(400), nil
 		}
 
 		// 500 for all other errors
