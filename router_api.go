@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"runtime"
 )
 
 func newApiHandler(rout *Router) http.Handler {
@@ -37,6 +38,24 @@ func newApiHandler(rout *Router) http.Handler {
 		stats["routes"] = rout.RouteStats()
 
 		json_data, err := json.MarshalIndent(stats, "", "  ")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		w.Write(json_data)
+		w.Write([]byte("\n"))
+	})
+	mux.HandleFunc("/memory-stats", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		memStats := &runtime.MemStats{}
+		runtime.ReadMemStats(memStats)
+
+		json_data, err := json.MarshalIndent(memStats, "", "  ")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return

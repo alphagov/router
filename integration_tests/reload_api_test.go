@@ -102,4 +102,22 @@ var _ = Describe("reload API endpoint", func() {
 			Expect(resp.Header.Get("Allow")).To(Equal("GET"))
 		})
 	})
+
+	Describe("memory stats", func() {
+		It("should return memory statistics", func() {
+			addRedirectRoute("/foo", "/bar", "prefix")
+			addRedirectRoute("/baz", "/qux", "prefix")
+			addRedirectRoute("/foo", "/bar/baz")
+			reloadRoutes()
+
+			resp := doRequest(newRequest("GET", routerAPIURL("/memory-stats")))
+			Expect(resp.StatusCode).To(Equal(200))
+
+			var data map[string]interface{}
+			readJSONBody(resp, &data)
+
+			Expect(data).To(HaveKey("Alloc"))
+			Expect(data).To(HaveKey("HeapInuse"))
+		})
+	})
 })
