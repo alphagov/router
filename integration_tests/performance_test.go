@@ -179,7 +179,7 @@ func startVegetaLoad(targetURL string) *vegeta.Attacker {
 	// Consume and discard results.  Without this, all the workers will block sending
 	// to the channel - https://github.com/tsenart/vegeta/blob/v5.4.0/lib/attack.go#L143
 	go func() {
-		for _ = range resCh {
+		for range resCh {
 			//discard
 		}
 	}()
