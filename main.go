@@ -18,7 +18,7 @@ var (
 	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "localhost")
 	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
-	enableDebugOutput     = getenvDefault("DEBUG", "") != ""
+	enableDebugOutput     = os.Getenv("DEBUG") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "15s")
 )
