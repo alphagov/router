@@ -103,7 +103,7 @@ func main() {
 	go catchListenAndServe(pubAddr, rout, "proxy", wg)
 	logInfo("router: listening for requests on " + pubAddr)
 
-	api := newApiHandler(rout)
+	api := newAPIHandler(rout)
 	go catchListenAndServe(apiAddr, api, "api", wg)
 	logInfo("router: listening for refresh on " + apiAddr)
 

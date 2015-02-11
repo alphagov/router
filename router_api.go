@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-func newApiHandler(rout *Router) http.Handler {
+func newAPIHandler(rout *Router) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
