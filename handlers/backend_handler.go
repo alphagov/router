@@ -14,8 +14,8 @@ import (
 	"github.com/alphagov/router/logger"
 )
 
-func NewBackendHandler(backendUrl *url.URL, connectTimeout, headerTimeout time.Duration, logger logger.Logger) http.Handler {
-	proxy := httputil.NewSingleHostReverseProxy(backendUrl)
+func NewBackendHandler(backendURL *url.URL, connectTimeout, headerTimeout time.Duration, logger logger.Logger) http.Handler {
+	proxy := httputil.NewSingleHostReverseProxy(backendURL)
 	proxy.Transport = newBackendTransport(connectTimeout, headerTimeout, logger)
 
 	defaultDirector := proxy.Director
@@ -23,7 +23,7 @@ func NewBackendHandler(backendUrl *url.URL, connectTimeout, headerTimeout time.D
 		defaultDirector(req)
 
 		// Set the Host header to match the backend hostname instead of the one from the incoming request.
-		req.Host = backendUrl.Host
+		req.Host = backendURL.Host
 
 		// Setting a blank User-Agent causes the http lib not to output one, whereas if there
 		// is no header, it will output a default one.

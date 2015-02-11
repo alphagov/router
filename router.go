@@ -17,7 +17,7 @@ import (
 type Router struct {
 	mux                   *triemux.Mux
 	lock                  sync.RWMutex
-	mongoUrl              string
+	mongoURL              string
 	mongoDbName           string
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
@@ -40,7 +40,7 @@ type Route struct {
 
 // NewRouter returns a new empty router instance. You will still need to call
 // ReloadRoutes() to do the initial route load.
-func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
+func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
 	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 
 	rt = &Router{
 		mux:                   triemux.NewMux(),
-		mongoUrl:              mongoUrl,
+		mongoURL:              mongoURL,
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
@@ -97,8 +97,8 @@ func (rt *Router) ReloadRoutes() {
 		}
 	}()
 
-	logDebug("mgo: connecting to", rt.mongoUrl)
-	sess, err := mgo.Dial(rt.mongoUrl)
+	logDebug("mgo: connecting to", rt.mongoURL)
+	sess, err := mgo.Dial(rt.mongoURL)
 	if err != nil {
 		panic(fmt.Sprintln("mgo:", err))
 	}
@@ -130,14 +130,14 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 	iter := c.Find(nil).Iter()
 
 	for iter.Next(&backend) {
-		backendUrl, err := url.Parse(backend.BackendURL)
+		backendURL, err := url.Parse(backend.BackendURL)
 		if err != nil {
 			logWarn(fmt.Sprintf("router: couldn't parse URL %s for backend %s "+
 				"(error: %v), skipping!", backend.BackendURL, backend.BackendId, err))
 			continue
 		}
 
-		backends[backend.BackendId] = handlers.NewBackendHandler(backendUrl, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
+		backends[backend.BackendId] = handlers.NewBackendHandler(backendURL, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
 	}
 
 	if err := iter.Err(); err != nil {

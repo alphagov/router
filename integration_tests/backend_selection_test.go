@@ -325,7 +325,7 @@ var _ = Describe("Backend selection", func() {
 
 	Describe("double slashes", func() {
 		var (
-			root *httptest.Server
+			root     *httptest.Server
 			recorder *ghttp.Server
 		)
 

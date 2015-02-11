@@ -22,7 +22,7 @@ func NewRedirectHandler(source, target string, prefix, temporary bool) http.Hand
 
 func addCacheHeaders(w http.ResponseWriter) {
 	w.Header().Set("Expires", time.Now().Add(cacheDuration).Format(time.RFC1123))
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", cacheDuration / time.Second))
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", cacheDuration/time.Second))
 }
 
 type redirectHandler struct {
