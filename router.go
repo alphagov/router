@@ -17,7 +17,7 @@ import (
 type Router struct {
 	mux                   *triemux.Mux
 	lock                  sync.RWMutex
-	mongoUrl              string
+	mongoURL              string
 	mongoDbName           string
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
@@ -25,7 +25,7 @@ type Router struct {
 }
 
 type Backend struct {
-	BackendId  string `bson:"backend_id"`
+	BackendID  string `bson:"backend_id"`
 	BackendURL string `bson:"backend_url"`
 }
 
@@ -33,14 +33,14 @@ type Route struct {
 	IncomingPath string `bson:"incoming_path"`
 	RouteType    string `bson:"route_type"`
 	Handler      string `bson:"handler"`
-	BackendId    string `bson:"backend_id"`
+	BackendID    string `bson:"backend_id"`
 	RedirectTo   string `bson:"redirect_to"`
 	RedirectType string `bson:"redirect_type"`
 }
 
 // NewRouter returns a new empty router instance. You will still need to call
 // ReloadRoutes() to do the initial route load.
-func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
+func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
 	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 
 	rt = &Router{
 		mux:                   triemux.NewMux(),
-		mongoUrl:              mongoUrl,
+		mongoURL:              mongoURL,
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
@@ -97,8 +97,8 @@ func (rt *Router) ReloadRoutes() {
 		}
 	}()
 
-	logDebug("mgo: connecting to", rt.mongoUrl)
-	sess, err := mgo.Dial(rt.mongoUrl)
+	logDebug("mgo: connecting to", rt.mongoURL)
+	sess, err := mgo.Dial(rt.mongoURL)
 	if err != nil {
 		panic(fmt.Sprintln("mgo:", err))
 	}
@@ -130,14 +130,14 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 	iter := c.Find(nil).Iter()
 
 	for iter.Next(&backend) {
-		backendUrl, err := url.Parse(backend.BackendURL)
+		backendURL, err := url.Parse(backend.BackendURL)
 		if err != nil {
 			logWarn(fmt.Sprintf("router: couldn't parse URL %s for backend %s "+
-				"(error: %v), skipping!", backend.BackendURL, backend.BackendId, err))
+				"(error: %v), skipping!", backend.BackendURL, backend.BackendID, err))
 			continue
 		}
 
-		backends[backend.BackendId] = handlers.NewBackendHandler(backendUrl, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
+		backends[backend.BackendID] = handlers.NewBackendHandler(backendURL, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -158,15 +158,15 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		prefix := (route.RouteType == "prefix")
 		switch route.Handler {
 		case "backend":
-			handler, ok := backends[route.BackendId]
+			handler, ok := backends[route.BackendID]
 			if !ok {
 				logWarn(fmt.Sprintf("router: found route %+v which references unknown backend "+
-					"%s, skipping!", route, route.BackendId))
+					"%s, skipping!", route, route.BackendID))
 				continue
 			}
 			mux.Handle(route.IncomingPath, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
-				route.IncomingPath, prefix, route.BackendId))
+				route.IncomingPath, prefix, route.BackendID))
 		case "redirect":
 			redirectTemporarily := (route.RedirectType == "temporary")
 			handler := handlers.NewRedirectHandler(route.IncomingPath, route.RedirectTo, prefix, redirectTemporarily)

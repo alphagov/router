@@ -15,10 +15,10 @@ import (
 var (
 	pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
 	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
-	mongoUrl              = getenvDefault("ROUTER_MONGO_URL", "localhost")
+	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "localhost")
 	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
-	enableDebugOutput     = getenvDefault("DEBUG", "") != ""
+	enableDebugOutput     = os.Getenv("DEBUG") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "15s")
 )
@@ -92,7 +92,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	rout, err := NewRouter(mongoUrl, mongoDbName, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
+	rout, err := NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func main() {
 	go catchListenAndServe(pubAddr, rout, "proxy", wg)
 	logInfo("router: listening for requests on " + pubAddr)
 
-	api := newApiHandler(rout)
+	api := newAPIHandler(rout)
 	go catchListenAndServe(apiAddr, api, "api", wg)
 	logInfo("router: listening for refresh on " + apiAddr)
 

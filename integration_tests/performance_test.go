@@ -171,15 +171,15 @@ func vegetaAttack(targeter vegeta.Targeter, rate uint64, metricsChan chan *veget
 	metricsChan <- metrics
 }
 
-func startVegetaLoad(targetUrl string) *vegeta.Attacker {
+func startVegetaLoad(targetURL string) *vegeta.Attacker {
 	attacker := vegeta.NewAttacker()
-	targetter := vegeta.NewStaticTargeter(&vegeta.Target{Method: "GET", URL: targetUrl})
+	targetter := vegeta.NewStaticTargeter(&vegeta.Target{Method: "GET", URL: targetURL})
 	resCh := attacker.Attack(targetter, 50, time.Minute)
 
 	// Consume and discard results.  Without this, all the workers will block sending
 	// to the channel - https://github.com/tsenart/vegeta/blob/v5.4.0/lib/attack.go#L143
 	go func() {
-		for _ = range resCh {
+		for range resCh {
 			//discard
 		}
 	}()

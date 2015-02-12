@@ -131,12 +131,12 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	Describe("header handling", func() {
 		var (
 			recorder    *ghttp.Server
-			recorderUrl *url.URL
+			recorderURL *url.URL
 		)
 
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			recorderUrl, _ = url.Parse(recorder.URL())
+			recorderURL, _ = url.Parse(recorder.URL())
 			addBackend("backend", recorder.URL())
 			addBackendRoute("/foo", "backend", "prefix")
 			reloadRoutes()
@@ -167,7 +167,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			beReq := recorder.ReceivedRequests()[0]
-			Expect(beReq.Host).To(Equal(recorderUrl.Host))
+			Expect(beReq.Host).To(Equal(recorderURL.Host))
 		})
 
 		It("should not add a default User-Agent if there isn't one in the request", func() {

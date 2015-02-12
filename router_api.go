@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-func newApiHandler(rout *Router) http.Handler {
+func newAPIHandler(rout *Router) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
@@ -37,13 +37,13 @@ func newApiHandler(rout *Router) http.Handler {
 		stats := make(map[string]map[string]interface{})
 		stats["routes"] = rout.RouteStats()
 
-		json_data, err := json.MarshalIndent(stats, "", "  ")
+		jsonData, err := json.MarshalIndent(stats, "", "  ")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
-		w.Write(json_data)
+		w.Write(jsonData)
 		w.Write([]byte("\n"))
 	})
 	mux.HandleFunc("/memory-stats", func(w http.ResponseWriter, r *http.Request) {
@@ -55,13 +55,13 @@ func newApiHandler(rout *Router) http.Handler {
 		memStats := &runtime.MemStats{}
 		runtime.ReadMemStats(memStats)
 
-		json_data, err := json.MarshalIndent(memStats, "", "  ")
+		jsonData, err := json.MarshalIndent(memStats, "", "  ")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
-		w.Write(json_data)
+		w.Write(jsonData)
 		w.Write([]byte("\n"))
 	})
 

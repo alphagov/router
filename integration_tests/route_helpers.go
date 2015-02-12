@@ -29,10 +29,10 @@ func addBackend(id, url string) {
 	Expect(err).To(BeNil())
 }
 
-func addBackendRoute(path, backendId string, possibleRouteType ...string) {
+func addBackendRoute(path, backendID string, possibleRouteType ...string) {
 	route := bson.M{
 		"handler":    "backend",
-		"backend_id": backendId,
+		"backend_id": backendID,
 	}
 	addRoute(path, route, possibleRouteType...)
 }
