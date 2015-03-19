@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/alphagov/router/handlers"
-	"github.com/alphagov/router/logger"
-	"github.com/alphagov/router/triemux"
-	"labix.org/v2/mgo"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/alphagov/router/handlers"
+	"github.com/alphagov/router/logger"
+	"github.com/alphagov/router/triemux"
+	"gopkg.in/mgo.v2"
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
