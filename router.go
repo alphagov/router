@@ -155,6 +155,10 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 
 	iter := c.Find(nil).Sort("incoming_path", "route_type").Iter()
 
+	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusGone)
+	})
+
 	for iter.Next(&route) {
 		prefix := (route.RouteType == "prefix")
 		switch route.Handler {
@@ -175,10 +179,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				route.IncomingPath, prefix, route.RedirectTo))
 		case "gone":
-			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusGone)
-			})
-			mux.Handle(route.IncomingPath, prefix, handler)
+			mux.Handle(route.IncomingPath, prefix, goneHandler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", route.IncomingPath, prefix))
 		case "boom":
 			// Special handler so that we can test failure behaviour.
