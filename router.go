@@ -156,7 +156,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	iter := c.Find(nil).Sort("incoming_path", "route_type").Iter()
 
 	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusGone)
+		http.Error(w, "410 gone", http.StatusGone)
 	})
 
 	for iter.Next(&route) {
