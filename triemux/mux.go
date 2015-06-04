@@ -33,7 +33,14 @@ func NewMux() *Mux {
 
 // ServeHTTP dispatches the request to a backend with a registered route
 // matching the request path, or 404s.
+//
+// If the routing table is empty, return a 503.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if mux.count == 0 {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
 	handler, ok := mux.lookup(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
