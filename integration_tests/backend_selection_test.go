@@ -10,15 +10,6 @@ import (
 
 var _ = Describe("Backend selection", func() {
 
-	It("should 404 with no routes", func() {
-		reloadRoutes()
-		resp := routerRequest("/")
-		Expect(resp.StatusCode).To(Equal(404))
-
-		resp = routerRequest("/foo")
-		Expect(resp.StatusCode).To(Equal(404))
-	})
-
 	Describe("simple exact routes", func() {
 		var (
 			backend1 *httptest.Server

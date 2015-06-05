@@ -9,6 +9,20 @@ import (
 
 var _ = Describe("error handling", func() {
 
+	Describe("handling an empty routing table", func() {
+		BeforeEach(func() {
+			reloadRoutes()
+		})
+
+		It("should return a 503 error to the client", func() {
+			resp := routerRequest("/")
+			Expect(resp.StatusCode).To(Equal(503))
+
+			resp = routerRequest("/foo")
+			Expect(resp.StatusCode).To(Equal(503))
+		})
+	})
+
 	Describe("handling a panic", func() {
 		BeforeEach(func() {
 			addRoute("/boom", map[string]interface{}{"handler": "boom"})
