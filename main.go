@@ -25,6 +25,7 @@ var (
 
 func usage() {
 	helpstring := `
+GOV.UK Router %s
 Usage: %s
 
 The following environment variables and defaults are available:
@@ -41,7 +42,7 @@ Timeouts: (values must be parseable by http://golang.org/pkg/time/#ParseDuration
 ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
 ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
 `
-	fmt.Fprintf(os.Stderr, helpstring, os.Args[0])
+	fmt.Fprintf(os.Stderr, helpstring, versionInfo(), os.Args[0])
 	os.Exit(2)
 }
 
