@@ -4,3 +4,4 @@ set -eu
 
 make
 make test
+./router -version

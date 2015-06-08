@@ -26,7 +26,7 @@ var (
 func usage() {
 	helpstring := `
 GOV.UK Router %s
-Usage: %s
+Usage: %s [-version]
 
 The following environment variables and defaults are available:
 
@@ -78,6 +78,14 @@ func catchListenAndServe(addr string, handler http.Handler, ident string, wg *sy
 }
 
 func main() {
+	returnVersion := flag.Bool("version", false, "")
+	flag.Usage = usage
+	flag.Parse()
+	if *returnVersion {
+		fmt.Printf("GOV.UK Router %s\n", versionInfo())
+		os.Exit(0)
+	}
+
 	if os.Getenv("GOMAXPROCS") == "" {
 		// Use all available cores if not otherwise specified
 		runtime.GOMAXPROCS(runtime.NumCPU())
@@ -90,9 +98,6 @@ func main() {
 	if wd := os.Getenv("GOVUK_APP_ROOT"); wd != "" {
 		tablecloth.WorkingDir = wd
 	}
-
-	flag.Usage = usage
-	flag.Parse()
 
 	rout, err := NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
 	if err != nil {
