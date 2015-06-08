@@ -23,6 +23,7 @@ var (
 	enableDebugOutput     = os.Getenv("DEBUG") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "15s")
+	reloadInterval        = getenvDefault("ROUTER_RELOAD_INTERVAL", "1s")
 )
 
 func usage() {
@@ -43,6 +44,7 @@ Timeouts: (values must be parseable by http://golang.org/pkg/time/#ParseDuration
 
 ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
 ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
+ROUTER_RELOAD_INTERVAL=1s          Interval for route reloading rate limit
 `
 	fmt.Fprintf(os.Stderr, helpstring, versionInfo(), os.Args[0])
 	os.Exit(2)
@@ -114,7 +116,10 @@ func main() {
 	go catchListenAndServe(pubAddr, rout, "proxy", wg)
 	logInfo("router: listening for requests on " + pubAddr)
 
-	api := newAPIHandler(rout)
+	api, err := newAPIHandler(rout)
+	if err != nil {
+		log.Fatal(err)
+	}
 	go catchListenAndServe(apiAddr, api, "api", wg)
 	logInfo("router: listening for refresh on " + apiAddr)
 
