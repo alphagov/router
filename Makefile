@@ -22,7 +22,7 @@ test: _vendor/stamp build
 	gom test -v ./integration_tests
 
 clean:
-	rm -f $(BINARY)
+	rm -rf $(BINARY) _vendor
 
 _vendor/stamp: Gomfile
 	rm -f _vendor/src/$(IMPORT_PATH)
