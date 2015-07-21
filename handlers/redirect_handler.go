@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const cacheDuration = 24 * time.Hour
+const cacheDuration = 30 * time.Minute
 
 func NewRedirectHandler(source, target string, prefix, temporary bool) http.Handler {
 	statusMoved := http.StatusMovedPermanently
