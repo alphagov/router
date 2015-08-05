@@ -42,7 +42,20 @@ func startTarpitBackend(delays ...time.Duration) *httptest.Server {
 }
 
 func startRecordingBackend() *ghttp.Server {
-	server := ghttp.NewServer()
+	return startRecordingServer(false)
+}
+
+func startRecordingTLSBackend() *ghttp.Server {
+	return startRecordingServer(true)
+}
+
+func startRecordingServer(tls bool) (server *ghttp.Server) {
+	if tls {
+		server = ghttp.NewTLSServer()
+	} else {
+		server = ghttp.NewServer()
+	}
+
 	server.AllowUnhandledRequests = true
 	server.UnhandledRequestStatusCode = http.StatusOK
 	return server
