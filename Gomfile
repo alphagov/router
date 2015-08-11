@@ -1,5 +1,5 @@
 gom 'gopkg.in/mgo.v2', :tag => 'r2015.01.24'
-gom 'github.com/alext/tablecloth', :commit => 'b373a9a'
+gom 'github.com/alext/tablecloth', :commit => 'fbddb1a'
 
 gom 'github.com/onsi/ginkgo', :tag => 'v1.1.0'
 gom 'github.com/onsi/gomega', :tag => 'v1.0'
