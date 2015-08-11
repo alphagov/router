@@ -386,4 +386,31 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			Expect(beReq.Proto).To(Equal("HTTP/1.1"))
 		})
 	})
+
+	Describe("handling requests to a HTTPS backend", func() {
+		var recorder *ghttp.Server
+
+		BeforeEach(func() {
+			startRouter(3167, 3166, envMap{"ROUTER_TLS_SKIP_VERIFY": "1"})
+			recorder = startRecordingTLSBackend()
+			addBackend("backend", recorder.URL())
+			addBackendRoute("/foo", "backend", "prefix")
+			reloadRoutes(3166)
+		})
+
+		AfterEach(func() {
+			recorder.Close()
+			stopRouter(3167)
+		})
+
+		It("should correctly reverse proxy to a HTTPS backend", func() {
+			req := newRequest("GET", routerURL("/foo", 3167))
+			resp := doRequest(req)
+			Expect(resp.StatusCode).To(Equal(200))
+
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.URL.RequestURI()).To(Equal("/foo"))
+		})
+	})
 })

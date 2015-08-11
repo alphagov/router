@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/alext/tablecloth"
+	"github.com/alphagov/router/handlers"
 )
 
 var (
@@ -18,6 +19,7 @@ var (
 	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "localhost")
 	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
+	tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
 	enableDebugOutput     = os.Getenv("DEBUG") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "15s")
@@ -91,6 +93,12 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
+
+	if tlsSkipVerify {
+		handlers.TLSSkipVerify = true
+		logWarn("router: Skipping verification of TLS certificates. " +
+			"Do not use this option in a production environment.")
+	}
 
 	// Set working dir for tablecloth if available This is to allow restarts to
 	// pick up new versions.

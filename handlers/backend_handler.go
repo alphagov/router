@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/alphagov/router/logger"
 )
+
+var TLSSkipVerify bool
 
 func NewBackendHandler(backendURL *url.URL, connectTimeout, headerTimeout time.Duration, logger logger.Logger) http.Handler {
 	proxy := httputil.NewSingleHostReverseProxy(backendURL)
@@ -64,6 +67,11 @@ func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger log
 	// per upstream.
 	transport.wrapped.MaxIdleConnsPerHost = 20
 	transport.wrapped.ResponseHeaderTimeout = headerTimeout
+
+	if TLSSkipVerify {
+		transport.wrapped.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
 	return
 }
 
