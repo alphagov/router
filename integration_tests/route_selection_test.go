@@ -8,7 +8,7 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-var _ = Describe("Backend selection", func() {
+var _ = Describe("Route selection", func() {
 
 	Describe("simple exact routes", func() {
 		var (
