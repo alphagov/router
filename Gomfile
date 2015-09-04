@@ -3,4 +3,7 @@ gom 'github.com/alext/tablecloth', :commit => 'fbddb1a'
 
 gom 'github.com/onsi/ginkgo', :tag => 'v1.1.0'
 gom 'github.com/onsi/gomega', :tag => 'v1.0'
+
+# Dependency of vegeta
+gom 'github.com/bmizerany/perks/quantile', :commit => 'd9a9656'
 gom 'github.com/tsenart/vegeta', :tag => 'v5.4.0'
