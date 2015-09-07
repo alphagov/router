@@ -96,6 +96,9 @@ The `routes` collection uses the following data structure:
 }
 ```
 
+Incoming paths with special characters must be in their % encoded form in the
+database (eg spaces must be stored as `%20`).
+
 The behaviour is determined by `handler`. See below for extra fields
 corresponding to `handler` types.
 

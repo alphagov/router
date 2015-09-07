@@ -353,4 +353,26 @@ var _ = Describe("Route selection", func() {
 			Expect(recorder.ReceivedRequests()[0].URL.Path).To(Equal("/foo//bar"))
 		})
 	})
+
+	Describe("special characters in paths", func() {
+		var recorder *ghttp.Server
+
+		BeforeEach(func() {
+			recorder = startRecordingBackend()
+			addBackend("backend", recorder.URL())
+		})
+		AfterEach(func() {
+			recorder.Close()
+		})
+
+		It("should handle spaces (%20) in paths", func() {
+			addBackendRoute("/foo%20bar", "backend")
+			reloadRoutes()
+
+			resp := routerRequest("/foo bar")
+			Expect(resp.StatusCode).To(Equal(200))
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			Expect(recorder.ReceivedRequests()[0].RequestURI).To(Equal("/foo%20bar"))
+		})
+	})
 })
