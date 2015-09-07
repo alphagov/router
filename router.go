@@ -161,6 +161,15 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 
 	for iter.Next(&route) {
 		prefix := (route.RouteType == "prefix")
+
+		// the database contains paths with % encoded routes.
+		// Unescape them here because the http.Request objects we match against contain the unescaped variants.
+		incomingURL, err := url.Parse(route.IncomingPath)
+		if err != nil {
+			logWarn(fmt.Sprintf("router: found route %+v with invalid incoming path '%s', skipping!", route, route.IncomingPath))
+			continue
+		}
+
 		switch route.Handler {
 		case "backend":
 			handler, ok := backends[route.BackendID]
@@ -169,24 +178,24 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 					"%s, skipping!", route, route.BackendID))
 				continue
 			}
-			mux.Handle(route.IncomingPath, prefix, handler)
+			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
-				route.IncomingPath, prefix, route.BackendID))
+				incomingURL.Path, prefix, route.BackendID))
 		case "redirect":
 			redirectTemporarily := (route.RedirectType == "temporary")
-			handler := handlers.NewRedirectHandler(route.IncomingPath, route.RedirectTo, prefix, redirectTemporarily)
-			mux.Handle(route.IncomingPath, prefix, handler)
+			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, prefix, redirectTemporarily)
+			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
-				route.IncomingPath, prefix, route.RedirectTo))
+				incomingURL.Path, prefix, route.RedirectTo))
 		case "gone":
-			mux.Handle(route.IncomingPath, prefix, goneHandler)
-			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", route.IncomingPath, prefix))
+			mux.Handle(incomingURL.Path, prefix, goneHandler)
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", incomingURL.Path, prefix))
 		case "boom":
 			// Special handler so that we can test failure behaviour.
-			mux.Handle(route.IncomingPath, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mux.Handle(incomingURL.Path, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				panic("Boom!!!")
 			}))
-			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Boom!!!", route.IncomingPath, prefix))
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Boom!!!", incomingURL.Path, prefix))
 		default:
 			logWarn(fmt.Sprintf("router: found route %+v with unknown handler type "+
 				"%s, skipping!", route, route.Handler))

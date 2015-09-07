@@ -103,6 +103,15 @@ var _ = Describe("Redirection", func() {
 				time.Second,
 			))
 		})
+
+		It("should handle path-preserving redirects with special characters", func() {
+			addRedirectRoute("/foo%20bar", "/bar%20baz", "prefix")
+			reloadRoutes()
+
+			resp := routerRequest("/foo bar/something")
+			Expect(resp.StatusCode).To(Equal(301))
+			Expect(resp.Header.Get("Location")).To(Equal("/bar%20baz/something"))
+		})
 	})
 
 	Describe("external redirects", func() {
