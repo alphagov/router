@@ -37,6 +37,7 @@ type Route struct {
 	BackendID    string `bson:"backend_id"`
 	RedirectTo   string `bson:"redirect_to"`
 	RedirectType string `bson:"redirect_type"`
+	Disabled     bool   `bson:"disabled"`
 }
 
 // NewRouter returns a new empty router instance. You will still need to call
@@ -158,6 +159,9 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "410 gone", http.StatusGone)
 	})
+	unavailableHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "503 Service Unavailable", http.StatusServiceUnavailable)
+	})
 
 	for iter.Next(&route) {
 		prefix := (route.RouteType == "prefix")
@@ -167,6 +171,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		incomingURL, err := url.Parse(route.IncomingPath)
 		if err != nil {
 			logWarn(fmt.Sprintf("router: found route %+v with invalid incoming path '%s', skipping!", route, route.IncomingPath))
+			continue
+		}
+
+		if route.Disabled {
+			mux.Handle(incomingURL.Path, prefix, unavailableHandler)
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v)(disabled) -> Unavailable", incomingURL.Path, prefix))
 			continue
 		}
 
