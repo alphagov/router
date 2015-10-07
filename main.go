@@ -88,10 +88,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	if os.Getenv("GOMAXPROCS") == "" {
-		// Use all available cores if not otherwise specified
-		runtime.GOMAXPROCS(runtime.NumCPU())
-	}
 	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
 
 	if tlsSkipVerify {
