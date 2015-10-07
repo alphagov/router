@@ -30,7 +30,7 @@ func NewBackendHandler(backendURL *url.URL, connectTimeout, headerTimeout time.D
 
 		// Setting a blank User-Agent causes the http lib not to output one, whereas if there
 		// is no header, it will output a default one.
-		// See: http://code.google.com/p/go/source/browse/src/pkg/net/http/request.go?name=go1.1.2#349
+		// See: https://github.com/golang/go/blob/release-branch.go1.5/src/net/http/request.go#L419
 		if _, present := req.Header["User-Agent"]; !present {
 			req.Header.Set("User-Agent", "")
 		}

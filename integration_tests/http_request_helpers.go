@@ -38,7 +38,7 @@ func doRequest(req *http.Request) *http.Response {
 	if _, ok := req.Header[textproto.CanonicalMIMEHeaderKey("User-Agent")]; !ok {
 		// Setting a blank User-Agent causes the http lib not to output one, whereas if there
 		// is no header, it will output a default one.
-		// See: https://code.google.com/p/go/source/browse/src/pkg/net/http/request.go?name=go1.3.3#398
+		// See: https://github.com/golang/go/blob/release-branch.go1.5/src/net/http/request.go#L419
 		req.Header.Set("User-Agent", "")
 	}
 	resp, err := http.DefaultTransport.RoundTrip(req)
