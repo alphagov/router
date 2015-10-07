@@ -6,6 +6,10 @@ BUILDFILES := router.go main.go router_api.go version.go
 IMPORT_BASE := github.com/alphagov
 IMPORT_PATH := $(IMPORT_BASE)/router
 
+# Set a GOPATH to prevent gom erroring.
+GOPATH := $(CURDIR)/gopath
+export GOPATH
+
 ifdef RELEASE_VERSION
 VERSION := $(RELEASE_VERSION)
 else
