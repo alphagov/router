@@ -17,7 +17,7 @@ func routerURL(path string, optionalPort ...int) string {
 	if len(optionalPort) > 0 {
 		port = optionalPort[0]
 	}
-	return fmt.Sprintf("http://localhost:%d%s", port, path)
+	return fmt.Sprintf("http://127.0.0.1:%d%s", port, path)
 }
 
 func routerAPIURL(path string, optionalPort ...int) string {
@@ -29,7 +29,7 @@ func reloadRoutes(optionalPort ...int) {
 	if len(optionalPort) > 0 {
 		port = optionalPort[0]
 	}
-	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/reload", port), "", nil)
+	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:%d/reload", port), "", nil)
 	Expect(err).To(BeNil())
 	Expect(resp.StatusCode).To(Equal(200))
 }

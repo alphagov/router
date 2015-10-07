@@ -19,7 +19,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("connecting to the backend", func() {
 		It("should return a 502 if the connection to the backend is refused", func() {
-			addBackend("not-running", "http://localhost:3164/")
+			addBackend("not-running", "http://127.0.0.1:3164/")
 			addBackendRoute("/not-running", "not-running")
 			reloadRoutes()
 
@@ -32,11 +32,11 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			logDetails := lastRouterErrorLogEntry()
 			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-				"error":          "dial tcp 127.0.0.1:3164: connection refused",
+				"error":          "dial tcp 127.0.0.1:3164: getsockopt: connection refused",
 				"request":        "GET /not-running HTTP/1.1",
 				"request_method": "GET",
 				"status":         float64(502), // All numbers in JSON are floating point
-				"upstream_addr":  "localhost:3164",
+				"upstream_addr":  "127.0.0.1:3164",
 				"varnish_id":     "12345678",
 			}))
 			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))

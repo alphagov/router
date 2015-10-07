@@ -9,7 +9,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/alphagov/router/logger"
@@ -30,7 +29,7 @@ func NewBackendHandler(backendURL *url.URL, connectTimeout, headerTimeout time.D
 
 		// Setting a blank User-Agent causes the http lib not to output one, whereas if there
 		// is no header, it will output a default one.
-		// See: http://code.google.com/p/go/source/browse/src/pkg/net/http/request.go?name=go1.1.2#349
+		// See: https://github.com/golang/go/blob/release-branch.go1.5/src/net/http/request.go#L419
 		if _, present := req.Header["User-Agent"]; !present {
 			req.Header.Set("User-Agent", "")
 		}
@@ -90,10 +89,10 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 				logDetails["status"] = 504
 				return newErrorResponse(504), nil
 			}
-			if opErr, ok := netErr.(*net.OpError); ok && opErr.Err == syscall.ECONNREFUSED {
-				logDetails["status"] = 502
-				return newErrorResponse(502), nil
-			}
+		}
+		if strings.Contains(err.Error(), "connection refused") {
+			logDetails["status"] = 502
+			return newErrorResponse(502), nil
 		}
 
 		// 500 for all other errors

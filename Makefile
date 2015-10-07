@@ -6,6 +6,10 @@ BUILDFILES := router.go main.go router_api.go version.go
 IMPORT_BASE := github.com/alphagov
 IMPORT_PATH := $(IMPORT_BASE)/router
 
+# Set a GOPATH to prevent gom erroring.
+GOPATH := $(CURDIR)/gopath
+export GOPATH
+
 ifdef RELEASE_VERSION
 VERSION := $(RELEASE_VERSION)
 else
@@ -25,7 +29,7 @@ clean:
 	rm -rf $(BINARY) _vendor
 
 $(BINARY): $(SOURCE_FILES) _vendor/stamp
-	gom build -ldflags "-X main.version $(VERSION)" -o $(BINARY) $(BUILDFILES)
+	gom build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) $(BUILDFILES)
 
 _vendor/stamp: Gomfile
 	rm -f _vendor/src/$(IMPORT_PATH)
