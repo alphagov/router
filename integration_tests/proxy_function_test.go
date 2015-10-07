@@ -32,7 +32,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			logDetails := lastRouterErrorLogEntry()
 			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-				"error":          "dial tcp 127.0.0.1:3164: connection refused",
+				"error":          "dial tcp 127.0.0.1:3164: getsockopt: connection refused",
 				"request":        "GET /not-running HTTP/1.1",
 				"request_method": "GET",
 				"status":         float64(502), // All numbers in JSON are floating point

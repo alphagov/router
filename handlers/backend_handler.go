@@ -9,7 +9,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/alphagov/router/logger"
@@ -90,10 +89,10 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 				logDetails["status"] = 504
 				return newErrorResponse(504), nil
 			}
-			if opErr, ok := netErr.(*net.OpError); ok && opErr.Err == syscall.ECONNREFUSED {
-				logDetails["status"] = 502
-				return newErrorResponse(502), nil
-			}
+		}
+		if strings.Contains(err.Error(), "connection refused") {
+			logDetails["status"] = 502
+			return newErrorResponse(502), nil
 		}
 
 		// 500 for all other errors
