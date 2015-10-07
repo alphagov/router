@@ -93,14 +93,19 @@ The `routes` collection uses the following data structure:
   "route_type"    : ["prefix","exact"],
   "incoming_path" : "/url-path/here",
   "handler"       : ["backend", "redirect", "gone"],
+  "disabled"      : false
 }
 ```
 
 Incoming paths with special characters must be in their % encoded form in the
 database (eg spaces must be stored as `%20`).
 
-The behaviour is determined by `handler`. See below for extra fields
-corresponding to `handler` types.
+The behaviour of an enabled route is determined by `handler`. See below for
+extra fields corresponding to `handler` types.
+
+If a route is disabled, the router will return a 503 for all matching requests.
+This is typically used if a service needs to be taken offline for maintenance
+etc.
 
 #### `backend` handler
 
