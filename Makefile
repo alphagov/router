@@ -29,7 +29,7 @@ clean:
 	rm -rf $(BINARY) _vendor
 
 $(BINARY): $(SOURCE_FILES) _vendor/stamp
-	gom build -ldflags "-X main.version $(VERSION)" -o $(BINARY) $(BUILDFILES)
+	gom build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) $(BUILDFILES)
 
 _vendor/stamp: Gomfile
 	rm -f _vendor/src/$(IMPORT_PATH)
