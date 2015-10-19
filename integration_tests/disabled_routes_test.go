@@ -9,7 +9,7 @@ var _ = Describe("marking routes as disabled", func() {
 
 	Describe("handling a disabled route", func() {
 		BeforeEach(func() {
-			addRoute("/unavailable", map[string]interface{}{"handler": "gone", "disabled": true})
+			addRoute("/unavailable", Route {Handler: "gone", Disabled: true})
 			addRedirectRoute("/something-live", "/somewhere-else")
 			reloadRoutes()
 		})
