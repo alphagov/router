@@ -20,7 +20,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	Describe("connecting to the backend", func() {
 		It("should return a 502 if the connection to the backend is refused", func() {
 			addBackend("not-running", "http://127.0.0.1:3164/")
-			addBackendRoute("/not-running", "not-running")
+			addRoute("/not-running", NewBackendRoute("not-running"))
 			reloadRoutes()
 
 			req, err := http.NewRequest("GET", routerURL("/not-running"), nil)
@@ -49,7 +49,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
 				defer stopRouter(3167)
 				addBackend("firewall-blocked", "http://localhost:3170/")
-				addBackendRoute("/blocked", "firewall-blocked")
+				addRoute("/blocked", NewBackendRoute("firewall-blocked"))
 				reloadRoutes(3166)
 
 				req, err := http.NewRequest("GET", routerURL("/blocked", 3167), nil)
@@ -90,8 +90,8 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				tarpit2 = startTarpitBackend(100*time.Millisecond, 500*time.Millisecond)
 				addBackend("tarpit1", tarpit1.URL)
 				addBackend("tarpit2", tarpit2.URL)
-				addBackendRoute("/tarpit1", "tarpit1")
-				addBackendRoute("/tarpit2", "tarpit2")
+				addRoute("/tarpit1", NewBackendRoute("tarpit1"))
+				addRoute("/tarpit2", NewBackendRoute("tarpit2"))
 				reloadRoutes(3166)
 			})
 
@@ -138,7 +138,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			recorder = startRecordingBackend()
 			recorderURL, _ = url.Parse(recorder.URL())
 			addBackend("backend", recorder.URL())
-			addBackendRoute("/foo", "backend", "prefix")
+			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes()
 		})
 
@@ -263,7 +263,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
-			addBackendRoute("/foo", "backend", "prefix")
+			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes()
 		})
 
@@ -323,7 +323,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL()+"/something")
-			addBackendRoute("/foo/bar", "backend", "prefix")
+			addRoute("/foo/bar", NewBackendRoute("backend", "prefix"))
 			reloadRoutes()
 		})
 
@@ -358,7 +358,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
-			addBackendRoute("/foo", "backend", "prefix")
+			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes()
 		})
 
@@ -394,7 +394,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			startRouter(3167, 3166, envMap{"ROUTER_TLS_SKIP_VERIFY": "1"})
 			recorder = startRecordingTLSBackend()
 			addBackend("backend", recorder.URL())
-			addBackendRoute("/foo", "backend", "prefix")
+			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(3166)
 		})
 

@@ -37,6 +37,7 @@ type Route struct {
 	BackendID    string `bson:"backend_id"`
 	RedirectTo   string `bson:"redirect_to"`
 	RedirectType string `bson:"redirect_type"`
+	SegmentsMode string `bson:"segments_mode"`
 	Disabled     bool   `bson:"disabled"`
 }
 
@@ -193,7 +194,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 				incomingURL.Path, prefix, route.BackendID))
 		case "redirect":
 			redirectTemporarily := (route.RedirectType == "temporary")
-			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, prefix, redirectTemporarily)
+			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route), redirectTemporarily)
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				incomingURL.Path, prefix, route.RedirectTo))
@@ -227,4 +228,18 @@ func (rt *Router) RouteStats() (stats map[string]interface{}) {
 	stats["count"] = mux.RouteCount()
 	stats["checksum"] = fmt.Sprintf("%x", mux.RouteChecksum())
 	return
+}
+
+func shouldPreserveSegments(route *Route) bool {
+	switch {
+	case route.RouteType == "exact" && route.SegmentsMode == "preserve":
+		return true
+	case route.RouteType == "exact":
+		return false
+	case route.RouteType == "prefix" && route.SegmentsMode == "ignore":
+		return false
+	case route.RouteType == "prefix":
+		return true
+	}
+	return false
 }

@@ -53,9 +53,9 @@ var _ = Describe("reload API endpoint", func() {
 			var data map[string]map[string]interface{}
 
 			BeforeEach(func() {
-				addRedirectRoute("/foo", "/bar", "prefix")
-				addRedirectRoute("/baz", "/qux", "prefix")
-				addRedirectRoute("/foo", "/bar/baz")
+				addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
+				addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
+				addRoute("/foo", NewRedirectRoute("/bar/baz"))
 				reloadRoutes()
 				resp := doRequest(newRequest("GET", routerAPIURL("/stats")))
 				Expect(resp.StatusCode).To(Equal(200))
@@ -105,9 +105,9 @@ var _ = Describe("reload API endpoint", func() {
 
 	Describe("memory stats", func() {
 		It("should return memory statistics", func() {
-			addRedirectRoute("/foo", "/bar", "prefix")
-			addRedirectRoute("/baz", "/qux", "prefix")
-			addRedirectRoute("/foo", "/bar/baz")
+			addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
+			addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
+			addRoute("/foo", NewRedirectRoute("/bar/baz"))
 			reloadRoutes()
 
 			resp := doRequest(newRequest("GET", routerAPIURL("/memory-stats")))

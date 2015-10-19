@@ -25,7 +25,7 @@ var _ = Describe("error handling", func() {
 
 	Describe("handling a panic", func() {
 		BeforeEach(func() {
-			addRoute("/boom", map[string]interface{}{"handler": "boom"})
+			addRoute("/boom", Route{Handler: "boom"})
 			reloadRoutes()
 		})
 

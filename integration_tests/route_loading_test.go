@@ -26,9 +26,9 @@ var _ = Describe("loading routes from the db", func() {
 
 	Context("a route with an unrecognised handler type", func() {
 		BeforeEach(func() {
-			addBackendRoute("/foo", "backend-1")
-			addRoute("/bar", map[string]interface{}{"handler": "fooey"})
-			addBackendRoute("/baz", "backend-2")
+			addRoute("/foo", NewBackendRoute("backend-1"))
+			addRoute("/bar", Route{Handler: "fooey"})
+			addRoute("/baz", NewBackendRoute("backend-2"))
 			reloadRoutes()
 		})
 
@@ -48,10 +48,10 @@ var _ = Describe("loading routes from the db", func() {
 
 	Context("a route with a non-existent backend", func() {
 		BeforeEach(func() {
-			addBackendRoute("/foo", "backend-1")
-			addBackendRoute("/bar", "backend-non-existent")
-			addBackendRoute("/baz", "backend-2")
-			addBackendRoute("/qux", "backend-1")
+			addRoute("/foo", NewBackendRoute("backend-1"))
+			addRoute("/bar", NewBackendRoute("backend-non-existent"))
+			addRoute("/baz", NewBackendRoute("backend-2"))
+			addRoute("/qux", NewBackendRoute("backend-1"))
 			reloadRoutes()
 		})
 

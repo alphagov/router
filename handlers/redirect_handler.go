@@ -9,20 +9,20 @@ import (
 
 const cacheDuration = 30 * time.Minute
 
-func NewRedirectHandler(source, target string, prefix, temporary bool) http.Handler {
+func NewRedirectHandler(source, target string, preserve bool, temporary bool) http.Handler {
 	statusMoved := http.StatusMovedPermanently
 	if temporary {
 		statusMoved = http.StatusFound
 	}
-	if prefix {
+	if preserve {
 		return &pathPreservingRedirectHandler{source, target, statusMoved}
 	}
 	return &redirectHandler{target, statusMoved}
 }
 
-func addCacheHeaders(w http.ResponseWriter) {
-	w.Header().Set("Expires", time.Now().Add(cacheDuration).Format(time.RFC1123))
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", cacheDuration/time.Second))
+func addCacheHeaders(writer http.ResponseWriter) {
+	writer.Header().Set("Expires", time.Now().Add(cacheDuration).Format(time.RFC1123))
+	writer.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", cacheDuration/time.Second))
 }
 
 type redirectHandler struct {
@@ -30,9 +30,9 @@ type redirectHandler struct {
 	code int
 }
 
-func (rh *redirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	addCacheHeaders(w)
-	http.Redirect(w, r, rh.url, rh.code)
+func (handler *redirectHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	addCacheHeaders(writer)
+	http.Redirect(writer, request, handler.url, handler.code)
 }
 
 type pathPreservingRedirectHandler struct {
@@ -41,12 +41,12 @@ type pathPreservingRedirectHandler struct {
 	code         int
 }
 
-func (rh *pathPreservingRedirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	target := rh.targetPrefix + strings.TrimPrefix(r.URL.Path, rh.sourcePrefix)
-	if r.URL.RawQuery != "" {
-		target = target + "?" + r.URL.RawQuery
+func (handler *pathPreservingRedirectHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	target := handler.targetPrefix + strings.TrimPrefix(request.URL.Path, handler.sourcePrefix)
+	if request.URL.RawQuery != "" {
+		target = target + "?" + request.URL.RawQuery
 	}
 
-	addCacheHeaders(w)
-	http.Redirect(w, r, target, rh.code)
+	addCacheHeaders(writer)
+	http.Redirect(writer, request, target, handler.code)
 }

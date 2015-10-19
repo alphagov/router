@@ -8,8 +8,8 @@ import (
 var _ = Describe("Gone routes", func() {
 
 	BeforeEach(func() {
-		addGoneRoute("/foo")
-		addGoneRoute("/bar", "prefix")
+		addRoute("/foo", NewGoneRoute())
+		addRoute("/bar", NewGoneRoute("prefix"))
 		reloadRoutes()
 	})
 

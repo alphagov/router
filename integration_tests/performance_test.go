@@ -25,8 +25,8 @@ var _ = Describe("Performance", func() {
 			backend2 = startSimpleBackend("backend 2")
 			addBackend("backend-1", backend1.URL)
 			addBackend("backend-2", backend2.URL)
-			addBackendRoute("/one", "backend-1")
-			addBackendRoute("/two", "backend-2")
+			addRoute("/one", NewBackendRoute("backend-1"))
+			addRoute("/two", NewBackendRoute("backend-2"))
 			reloadRoutes()
 		})
 		AfterEach(func() {
@@ -62,7 +62,7 @@ var _ = Describe("Performance", func() {
 				slowBackend := startTarpitBackend(time.Second)
 				defer slowBackend.Close()
 				addBackend("backend-slow", slowBackend.URL)
-				addBackendRoute("/slow", "backend-slow")
+				addRoute("/slow", NewBackendRoute("backend-slow"))
 				reloadRoutes()
 
 				attacker := startVegetaLoad(routerURL("/slow"))
@@ -75,7 +75,7 @@ var _ = Describe("Performance", func() {
 		Describe("one downed backend hit separately", func() {
 			It("should not significantly increase latency", func() {
 				addBackend("backend-down", "http://localhost:3162/")
-				addBackendRoute("/down", "backend-down")
+				addRoute("/down", NewBackendRoute("backend-down"))
 				reloadRoutes()
 
 				attacker := startVegetaLoad(routerURL("/down"))
@@ -106,8 +106,8 @@ var _ = Describe("Performance", func() {
 				backend2 = startTarpitBackend(time.Second)
 				addBackend("backend-1", backend1.URL)
 				addBackend("backend-2", backend2.URL)
-				addBackendRoute("/one", "backend-1")
-				addBackendRoute("/two", "backend-2")
+				addRoute("/one", NewBackendRoute("backend-1"))
+				addRoute("/two", NewBackendRoute("backend-2"))
 				reloadRoutes()
 			})
 			AfterEach(func() {
