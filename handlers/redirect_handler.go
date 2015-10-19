@@ -14,7 +14,7 @@ func NewRedirectHandler(source, target string, prefix bool, preserve bool, tempo
 	if temporary {
 		statusMoved = http.StatusFound
 	}
-	if prefix && preserve {
+	if preserve {
 		return &pathPreservingRedirectHandler{source, target, statusMoved}
 	}
 	return &redirectHandler{target, statusMoved}
