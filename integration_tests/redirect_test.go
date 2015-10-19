@@ -11,10 +11,10 @@ var _ = Describe("Redirection", func() {
 
 	Describe("exact redirects", func() {
 		BeforeEach(func() {
-			addRedirectRoute("/foo", "/bar")
-			addRedirectRoute("/foo-temp", "/bar", "exact", "temporary")
-			addRedirectRoute("/query-temp", "/bar?query=true", "exact")
-			addRedirectRoute("/fragment", "/bar#section", "exact")
+			addRoute("/foo", NewRedirectRoute("/bar"))
+			addRoute("/foo-temp", NewRedirectRoute("/bar", "exact", "temporary"))
+			addRoute("/query-temp", NewRedirectRoute("/bar?query=true", "exact"))
+			addRoute("/fragment", NewRedirectRoute("/bar#section", "exact"))
 			reloadRoutes()
 		})
 
@@ -64,8 +64,8 @@ var _ = Describe("Redirection", func() {
 
 	Describe("prefix redirects", func() {
 		BeforeEach(func() {
-			addRedirectRoute("/foo", "/bar", "prefix")
-			addRedirectRoute("/foo-temp", "/bar-temp", "prefix", "temporary")
+			addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
+			addRoute("/foo-temp", NewRedirectRoute("/bar-temp", "prefix", "temporary"))
 			reloadRoutes()
 		})
 
@@ -105,7 +105,7 @@ var _ = Describe("Redirection", func() {
 		})
 
 		It("should handle path-preserving redirects with special characters", func() {
-			addRedirectRoute("/foo%20bar", "/bar%20baz", "prefix")
+			addRoute("/foo%20bar", NewRedirectRoute("/bar%20baz", "prefix"))
 			reloadRoutes()
 
 			resp := routerRequest("/foo bar/something")
@@ -116,8 +116,8 @@ var _ = Describe("Redirection", func() {
 
 	Describe("external redirects", func() {
 		BeforeEach(func() {
-			addRedirectRoute("/foo", "http://foo.example.com/foo")
-			addRedirectRoute("/bar", "http://bar.example.com/bar", "prefix")
+			addRoute("/foo", NewRedirectRoute("http://foo.example.com/foo"))
+			addRoute("/bar", NewRedirectRoute("http://bar.example.com/bar", "prefix"))
 			reloadRoutes()
 		})
 

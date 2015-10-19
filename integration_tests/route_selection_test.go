@@ -21,9 +21,9 @@ var _ = Describe("Route selection", func() {
 			backend2 = startSimpleBackend("backend 2")
 			addBackend("backend-1", backend1.URL)
 			addBackend("backend-2", backend2.URL)
-			addBackendRoute("/foo", "backend-1")
-			addBackendRoute("/bar", "backend-2")
-			addBackendRoute("/baz", "backend-1")
+			addRoute("/foo", NewBackendRoute("backend-1"))
+			addRoute("/bar", NewBackendRoute("backend-2"))
+			addRoute("/baz", NewBackendRoute("backend-1"))
 			reloadRoutes()
 		})
 		AfterEach(func() {
@@ -70,9 +70,9 @@ var _ = Describe("Route selection", func() {
 			backend2 = startSimpleBackend("backend 2")
 			addBackend("backend-1", backend1.URL)
 			addBackend("backend-2", backend2.URL)
-			addBackendRoute("/foo", "backend-1", "prefix")
-			addBackendRoute("/bar", "backend-2", "prefix")
-			addBackendRoute("/baz", "backend-1", "prefix")
+			addRoute("/foo", NewBackendRoute("backend-1", "prefix"))
+			addRoute("/bar", NewBackendRoute("backend-2", "prefix"))
+			addRoute("/baz", NewBackendRoute("backend-1", "prefix"))
 			reloadRoutes()
 		})
 		AfterEach(func() {
@@ -125,7 +125,7 @@ var _ = Describe("Route selection", func() {
 			inner = startSimpleBackend("inner")
 			addBackend("outer-backend", outer.URL)
 			addBackend("inner-backend", inner.URL)
-			addBackendRoute("/foo", "outer-backend", "prefix")
+			addRoute("/foo", NewBackendRoute("outer-backend", "prefix"))
 			reloadRoutes()
 		})
 		AfterEach(func() {
@@ -135,7 +135,7 @@ var _ = Describe("Route selection", func() {
 
 		Describe("with an exact child", func() {
 			BeforeEach(func() {
-				addBackendRoute("/foo/bar", "inner-backend")
+				addRoute("/foo/bar", NewBackendRoute("inner-backend"))
 				reloadRoutes()
 			})
 
@@ -157,7 +157,7 @@ var _ = Describe("Route selection", func() {
 
 		Describe("with a prefix child", func() {
 			BeforeEach(func() {
-				addBackendRoute("/foo/bar", "inner-backend", "prefix")
+				addRoute("/foo/bar", NewBackendRoute("inner-backend", "prefix"))
 				reloadRoutes()
 			})
 
@@ -192,8 +192,8 @@ var _ = Describe("Route selection", func() {
 			BeforeEach(func() {
 				innerer = startSimpleBackend("innerer")
 				addBackend("innerer-backend", innerer.URL)
-				addBackendRoute("/foo/bar", "inner-backend")
-				addBackendRoute("/foo/bar/baz", "innerer-backend", "prefix")
+				addRoute("/foo/bar", NewBackendRoute("inner-backend"))
+				addRoute("/foo/bar/baz", NewBackendRoute("innerer-backend", "prefix"))
 				reloadRoutes()
 			})
 			AfterEach(func() {
@@ -247,8 +247,8 @@ var _ = Describe("Route selection", func() {
 			backend2 = startSimpleBackend("backend 2")
 			addBackend("backend-1", backend1.URL)
 			addBackend("backend-2", backend2.URL)
-			addBackendRoute("/foo", "backend-1", "prefix")
-			addBackendRoute("/foo", "backend-2")
+			addRoute("/foo", NewBackendRoute("backend-1", "prefix"))
+			addRoute("/foo", NewBackendRoute("backend-2"))
 			reloadRoutes()
 		})
 		AfterEach(func() {
@@ -278,7 +278,7 @@ var _ = Describe("Route selection", func() {
 			other = startSimpleBackend("other backend")
 			addBackend("root", root.URL)
 			addBackend("other", other.URL)
-			addBackendRoute("/foo", "other")
+			addRoute("/foo", NewBackendRoute("other"))
 		})
 		AfterEach(func() {
 			root.Close()
@@ -286,7 +286,7 @@ var _ = Describe("Route selection", func() {
 		})
 
 		It("should handle an exact route at the root level", func() {
-			addBackendRoute("/", "root")
+			addRoute("/", NewBackendRoute("root"))
 			reloadRoutes()
 
 			resp := routerRequest("/")
@@ -300,7 +300,7 @@ var _ = Describe("Route selection", func() {
 		})
 
 		It("should handle a prefix route at the root level", func() {
-			addBackendRoute("/", "root", "prefix")
+			addRoute("/", NewBackendRoute("root", "prefix"))
 			reloadRoutes()
 
 			resp := routerRequest("/")
@@ -325,8 +325,8 @@ var _ = Describe("Route selection", func() {
 			recorder = startRecordingBackend()
 			addBackend("root", root.URL)
 			addBackend("other", recorder.URL())
-			addBackendRoute("/", "root", "prefix")
-			addBackendRoute("/foo/bar", "other", "prefix")
+			addRoute("/", NewBackendRoute("root", "prefix"))
+			addRoute("/foo/bar", NewBackendRoute("other", "prefix"))
 			reloadRoutes()
 		})
 		AfterEach(func() {
@@ -366,7 +366,7 @@ var _ = Describe("Route selection", func() {
 		})
 
 		It("should handle spaces (%20) in paths", func() {
-			addBackendRoute("/foo%20bar", "backend")
+			addRoute("/foo%20bar", NewBackendRoute("backend"))
 			reloadRoutes()
 
 			resp := routerRequest("/foo bar")

@@ -26,29 +26,44 @@ type Route struct {
 	Disabled     bool   `bson:"disabled"`
 }
 
-func NewBackendRoute(backendID string) Route {
-	route := Route {
-		Handler: "backend",
+func NewBackendRoute(backendID string, extraParams ...string) Route {
+	route := Route{
+		Handler:   "backend",
 		BackendID: backendID,
 	}
 
-	return route
-}
-
-func NewRedirectRoute(redirectTo string) Route {
-	route := Route {
-		Handler: "redirect",
-		RedirectTo: redirectTo,
-		RedirectType: "permanent",
-		RouteType: "exact",
+	if len(extraParams) > 0 {
+		route.RouteType = extraParams[0]
 	}
 
 	return route
 }
 
-func NewGoneRoute() Route {
-	route := Route {
+func NewRedirectRoute(redirectTo string, extraParams ...string) Route {
+	route := Route{
+		Handler:      "redirect",
+		RedirectTo:   redirectTo,
+		RedirectType: "permanent",
+		RouteType:    "exact",
+	}
+
+	if len(extraParams) > 0 {
+		route.RouteType = extraParams[0]
+	}
+	if len(extraParams) > 1 {
+		route.RedirectType = extraParams[1]
+	}
+
+	return route
+}
+
+func NewGoneRoute(extraParams ...string) Route {
+	route := Route{
 		Handler: "gone",
+	}
+
+	if len(extraParams) > 0 {
+		route.RouteType = extraParams[0]
 	}
 
 	return route
@@ -65,39 +80,6 @@ func init() {
 func addBackend(id, url string) {
 	err := routerDB.C("backends").Insert(bson.M{"backend_id": id, "backend_url": url})
 	Expect(err).To(BeNil())
-}
-
-func addBackendRoute(path, backendID string, possibleRouteType ...string) {
-	route := NewBackendRoute(backendID)
-
-	if len(possibleRouteType) > 0 {
-		route.RouteType = possibleRouteType[0]
-	}
-
-	addRoute(path, route)
-}
-
-func addRedirectRoute(path, redirectTo string, extraParams ...string) {
-	route := NewRedirectRoute(redirectTo)
-
-	if len(extraParams) > 0 {
-		route.RouteType = extraParams[0]
-	}
-	if len(extraParams) > 1 {
-		route.RedirectType = extraParams[1]
-	}
-
-	addRoute(path, route)
-}
-
-func addGoneRoute(path string, possibleRouteType ...string) {
-	route := NewGoneRoute()
-
-	if len(possibleRouteType) > 0 {
-		route.RouteType = possibleRouteType[0]
-	}
-
-	addRoute(path, route)
 }
 
 func addRoute(path string, route Route) {
