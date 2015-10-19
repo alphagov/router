@@ -66,6 +66,7 @@ var _ = Describe("Redirection", func() {
 		BeforeEach(func() {
 			addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
 			addRoute("/foo-temp", NewRedirectRoute("/bar-temp", "prefix", "temporary"))
+			addRoute("/qux", NewRedirectRoute("/baz", "prefix", "temporary", "ignore"))
 			reloadRoutes()
 		})
 
@@ -84,6 +85,11 @@ var _ = Describe("Redirection", func() {
 		It("should preserve extra path sections when redirecting", func() {
 			resp := routerRequest("/foo/baz")
 			Expect(resp.Header.Get("Location")).To(Equal("/bar/baz"))
+		})
+
+		It("should ignore extra path sections when redirecting if specified", func() {
+			resp := routerRequest("/qux/quux")
+			Expect(resp.Header.Get("Location")).To(Equal("/baz"))
 		})
 
 		It("should preserve the query string when redirecting", func() {
@@ -118,6 +124,7 @@ var _ = Describe("Redirection", func() {
 		BeforeEach(func() {
 			addRoute("/foo", NewRedirectRoute("http://foo.example.com/foo"))
 			addRoute("/bar", NewRedirectRoute("http://bar.example.com/bar", "prefix"))
+			addRoute("/qux", NewRedirectRoute("http://bar.example.com/qux", "prefix", "permanent", "ignore"))
 			reloadRoutes()
 		})
 
@@ -142,6 +149,11 @@ var _ = Describe("Redirection", func() {
 			It("should preserve extra path sections when redirecting", func() {
 				resp := routerRequest("/bar/baz")
 				Expect(resp.Header.Get("Location")).To(Equal("http://bar.example.com/bar/baz"))
+			})
+
+			It("should ignore extra path sections when redirecting if specified", func() {
+				resp := routerRequest("/qux/baz")
+				Expect(resp.Header.Get("Location")).To(Equal("http://bar.example.com/qux"))
 			})
 
 			It("should preserve the query string when redirecting", func() {

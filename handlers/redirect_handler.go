@@ -9,12 +9,12 @@ import (
 
 const cacheDuration = 30 * time.Minute
 
-func NewRedirectHandler(source, target string, prefix, temporary bool) http.Handler {
+func NewRedirectHandler(source, target string, prefix bool, preserve bool, temporary bool) http.Handler {
 	statusMoved := http.StatusMovedPermanently
 	if temporary {
 		statusMoved = http.StatusFound
 	}
-	if prefix {
+	if prefix && preserve {
 		return &pathPreservingRedirectHandler{source, target, statusMoved}
 	}
 	return &redirectHandler{target, statusMoved}

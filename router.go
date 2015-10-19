@@ -37,6 +37,7 @@ type Route struct {
 	BackendID    string `bson:"backend_id"`
 	RedirectTo   string `bson:"redirect_to"`
 	RedirectType string `bson:"redirect_type"`
+	PrefixMode   string `bson:"prefix_mode"`
 	Disabled     bool   `bson:"disabled"`
 }
 
@@ -193,7 +194,8 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 				incomingURL.Path, prefix, route.BackendID))
 		case "redirect":
 			redirectTemporarily := (route.RedirectType == "temporary")
-			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, prefix, redirectTemporarily)
+			preserve := (route.PrefixMode != "ignore")
+			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, prefix, preserve, redirectTemporarily)
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				incomingURL.Path, prefix, route.RedirectTo))

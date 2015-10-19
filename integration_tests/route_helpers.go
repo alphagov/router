@@ -23,6 +23,7 @@ type Route struct {
 	BackendID    string `bson:"backend_id"`
 	RedirectTo   string `bson:"redirect_to"`
 	RedirectType string `bson:"redirect_type"`
+	PrefixMode   string `bson:"prefix_mode"`
 	Disabled     bool   `bson:"disabled"`
 }
 
@@ -45,6 +46,7 @@ func NewRedirectRoute(redirectTo string, extraParams ...string) Route {
 		RedirectTo:   redirectTo,
 		RedirectType: "permanent",
 		RouteType:    "exact",
+		PrefixMode:   "preserve",
 	}
 
 	if len(extraParams) > 0 {
@@ -52,6 +54,9 @@ func NewRedirectRoute(redirectTo string, extraParams ...string) Route {
 	}
 	if len(extraParams) > 1 {
 		route.RedirectType = extraParams[1]
+	}
+	if len(extraParams) > 2 {
+		route.PrefixMode = extraParams[2]
 	}
 
 	return route
