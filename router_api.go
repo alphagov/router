@@ -36,6 +36,7 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 		select {
 		case reloadChan <- true:
 			logInfo("router: reload triggered")
+			w.WriteHeader(http.StatusAccepted)
 			w.Write([]byte("Reload triggered"))
 		default:
 			logInfo("router: reload already in progress")
