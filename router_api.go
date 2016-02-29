@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func newAPIHandler(rout *Router) (api http.Handler, err error) {
+func newAPIHandler(rout *Router, reloadInterval string) (api http.Handler, err error) {
 	reloadDuration, err := time.ParseDuration(reloadInterval)
 	if err != nil {
 		return nil, err
