@@ -31,7 +31,10 @@ func reloadRoutes(optionalPort ...int) {
 	}
 	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:%d/reload", port), "", nil)
 	Expect(err).To(BeNil())
-	Expect(resp.StatusCode).To(Equal(200))
+	Expect(resp.StatusCode).To(Equal(202))
+	// Now that reloading is done asynchronously, we need a small sleep to ensure
+	// it has actually been performed.
+	time.Sleep(time.Millisecond * 50)
 }
 
 var runningRouters = make(map[int]*exec.Cmd)
@@ -47,6 +50,7 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	env["ROUTER_APIADDR"] = apiaddr
 	env["ROUTER_MONGO_DB"] = "router_test"
 	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
+	env["ROUTER_RELOAD_INTERVAL"] = "0s"
 	if len(optionalExtraEnv) > 0 {
 		for k, v := range optionalExtraEnv[0] {
 			env[k] = v

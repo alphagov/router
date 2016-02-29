@@ -3,6 +3,7 @@ package integration
 import (
 	"crypto/sha1"
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -11,9 +12,9 @@ import (
 var _ = Describe("reload API endpoint", func() {
 
 	Describe("request handling", func() {
-		It("should return 200 for POST /reload", func() {
+		It("should return 202 for POST /reload", func() {
 			resp := doRequest(newRequest("POST", routerAPIURL("/reload")))
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp.StatusCode).To(Equal(202))
 		})
 
 		It("should return 404 for POST /foo", func() {
@@ -30,6 +31,34 @@ var _ = Describe("reload API endpoint", func() {
 			resp := doRequest(newRequest("GET", routerAPIURL("/reload")))
 			Expect(resp.StatusCode).To(Equal(405))
 			Expect(resp.Header.Get("Allow")).To(Equal("POST"))
+		})
+
+		Context("with a non-zero reload interval", func() {
+			newRouterPort := 7999
+			newApiPort := 8000
+			BeforeEach(func() {
+				err := startRouter(newRouterPort, newApiPort, map[string]string{"ROUTER_RELOAD_INTERVAL": "100ms"})
+				Expect(err).To(BeNil())
+			})
+
+			AfterEach(func() {
+				stopRouter(newRouterPort)
+			})
+
+			It("should return 'already in progress' for requests within timeout", func() {
+				resp := doRequest(newRequest("POST", routerURL("/reload", newApiPort)))
+				resp2 := doRequest(newRequest("POST", routerURL("/reload", newApiPort)))
+				Expect(readBody(resp)).To(Equal("Reload triggered"))
+				Expect(readBody(resp2)).To(Equal("Reload already in progress"))
+			})
+
+			It("should return 'triggered' for requests after timeout", func() {
+				resp := doRequest(newRequest("POST", routerURL("/reload", newApiPort)))
+				time.Sleep(time.Second * 2)
+				resp2 := doRequest(newRequest("POST", routerURL("/reload", newApiPort)))
+				Expect(readBody(resp)).To(Equal("Reload triggered"))
+				Expect(readBody(resp2)).To(Equal("Reload triggered"))
+			})
 		})
 	})
 
