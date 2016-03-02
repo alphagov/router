@@ -6,7 +6,21 @@ import (
 	"runtime"
 )
 
-func newAPIHandler(rout *Router) http.Handler {
+func newAPIHandler(rout *Router) (api http.Handler, err error) {
+	if err != nil {
+		return nil, err
+	}
+	reloadChan := make(chan bool, 1)
+	go func(r chan bool) {
+		// This goroutine blocks until it receives a message on reloadChan,
+		// and will immediately reload again if another message was received
+		// during reload.
+		for range r {
+			logInfo("router: reload triggered")
+			rout.ReloadRoutes()
+		}
+	}(reloadChan)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
@@ -15,8 +29,15 @@ func newAPIHandler(rout *Router) http.Handler {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-
-		rout.ReloadRoutes()
+		// Send a message to the reload goroutine, which will start a new timeout
+		// before reloading, or do nothing if one is already queued
+		select {
+		case reloadChan <- true:
+		default:
+		}
+		logInfo("router: reload queued")
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("Reload queued"))
 	})
 	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -65,5 +86,5 @@ func newAPIHandler(rout *Router) http.Handler {
 		w.Write([]byte("\n"))
 	})
 
-	return mux
+	return mux, nil
 }

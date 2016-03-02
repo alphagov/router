@@ -11,9 +11,10 @@ import (
 var _ = Describe("reload API endpoint", func() {
 
 	Describe("request handling", func() {
-		It("should return 200 for POST /reload", func() {
+		It("should return 202 for POST /reload", func() {
 			resp := doRequest(newRequest("POST", routerAPIURL("/reload")))
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp.StatusCode).To(Equal(202))
+			Expect(readBody(resp)).To(Equal("Reload queued"))
 		})
 
 		It("should return 404 for POST /foo", func() {
