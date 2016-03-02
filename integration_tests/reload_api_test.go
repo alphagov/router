@@ -3,6 +3,7 @@ package integration
 import (
 	"crypto/sha1"
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -31,6 +32,28 @@ var _ = Describe("reload API endpoint", func() {
 			resp := doRequest(newRequest("GET", routerAPIURL("/reload")))
 			Expect(resp.StatusCode).To(Equal(405))
 			Expect(resp.Header.Get("Allow")).To(Equal("POST"))
+		})
+
+		It("eventually reloads the routes", func() {
+			addRoute("/foo", NewRedirectRoute("/qux", "prefix"))
+
+			start := time.Now()
+			doRequest(newRequest("POST", routerAPIURL("/reload")))
+			end := time.Now()
+			duration := end.Sub(start)
+
+			Expect(duration.Nanoseconds()).To(BeNumerically("<", 1000000))
+
+			addRoute("/bar", NewRedirectRoute("/qux", "prefix"))
+			doRequest(newRequest("POST", routerAPIURL("/reload")))
+
+			time.Sleep(time.Millisecond * 50)
+
+			addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
+
+			Expect(routerRequest("/foo").StatusCode).To(Equal(301))
+			Expect(routerRequest("/bar").StatusCode).To(Equal(301))
+			Expect(routerRequest("/baz").StatusCode).To(Equal(404))
 		})
 	})
 
