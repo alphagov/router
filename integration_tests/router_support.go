@@ -31,7 +31,10 @@ func reloadRoutes(optionalPort ...int) {
 	}
 	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:%d/reload", port), "", nil)
 	Expect(err).To(BeNil())
-	Expect(resp.StatusCode).To(Equal(200))
+	Expect(resp.StatusCode).To(Equal(202))
+	// Now that reloading is done asynchronously, we need a small sleep to ensure
+	// it has actually been performed.
+	time.Sleep(time.Millisecond * 50)
 }
 
 var runningRouters = make(map[int]*exec.Cmd)

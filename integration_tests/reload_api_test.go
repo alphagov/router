@@ -3,6 +3,7 @@ package integration
 import (
 	"crypto/sha1"
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -11,9 +12,10 @@ import (
 var _ = Describe("reload API endpoint", func() {
 
 	Describe("request handling", func() {
-		It("should return 200 for POST /reload", func() {
+		It("should return 202 for POST /reload", func() {
 			resp := doRequest(newRequest("POST", routerAPIURL("/reload")))
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp.StatusCode).To(Equal(202))
+			Expect(readBody(resp)).To(Equal("Reload queued"))
 		})
 
 		It("should return 404 for POST /foo", func() {
@@ -30,6 +32,28 @@ var _ = Describe("reload API endpoint", func() {
 			resp := doRequest(newRequest("GET", routerAPIURL("/reload")))
 			Expect(resp.StatusCode).To(Equal(405))
 			Expect(resp.Header.Get("Allow")).To(Equal("POST"))
+		})
+
+		It("eventually reloads the routes", func() {
+			addRoute("/foo", NewRedirectRoute("/qux", "prefix"))
+
+			start := time.Now()
+			doRequest(newRequest("POST", routerAPIURL("/reload")))
+			end := time.Now()
+			duration := end.Sub(start)
+
+			Expect(duration.Nanoseconds()).To(BeNumerically("<", 1000000))
+
+			addRoute("/bar", NewRedirectRoute("/qux", "prefix"))
+			doRequest(newRequest("POST", routerAPIURL("/reload")))
+
+			time.Sleep(time.Millisecond * 50)
+
+			addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
+
+			Expect(routerRequest("/foo").StatusCode).To(Equal(301))
+			Expect(routerRequest("/bar").StatusCode).To(Equal(301))
+			Expect(routerRequest("/baz").StatusCode).To(Equal(404))
 		})
 	})
 
