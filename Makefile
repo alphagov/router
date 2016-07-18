@@ -1,10 +1,10 @@
 .PHONY: build run test clean
 
 BINARY := router
-SOURCE_FILES := $(shell find . -name '*.go' -not -path './_vendor/*')
+SOURCE_FILES := $(shell find . -name '*.go' -not -path './vendor/*')
 BUILDFILES := router.go main.go router_api.go version.go
 IMPORT_BASE := github.com/alphagov
-IMPORT_PATH := $(IMPORT_BASE)/router
+IMPORT_PATH := $(IMPORT_BASE)/$(BINARY)
 
 # Set a GOPATH to prevent gom erroring.
 GOPATH := $(CURDIR)/gopath
@@ -18,7 +18,7 @@ endif
 
 build: $(BINARY)
 
-run: _vendor/stamp
+run: vendor/stamp
 	gom run $(BUILDFILES)
 
 test: $(BINARY)
@@ -26,14 +26,15 @@ test: $(BINARY)
 	gom test -v ./integration_tests
 
 clean:
-	rm -rf $(BINARY) _vendor
+	rm -rf $(BINARY) vendor
 
-$(BINARY): $(SOURCE_FILES) _vendor/stamp
+$(BINARY): $(SOURCE_FILES) vendor/stamp
 	gom build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) $(BUILDFILES)
 
-_vendor/stamp: Gomfile
-	rm -f _vendor/src/$(IMPORT_PATH)
-	mkdir -p _vendor/src/$(IMPORT_BASE)
-	ln -s $(CURDIR) _vendor/src/$(IMPORT_PATH)
+vendor/stamp: Gomfile
 	gom install
-	touch _vendor/stamp
+	ln -s $(CURDIR)/vendor vendor/src
+	rm -f vendor/src/$(IMPORT_PATH)
+	mkdir -p vendor/src/$(IMPORT_BASE)
+	ln -s $(CURDIR) vendor/src/$(IMPORT_PATH)
+	touch vendor/stamp
