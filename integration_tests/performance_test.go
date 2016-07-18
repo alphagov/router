@@ -146,9 +146,9 @@ func assertPerformantRouter(backend1, backend2 *httptest.Server, optionalRate ..
 }
 
 func startVegetaAttack(targetURLs []string, rate uint64) chan *vegeta.Metrics {
-	targets := make([]*vegeta.Target, 0, len(targetURLs))
+	targets := make([]vegeta.Target, 0, len(targetURLs))
 	for _, url := range targetURLs {
-		targets = append(targets, &vegeta.Target{
+		targets = append(targets, vegeta.Target{
 			Method: "GET",
 			URL:    url,
 		})
@@ -162,18 +162,18 @@ func startVegetaAttack(targetURLs []string, rate uint64) chan *vegeta.Metrics {
 func vegetaAttack(targeter vegeta.Targeter, rate uint64, metricsChan chan *vegeta.Metrics) {
 	attacker := vegeta.NewAttacker()
 
-	var results vegeta.Results
+	var metrics vegeta.Metrics
 	for res := range attacker.Attack(targeter, rate, 10*time.Second) {
-		results = append(results, res)
+		metrics.Add(res)
 	}
+	metrics.Close()
 
-	metrics := vegeta.NewMetrics(results)
-	metricsChan <- metrics
+	metricsChan <- &metrics
 }
 
 func startVegetaLoad(targetURL string) *vegeta.Attacker {
 	attacker := vegeta.NewAttacker()
-	targetter := vegeta.NewStaticTargeter(&vegeta.Target{Method: "GET", URL: targetURL})
+	targetter := vegeta.NewStaticTargeter(vegeta.Target{Method: "GET", URL: targetURL})
 	resCh := attacker.Attack(targetter, 50, time.Minute)
 
 	// Consume and discard results.  Without this, all the workers will block sending

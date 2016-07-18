@@ -1,12 +1,6 @@
-# FIXME: update to use the tag when the release has been tagged.
-# Release was announced here: http://blog.labix.org/2015/10/05/mgo-r2015-10-05
-#gom 'gopkg.in/mgo.v2', :tag => 'r2015.10.05'
-gom 'gopkg.in/mgo.v2', :commit => 'f402e3a'
-gom 'github.com/alext/tablecloth', :commit => 'fbddb1a'
-
-gom 'github.com/onsi/ginkgo', :tag => 'v1.1.0'
-gom 'github.com/onsi/gomega', :tag => 'v1.0'
-
-# Dependency of vegeta
-gom 'github.com/bmizerany/perks/quantile', :commit => 'd9a9656'
-gom 'github.com/tsenart/vegeta', :tag => 'v5.4.0'
+gom 'github.com/alext/tablecloth', :commit => 'fbddb1a44a21b78c7ffb873c45a5fd36586e4440'
+gom 'github.com/onsi/ginkgo', :commit => '7d3240191d7b2311b60090fcbc96e56bffc45ec0'
+gom 'github.com/onsi/gomega', :commit => '9574b2d94c03faf63bf1b296e21d9db950006ea4'
+gom 'github.com/tsenart/vegeta/lib', :commit => 'dbb7ee1d3e5483e114139320f59a2199d62c6596'
+gom 'gopkg.in/check.v1', :commit => '4f90aeace3a26ad7021961c297b22c42160c7b25'
+gom 'gopkg.in/mgo.v2', :commit => '29cc868a5ca65f401ff318143f9408d02f4799cc'
