@@ -42,7 +42,7 @@ This project uses [gom][gom] to manage it's dependencies.  If you have a
 working [Go][go] development setup, you should be able to install [gom][gom] by
 running:
 
-    go install github.com/mattn/gom
+    go get github.com/mattn/gom
 
 [gom]: https://github.com/mattn/gom#readme
 [go]: http://golang.org
