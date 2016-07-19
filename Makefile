@@ -3,8 +3,6 @@
 BINARY := router
 SOURCE_FILES := $(shell find . -name '*.go' -not -path './vendor/*')
 BUILDFILES := router.go main.go router_api.go version.go
-IMPORT_BASE := github.com/alphagov
-IMPORT_PATH := $(IMPORT_BASE)/$(BINARY)
 
 ifdef RELEASE_VERSION
 VERSION := $(RELEASE_VERSION)
