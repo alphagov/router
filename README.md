@@ -38,19 +38,19 @@ And some features that we have no need to implement:
 Dependencies
 ------------
 
-This project uses [gom][gom] to manage it's dependencies.  If you have a
-working [Go][go] development setup, you should be able to install [gom][gom] by
-running:
+This project uses [Godep][godep] to manage it's dependencies.  If you have a
+working [Go][go] development setup, you should be able to install
+[Godep][godep] by running:
 
-    go get github.com/mattn/gom
+    go install github.com/tools/godep
 
-[gom]: https://github.com/mattn/gom#readme
+[godep]: https://github.com/tools/godep
 [go]: http://golang.org
 
 Build
 -----
 
-Once you have gom installed, you should be able to run:
+Once you have Godep installed, you should be able to run:
 
     make
     ./router -h
@@ -65,7 +65,7 @@ You can run all tests by running:
 The `trie` and `triemux` sub-packages have unit tests and benchmarks written
 in Go's own testing framework. To run them individually:
 
-    gom test -bench=. ./trie ./triemux
+    go test -bench=. ./trie ./triemux
 
 The `router` itself doesn't really benefit from having unit tests around
 individual functions. Instead it has a comprehensive set of integration
@@ -73,7 +73,7 @@ tests to exercise it's HTTP handling, error reporting, and performance.
 
 These require a local MongoDB instance and can be run with:
 
-    gom test ./integration_tests
+    go test ./integration_tests
 
 Some of the integration tests are optional because they have certain
 environment requirements that make them unfeasible to run within CI.
