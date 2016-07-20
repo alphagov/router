@@ -1,14 +1,8 @@
 .PHONY: build run test clean
 
 BINARY := router
-SOURCE_FILES := $(shell find . -name '*.go' -not -path './_vendor/*')
+SOURCE_FILES := $(shell find . -name '*.go' -not -path './vendor/*')
 BUILDFILES := router.go main.go router_api.go version.go
-IMPORT_BASE := github.com/alphagov
-IMPORT_PATH := $(IMPORT_BASE)/router
-
-# Set a GOPATH to prevent gom erroring.
-GOPATH := $(CURDIR)/gopath
-export GOPATH
 
 ifdef RELEASE_VERSION
 VERSION := $(RELEASE_VERSION)
@@ -18,22 +12,18 @@ endif
 
 build: $(BINARY)
 
-run: _vendor/stamp
-	gom run $(BUILDFILES)
+run:
+	go run $(BUILDFILES)
 
 test: $(BINARY)
-	gom test ./trie ./triemux
-	gom test -v ./integration_tests
+	go test ./trie ./triemux
+	go test -v ./integration_tests
 
 clean:
-	rm -rf $(BINARY) _vendor
+	rm -rf $(BINARY)
 
-$(BINARY): $(SOURCE_FILES) _vendor/stamp
-	gom build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) $(BUILDFILES)
+veryclean: clean
+	rm -rf vendor
 
-_vendor/stamp: Gomfile
-	rm -f _vendor/src/$(IMPORT_PATH)
-	mkdir -p _vendor/src/$(IMPORT_BASE)
-	ln -s $(CURDIR) _vendor/src/$(IMPORT_PATH)
-	gom install
-	touch _vendor/stamp
+$(BINARY): $(SOURCE_FILES)
+	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) $(BUILDFILES)
