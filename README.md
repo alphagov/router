@@ -42,7 +42,7 @@ This project uses [Godep][godep] to manage it's dependencies.  If you have a
 working [Go][go] development setup, you should be able to install
 [Godep][godep] by running:
 
-    go install github.com/tools/godep
+    go get github.com/tools/godep
 
 [godep]: https://github.com/tools/godep
 [go]: http://golang.org
