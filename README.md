@@ -151,34 +151,4 @@ License
 -------
 
 `router` is released under the MIT license, a copy of which can be found in
-V.UK 
-
-## GOV.UK Development VM
-
-The Dev VM now has a `$GOPATH` configured at `/var/govuk/gopath` so this
-app should be checked out into
-`/var/govuk/gopath/src/github.com/alphagov/router` for the `go`
-commands and `make` etc to function correctly.
-
-Avoid trying to symlink the directory into the `$GOPATH` either within
-the VM or on the host as this causes issues with dependencies in
-`vendor`. 
-Working with the same directory structure on the host and allowing NFS
-to mount 
-that into the VM works well.
-
-For convenience using somthing like
-[direnv](https://github.com/direnv/direnv) to set up a local `$GOPATH`
-when you `cd` into the root of the repository keeps parity between the
-host and VM.
-
-e.g
-
-
-```
-export GOPATH=<path to parent gopath dir>
-export PATH=$GOPATH/bin:$PATH
-
-```
-
-within `.envrc` in the `router` root.
+`LICENSE`.
