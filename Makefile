@@ -22,8 +22,5 @@ test: $(BINARY)
 clean:
 	rm -rf $(BINARY)
 
-veryclean: clean
-	rm -rf vendor
-
 $(BINARY): $(SOURCE_FILES)
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) $(BUILDFILES)
