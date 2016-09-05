@@ -35,25 +35,21 @@ And some features that we have no need to implement:
 - Response rewriting
 - Authentication
 
-Dependencies
-------------
+Local Setup & Build
+-------------------
 
-This project uses [Godep][godep] to manage it's dependencies.  If you have a
-working [Go][go] development setup, you should be able to install
-[Godep][godep] by running:
+The router needs to be built from within a Go [workspace][workspace] for it to
+correctly identify the vendored dependencies.  Assuming you already have Go and
+a `$GOPATH` set up, you can simply run `go get github.com/alphagov/router` to
+pull the source into your workspace.
 
-    go get github.com/tools/godep
-
-[godep]: https://github.com/tools/godep
-[go]: http://golang.org
-
-Build
------
-
-Once you have Godep installed, you should be able to run:
+Once you have the code set up correctly, building and running the application
+is simple:
 
     make
     ./router -h
+
+[workspace]: https://golang.org/doc/code.html#Workspaces
 
 Tests
 -----
@@ -77,6 +73,23 @@ These require a local MongoDB instance and can be run with:
 
 Some of the integration tests are optional because they have certain
 environment requirements that make them unfeasible to run within CI.
+
+Dependencies
+------------
+
+This project uses [Godep][godep] to manage its dependencies.  If you have a
+working [Go][go] development setup, you should be able to install Godep by
+running:
+
+    go get github.com/tools/godep
+
+Note that you only need to install Godep if you need to update or change any
+dependencies.  It's not required to just build or run the application, as all
+sependencies are [vendored][vendoring].
+
+[godep]: https://github.com/tools/godep
+[go]: http://golang.org
+[vendoring]: https://blog.gopheracademy.com/advent-2015/vendor-folder/
 
 Data structure
 -----------------
