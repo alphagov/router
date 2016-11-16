@@ -1,3 +1,2 @@
-/.bundle/
-/gopath.tmp
-/router
+router
+__build

@@ -43,7 +43,11 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	pubaddr := fmt.Sprintf(":%d", port)
 	apiaddr := fmt.Sprintf(":%d", apiPort)
 
-	cmd := exec.Command("../router")
+	bin := os.Getenv("BINARY")
+	if bin == "" {
+		bin = "../router"
+	}
+	cmd := exec.Command(bin)
 
 	env := newEnvMap(os.Environ())
 	env["ROUTER_PUBADDR"] = pubaddr
