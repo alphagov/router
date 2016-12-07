@@ -23,7 +23,7 @@ node ('mongodb-2.4') {
 
         stage("Push release tag") {
             echo 'Pushing tag'
-            govuk.pushTag(REPOSITORY, env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
+            //govuk.pushTag(REPOSITORY, env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
         }
 
         govuk.deployIntegration(REPOSITORY, env.BRANCH_NAME, 'release', 'deploy')
