@@ -43,7 +43,7 @@ node ('mongodb-2.4') {
         dir(env.SRC_PATH) {
           sh 'BINARY=$WORKSPACE/router make test'
 
-          sh './router -version'
+          sh '$WORKSPACE/router -version'
         }
       }
     }
