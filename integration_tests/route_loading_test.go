@@ -27,7 +27,7 @@ var _ = Describe("loading routes from the db", func() {
 	Context("a route with an unrecognised handler type", func() {
 		BeforeEach(func() {
 			addRoute("/foo", NewBackendRoute("backend-1"))
-			addRoute("/bar", Route{Handler: "fooey"})
+			addRoute("/bar", ContentItem{DocumentType: "fooey", Routes: []Route{Route{}}})
 			addRoute("/baz", NewBackendRoute("backend-2"))
 			reloadRoutes()
 		})

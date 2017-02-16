@@ -17,7 +17,7 @@ var (
 	pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
 	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
 	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "localhost")
-	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
+	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "content_store_development")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
 	tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
 	enableDebugOutput     = os.Getenv("DEBUG") != ""

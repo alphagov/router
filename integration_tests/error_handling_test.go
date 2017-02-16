@@ -25,7 +25,7 @@ var _ = Describe("error handling", func() {
 
 	Describe("handling a panic", func() {
 		BeforeEach(func() {
-			addRoute("/boom", Route{Handler: "boom"})
+			addRoute("/boom", ContentItem{DocumentType: "boom", Routes: []Route{Route{}}})
 			reloadRoutes()
 		})
 

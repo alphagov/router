@@ -52,7 +52,7 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	env := newEnvMap(os.Environ())
 	env["ROUTER_PUBADDR"] = pubaddr
 	env["ROUTER_APIADDR"] = apiaddr
-	env["ROUTER_MONGO_DB"] = "router_test"
+	env["ROUTER_MONGO_DB"] = "content_store_test"
 	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
 	if len(optionalExtraEnv) > 0 {
 		for k, v := range optionalExtraEnv[0] {

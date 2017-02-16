@@ -90,11 +90,11 @@ var _ = Describe("reload API endpoint", func() {
 				Expect(data["routes"]["count"]).To(BeEquivalentTo(3))
 			})
 
-			It("should return a checksum calculated from the sorted paths and route_types", func() {
+			It("should return a checksum calculated from the paths and route_types in order of insertion", func() {
 				hash := sha1.New()
+				hash.Write([]byte("/foo(true)"))
 				hash.Write([]byte("/baz(true)"))
 				hash.Write([]byte("/foo(false)"))
-				hash.Write([]byte("/foo(true)"))
 				Expect(data["routes"]["checksum"]).To(Equal(fmt.Sprintf("%x", hash.Sum(nil))))
 			})
 		})

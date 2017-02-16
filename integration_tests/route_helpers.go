@@ -16,61 +16,79 @@ var (
 	routerDB *mgo.Database
 )
 
-type Route struct {
-	IncomingPath string `bson:"incoming_path"`
-	RouteType    string `bson:"route_type"`
-	Handler      string `bson:"handler"`
-	BackendID    string `bson:"backend_id"`
-	RedirectTo   string `bson:"redirect_to"`
-	RedirectType string `bson:"redirect_type"`
+type Redirect struct {
+	Path         string `bson:"path"`
+	Type         string `bson:"type"`
+	Destination  string `bson:"destination"`
 	SegmentsMode string `bson:"segments_mode"`
+	RedirectType string `bson:"redirect_type"`
 	Disabled     bool   `bson:"disabled"`
 }
 
-func NewBackendRoute(backendID string, extraParams ...string) Route {
-	route := Route{
-		Handler:   "backend",
-		BackendID: backendID,
-	}
-
-	if len(extraParams) > 0 {
-		route.RouteType = extraParams[0]
-	}
-
-	return route
+type Route struct {
+	Path     string `bson:"path"`
+	Type     string `bson:"type"`
+	Disabled bool   `bson:"disabled"`
 }
 
-func NewRedirectRoute(redirectTo string, extraParams ...string) Route {
-	route := Route{
-		Handler:      "redirect",
-		RedirectTo:   redirectTo,
+type ContentItem struct {
+	RenderingApp string     `bson:"rendering_app"`
+	DocumentType string     `bson:"document_type"`
+	Routes       []Route    `bson:routes`
+	Redirects    []Redirect `bson:redirects`
+}
+
+func NewBackendRoute(backendID string, extraParams ...string) ContentItem {
+	route := Route{}
+	if len(extraParams) > 0 {
+		route.Type = extraParams[0]
+	}
+
+	contentItem := ContentItem{
+		RenderingApp: backendID,
+		DocumentType: "publication",
+		Routes:       []Route{route},
+	}
+
+	return contentItem
+}
+
+func NewRedirectRoute(redirectTo string, extraParams ...string) ContentItem {
+	redirect := Redirect{
+		Destination:  redirectTo,
 		RedirectType: "permanent",
-		RouteType:    "exact",
+		Type:         "exact",
 	}
 
 	if len(extraParams) > 0 {
-		route.RouteType = extraParams[0]
+		redirect.Type = extraParams[0]
 	}
 	if len(extraParams) > 1 {
-		route.RedirectType = extraParams[1]
+		redirect.RedirectType = extraParams[1]
 	}
 	if len(extraParams) > 2 {
-		route.SegmentsMode = extraParams[2]
+		redirect.SegmentsMode = extraParams[2]
+	}
+	contentItem := ContentItem{
+		DocumentType: "redirect",
+		Redirects:    []Redirect{redirect},
 	}
 
-	return route
+	return contentItem
 }
 
-func NewGoneRoute(extraParams ...string) Route {
-	route := Route{
-		Handler: "gone",
-	}
-
+func NewGoneRoute(extraParams ...string) ContentItem {
+	route := Route{}
 	if len(extraParams) > 0 {
-		route.RouteType = extraParams[0]
+		route.Type = extraParams[0]
 	}
 
-	return route
+	contentItem := ContentItem{
+		DocumentType: "gone",
+		Routes:       []Route{route},
+	}
+
+	return contentItem
 }
 
 func init() {
@@ -78,7 +96,7 @@ func init() {
 	if err != nil {
 		panic("Failed to connect to mongo: " + err.Error())
 	}
-	routerDB = sess.DB("router_test")
+	routerDB = sess.DB("content_store_test")
 }
 
 func addBackend(id, url string) {
@@ -86,14 +104,18 @@ func addBackend(id, url string) {
 	Expect(err).To(BeNil())
 }
 
-func addRoute(path string, route Route) {
-	route.IncomingPath = path
+func addRoute(path string, contentItem ContentItem) {
+	if contentItem.DocumentType == "redirect" {
+		contentItem.Redirects[0].Path = path
+	} else {
+		contentItem.Routes[0].Path = path
+	}
 
-	err := routerDB.C("routes").Insert(route)
+	err := routerDB.C("content_items").Insert(contentItem)
 	Expect(err).To(BeNil())
 }
 
 func clearRoutes() {
-	routerDB.C("routes").DropCollection()
+	routerDB.C("content_items").DropCollection()
 	routerDB.C("backends").DropCollection()
 }
