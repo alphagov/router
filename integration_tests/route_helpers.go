@@ -16,7 +16,7 @@ var (
 	routerDB *mgo.Database
 )
 
-type Redirect struct {
+type Route struct {
 	Path         string `bson:"path"`
 	Type         string `bson:"type"`
 	Destination  string `bson:"destination"`
@@ -25,17 +25,11 @@ type Redirect struct {
 	Disabled     bool   `bson:"disabled"`
 }
 
-type Route struct {
-	Path     string `bson:"path"`
-	Type     string `bson:"type"`
-	Disabled bool   `bson:"disabled"`
-}
-
 type ContentItem struct {
-	RenderingApp string     `bson:"rendering_app"`
-	DocumentType string     `bson:"document_type"`
-	Routes       []Route    `bson:routes`
-	Redirects    []Redirect `bson:redirects`
+	RenderingApp string  `bson:"rendering_app"`
+	DocumentType string  `bson:"document_type"`
+	Routes       []Route `bson:routes`
+	Redirects    []Route `bson:redirects`
 }
 
 func NewBackendRoute(backendID string, extraParams ...string) ContentItem {
@@ -54,7 +48,7 @@ func NewBackendRoute(backendID string, extraParams ...string) ContentItem {
 }
 
 func NewRedirectRoute(redirectTo string, extraParams ...string) ContentItem {
-	redirect := Redirect{
+	redirect := Route{
 		Destination:  redirectTo,
 		RedirectType: "permanent",
 		Type:         "exact",
@@ -71,7 +65,7 @@ func NewRedirectRoute(redirectTo string, extraParams ...string) ContentItem {
 	}
 	contentItem := ContentItem{
 		DocumentType: "redirect",
-		Redirects:    []Redirect{redirect},
+		Redirects:    []Route{redirect},
 	}
 
 	return contentItem

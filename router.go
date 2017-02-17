@@ -31,7 +31,7 @@ type Backend struct {
 	BackendURL string `bson:"backend_url"`
 }
 
-type Redirect struct {
+type Route struct {
 	Path         string `bson:"path"`
 	Type         string `bson:"type"`
 	Destination  string `bson:"destination"`
@@ -40,17 +40,11 @@ type Redirect struct {
 	Disabled     bool   `bson:"disabled"`
 }
 
-type Route struct {
-	Path     string `bson:"path"`
-	Type     string `bson:"type"`
-	Disabled bool   `bson:"disabled"`
-}
-
 type ContentItem struct {
-	RenderingApp string     `bson:"rendering_app"`
-	DocumentType string     `bson:"document_type"`
-	Routes       []Route    `bson:routes`
-	Redirects    []Redirect `bson:redirects`
+	RenderingApp string  `bson:"rendering_app"`
+	DocumentType string  `bson:"document_type"`
+	Routes       []Route `bson:routes`
+	Redirects    []Route `bson:redirects`
 }
 
 // NewRouter returns a new empty router instance. You will still need to call
@@ -155,12 +149,65 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 
 		backends[backend.BackendID] = handlers.NewBackendHandler(backendURL, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
 	}
+	backends["gone"] = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "410 gone", http.StatusGone)
+	})
+	backends["unavailable"] = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "503 Service Unavailable", http.StatusServiceUnavailable)
+	})
 
 	if err := iter.Err(); err != nil {
 		panic(err)
 	}
 
 	return
+}
+
+func loadRoute(route *Route, documentType string, renderingApp string, mux *triemux.Mux, backends map[string]http.Handler) {
+
+	prefix := (route.Type == "prefix")
+
+	// the database contains paths with % encoded routes.
+	// Unescape them here because the http.Request objects we match against contain the unescaped variants.
+	incomingURL, err := url.Parse(route.Path)
+	if err != nil {
+		logWarn(fmt.Sprintf("router: found route %+v with invalid path '%s', skipping!", route, route.Path))
+		return
+	}
+
+	if route.Disabled {
+		mux.Handle(incomingURL.Path, prefix, backends["unavailable"])
+		logDebug(fmt.Sprintf("router: registered %s (prefix: %v)(disabled) -> Unavailable", incomingURL.Path, prefix))
+		return
+	}
+
+	switch documentType {
+	case "boom":
+		// Special handler so that we can test failure behaviour.
+		mux.Handle(incomingURL.Path, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			panic("Boom!!!")
+		}))
+		logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Boom!!!", incomingURL.Path, prefix))
+	case "gone":
+		mux.Handle(incomingURL.Path, prefix, backends["gone"])
+		logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", incomingURL.Path, prefix))
+	case "redirect":
+		redirectTemporarily := (route.RedirectType == "temporary")
+		handler := handlers.NewRedirectHandler(incomingURL.Path, route.Destination, shouldPreserveSegments(route), redirectTemporarily)
+		mux.Handle(incomingURL.Path, prefix, handler)
+		logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
+			incomingURL.Path, prefix, route.Destination))
+	default:
+		handler, ok := backends[renderingApp]
+		if !ok {
+			logWarn(fmt.Sprintf("router: found route %+v which references unknown rendering app "+
+				"%s, skipping!", route, renderingApp))
+			return
+		}
+		mux.Handle(incomingURL.Path, prefix, handler)
+		logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
+			incomingURL.Path, prefix, renderingApp))
+	}
 }
 
 // loadRoutes is a helper function which loads routes from the passed mongo
@@ -170,77 +217,13 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 
 	iter := c.Find(nil).Select(bson.M{"rendering_app": 1, "document_type": 1, "redirects": 1, "routes": 1}).Iter()
 
-	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "410 gone", http.StatusGone)
-	})
-	unavailableHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "503 Service Unavailable", http.StatusServiceUnavailable)
-	})
-
 	for iter.Next(&contentItem) {
 		for _, route := range contentItem.Routes {
-			prefix := (route.Type == "prefix")
-
-			// the database contains paths with % encoded routes.
-			// Unescape them here because the http.Request objects we match against contain the unescaped variants.
-			incomingURL, err := url.Parse(route.Path)
-			if err != nil {
-				logWarn(fmt.Sprintf("router: found route %+v with invalid path '%s', skipping!", route, route.Path))
-				continue
-			}
-
-			if contentItem.DocumentType == "boom" {
-				// Special handler so that we can test failure behaviour.
-				mux.Handle(incomingURL.Path, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					panic("Boom!!!")
-				}))
-				logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Boom!!!", incomingURL.Path, prefix))
-				continue
-			}
-
-			if route.Disabled {
-				mux.Handle(incomingURL.Path, prefix, unavailableHandler)
-				logDebug(fmt.Sprintf("router: registered %s (prefix: %v)(disabled) -> Unavailable", incomingURL.Path, prefix))
-				continue
-			}
-
-			if contentItem.DocumentType == "gone" {
-				mux.Handle(incomingURL.Path, prefix, goneHandler)
-				logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", incomingURL.Path, prefix))
-				continue
-			}
-			handler, ok := backends[contentItem.RenderingApp]
-			if !ok {
-				logWarn(fmt.Sprintf("router: found route %+v which references unknown rendering app "+
-					"%s, skipping!", route, contentItem.RenderingApp))
-				continue
-			}
-			mux.Handle(incomingURL.Path, prefix, handler)
-			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
-				incomingURL.Path, prefix, contentItem.RenderingApp))
+			loadRoute(&route, contentItem.DocumentType, contentItem.RenderingApp, mux, backends)
 		}
 
 		for _, redirect := range contentItem.Redirects {
-			prefix := (redirect.Type == "prefix")
-
-			// the database contains paths with % encoded routes.
-			// Unescape them here because the http.Request objects we match against contain the unescaped variants.
-			incomingURL, err := url.Parse(redirect.Path)
-			if err != nil {
-				logWarn(fmt.Sprintf("router: found route %+v with invalid path '%s', skipping!", redirect, redirect.Path))
-				continue
-			}
-
-			if redirect.Disabled {
-				mux.Handle(incomingURL.Path, prefix, unavailableHandler)
-				logDebug(fmt.Sprintf("router: registered %s (prefix: %v)(disabled) -> Unavailable", incomingURL.Path, prefix))
-				continue
-			}
-			redirectTemporarily := (redirect.RedirectType == "temporary")
-			handler := handlers.NewRedirectHandler(incomingURL.Path, redirect.Destination, shouldPreserveSegments(&redirect), redirectTemporarily)
-			mux.Handle(incomingURL.Path, prefix, handler)
-			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
-				incomingURL.Path, prefix, redirect.Destination))
+			loadRoute(&redirect, "redirect", contentItem.RenderingApp, mux, backends)
 		}
 	}
 
@@ -260,7 +243,7 @@ func (rt *Router) RouteStats() (stats map[string]interface{}) {
 	return
 }
 
-func shouldPreserveSegments(redirect *Redirect) bool {
+func shouldPreserveSegments(redirect *Route) bool {
 	switch {
 	case redirect.Type == "exact" && redirect.SegmentsMode == "preserve":
 		return true
