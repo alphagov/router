@@ -13,8 +13,11 @@ loads a routing table into memory from a MongoDB database and acts as a:
 The sister project [`router-api`][router-api] provides a read/write
 interface to the underlying database and route reloading.
 
+Some of the thinking behind the router is documented in [this 2013 blog post][post].
+
 [tm]: https://github.com/alphagov/router/tree/master/triemux
 [router-api]: https://github.com/alphagov/router-api
+[post]: https://gdstechnology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk/
 
 Environment assumptions
 -----------------------
