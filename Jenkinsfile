@@ -2,6 +2,8 @@
 
 REPOSITORY = 'router'
 
+repoName = JOB_NAME.split('/')[0]
+
 node ('mongodb-2.4') {
   env.REPO      = 'alphagov/router'
   env.BUILD_DIR = '__build'
@@ -57,6 +59,16 @@ node ('mongodb-2.4') {
     stage("Push release tag") {
       echo 'Pushing tag'
       govuk.pushTag(REPOSITORY, env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
+    }
+
+    if (govuk.hasDockerfile()) {
+      stage("Build Docker image") {
+        govuk.buildDockerImage(repoName, env.BRANCH_NAME)
+      }
+
+      stage("Push Docker image") {
+        govuk.pushDockerImage(repoName, env.BRANCH_NAME)
+      }
     }
 
     // Deploy application
