@@ -126,7 +126,17 @@ func (rt *Router) ReloadRoutes() {
 }
 
 func getMongoSession(uri string) *mgo.Session {
-	uri = strings.TrimSuffix(uri, "?ssl=true")
+	const sslSuffix string = "?ssl=true"
+
+	if !strings.HasSuffix(uri, sslSuffix) {
+		session, err := mgo.Dial(uri)
+		if err != nil {
+			log.Fatal(fmt.Println("Failed to connect: %s", err))
+		}
+		return session
+	}
+
+	uri = strings.TrimSuffix(uri, sslSuffix)
 	tlsConfig := &tls.Config{}
 	tlsConfig.InsecureSkipVerify = true
 

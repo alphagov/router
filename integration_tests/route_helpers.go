@@ -7,6 +7,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"log"
 	"net"
+	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -79,7 +80,13 @@ func NewGoneRoute(extraParams ...string) Route {
 }
 
 func init() {
-	sess := getMongoSession("localhost?ssl=true")
+	url := "localhost"
+
+	if envVar := os.Getenv("TEST_MONGO_URL"); envVar != "" {
+		url = envVar
+	}
+
+	sess := getMongoSession(url)
 	routerDB = sess.DB("router_test")
 }
 
@@ -100,7 +107,17 @@ func clearRoutes() {
 }
 
 func getMongoSession(uri string) *mgo.Session {
-	uri = strings.TrimSuffix(uri, "?ssl=true")
+	const sslSuffix string = "?ssl=true"
+
+	if !strings.HasSuffix(uri, sslSuffix) {
+		session, err := mgo.Dial(uri)
+		if err != nil {
+			log.Fatal(fmt.Println("Failed to connect: %s", err))
+		}
+		return session
+	}
+
+	uri = strings.TrimSuffix(uri, sslSuffix)
 	tlsConfig := &tls.Config{}
 	tlsConfig.InsecureSkipVerify = true
 
