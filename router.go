@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -101,10 +105,8 @@ func (rt *Router) ReloadRoutes() {
 	}()
 
 	logDebug("mgo: connecting to", rt.mongoURL)
-	sess, err := mgo.Dial(rt.mongoURL)
-	if err != nil {
-		panic(fmt.Sprintln("mgo:", err))
-	}
+
+	sess := getMongoSession(rt.mongoURL)
 	defer sess.Close()
 	sess.SetMode(mgo.Strong, true)
 
@@ -121,6 +123,29 @@ func (rt *Router) ReloadRoutes() {
 	rt.lock.Unlock()
 
 	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
+}
+
+func getMongoSession(uri string) *mgo.Session {
+	uri = strings.TrimSuffix(uri, "?ssl=true")
+	tlsConfig := &tls.Config{}
+	tlsConfig.InsecureSkipVerify = true
+
+	dialInfo, err := mgo.ParseURL(uri)
+
+	if err != nil {
+		log.Fatal(fmt.Println("Failed to parse Mongo URI: %s, got error: %s", uri, err))
+	}
+
+	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
+		return tls.Dial("tcp", addr.String(), tlsConfig)
+	}
+
+	session, err := mgo.DialWithInfo(dialInfo)
+
+	if err != nil {
+		log.Fatal(fmt.Println("Failed to connect: %s", err))
+	}
+	return session
 }
 
 // loadBackends is a helper function which loads backends from the
