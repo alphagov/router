@@ -10,7 +10,7 @@ node ('mongodb-2.4') {
   env.GOPATH    = "${WORKSPACE}/${BUILD_DIR}"
   env.SRC_PATH  = "${env.GOPATH}/src/github.com/${REPO}"
 
-  def govuk = load '/var/lib/jenkins/groovy_scripts/govuk_jenkinslib.groovy'
+    def govuk = load '/var/lib/jenkins/groovy_scripts/govuk_jenkinslib.groovy'
 
   try {
     stage("Checkout") {
@@ -59,13 +59,6 @@ node ('mongodb-2.4') {
     stage("Push release tag") {
       echo 'Pushing tag'
       govuk.pushTag(REPOSITORY, env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
-    }
-
-    if (env.BRANCH_NAME == "master") {
-      stage("Push binary to S3") {
-        target_tag = govuk.getNewStyleReleaseTag()
-        govuk.uploadArtefactToS3('router', "s3://govuk-integration-artefact/router/${target_tag}/router")
-      }
     }
 
     if (govuk.hasDockerfile()) {
