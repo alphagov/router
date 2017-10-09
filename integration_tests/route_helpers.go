@@ -1,8 +1,14 @@
 package integration
 
 import (
+	"crypto/tls"
+	"fmt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"log"
+	"net"
+	"os"
+	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -74,10 +80,13 @@ func NewGoneRoute(extraParams ...string) Route {
 }
 
 func init() {
-	sess, err := mgo.Dial("localhost")
-	if err != nil {
-		panic("Failed to connect to mongo: " + err.Error())
+	url := "localhost"
+
+	if envVar := os.Getenv("TEST_MONGO_URL"); envVar != "" {
+		url = envVar
 	}
+
+	sess := getMongoSession(url)
 	routerDB = sess.DB("router_test")
 }
 
@@ -88,7 +97,6 @@ func addBackend(id, url string) {
 
 func addRoute(path string, route Route) {
 	route.IncomingPath = path
-
 	err := routerDB.C("routes").Insert(route)
 	Expect(err).To(BeNil())
 }
@@ -96,4 +104,37 @@ func addRoute(path string, route Route) {
 func clearRoutes() {
 	routerDB.C("routes").DropCollection()
 	routerDB.C("backends").DropCollection()
+}
+
+func getMongoSession(uri string) *mgo.Session {
+	const sslSuffix string = "?ssl=true"
+
+	if !strings.HasSuffix(uri, sslSuffix) {
+		session, err := mgo.Dial(uri)
+		if err != nil {
+			log.Fatal(fmt.Println("Failed to connect: %s", err))
+		}
+		return session
+	}
+
+	uri = strings.TrimSuffix(uri, sslSuffix)
+	tlsConfig := &tls.Config{}
+	tlsConfig.InsecureSkipVerify = true
+
+	dialInfo, err := mgo.ParseURL(uri)
+
+	if err != nil {
+		log.Fatal(fmt.Println("Failed to parse Mongo URI: %s, got error: %s", uri, err))
+	}
+
+	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
+		return tls.Dial("tcp", addr.String(), tlsConfig)
+	}
+
+	session, err := mgo.DialWithInfo(dialInfo)
+
+	if err != nil {
+		log.Fatal(fmt.Println("Failed to connect: %s", err))
+	}
+	return session
 }
