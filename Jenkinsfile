@@ -79,7 +79,11 @@ node ('mongodb-2.4') {
       }
 
       if (env.BRANCH_NAME == "master") {
-        stage("Tag Docker image") {
+        stage("Tag Docker release image") {
+          govuk.pushDockerImage(repoName, env.BRANCH_NAME, "release")
+        }
+
+        stage("Tag Docker release_${env.BUILD_NUMBER} image") {
           dockerTag = "release_${env.BUILD_NUMBER}"
           govuk.pushDockerImage(repoName, env.BRANCH_NAME, dockerTag)
         }
