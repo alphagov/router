@@ -64,6 +64,7 @@ node ('mongodb-2.4') {
     // Push the Go binary for the build to S3, for AWS releases
     if (env.BRANCH_NAME == "master") {
       stage("Push binary to S3") {
+        govuk.uploadArtefactToS3('router', "s3://govuk-integration-artefact/router/release/router")
         target_tag = "release_${env.BUILD_NUMBER}"
         govuk.uploadArtefactToS3('router', "s3://govuk-integration-artefact/router/${target_tag}/router")
       }
