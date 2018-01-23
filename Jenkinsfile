@@ -91,11 +91,11 @@ node ('mongodb-2.4') {
       }
     }
 
-    // Deploy application
-    stage("Deploy") {
-      govuk.deployIntegration(REPOSITORY, env.BRANCH_NAME, 'release', 'deploy')
+    if (env.BRANCH_NAME == "master") {
+      stage("Deploy to integration") {
+        govuk.deployIntegration('router', env.BRANCH_NAME, "release_${env.BUILD_NUMBER}", 'deploy')
+      }
     }
-
   } catch (e) {
       currentBuild.result = "FAILED"
       step([$class: 'Mailer',
