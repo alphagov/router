@@ -55,12 +55,6 @@ node ('mongodb-2.4') {
       archiveArtifacts 'router'
     }
 
-    // Update GitHub Status
-    stage("Push release tag") {
-      echo 'Pushing tag'
-      govuk.pushTag(REPOSITORY, env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
-    }
-
     // Push the Go binary for the build to S3, for AWS releases
     if (env.BRANCH_NAME == "master") {
       stage("Push binary to S3") {
@@ -92,6 +86,10 @@ node ('mongodb-2.4') {
     }
 
     if (env.BRANCH_NAME == "master") {
+      stage("Push release tag") {
+        govuk.pushTag('router', env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
+      }
+
       stage("Deploy to integration") {
         govuk.deployIntegration('router', env.BRANCH_NAME, "release_${env.BUILD_NUMBER}", 'deploy')
       }
