@@ -50,6 +50,10 @@ node ('mongodb-2.4') {
       }
     }
 
+    stage("Run publishing end-to-end tests") {
+      govuk.runPublishingE2ETests("ROUTER_COMMITISH", "test-against", "router")
+    }
+
     // Archive Binaries from build
     stage("Archive Artifact") {
       archiveArtifacts 'router'
