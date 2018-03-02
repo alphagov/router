@@ -1,5 +1,7 @@
 #!/usr/bin/env groovy
 
+library("govuk")
+
 REPOSITORY = 'router'
 
 repoName = JOB_NAME.split('/')[0]
@@ -10,7 +12,6 @@ node ('mongodb-2.4') {
   env.GOPATH    = "${WORKSPACE}/${BUILD_DIR}"
   env.SRC_PATH  = "${env.GOPATH}/src/github.com/${REPO}"
 
-  def govuk = load '/var/lib/jenkins/groovy_scripts/govuk_jenkinslib.groovy'
 
   try {
     stage("Checkout") {
