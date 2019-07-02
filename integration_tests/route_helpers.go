@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"os"
+
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
@@ -74,7 +76,13 @@ func NewGoneRoute(extraParams ...string) Route {
 }
 
 func init() {
-	sess, err := mgo.Dial("localhost")
+	databaseUrl := os.Getenv("ROUTER_MONGO_URL")
+
+	if databaseUrl == "" {
+		databaseUrl = "localhost"
+	}
+
+	sess, err := mgo.Dial(databaseUrl)
 	if err != nil {
 		panic("Failed to connect to mongo: " + err.Error())
 	}
