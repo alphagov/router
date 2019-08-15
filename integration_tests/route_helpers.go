@@ -1,7 +1,9 @@
 package integration
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -75,7 +77,7 @@ func NewGoneRoute(extraParams ...string) Route {
 	return route
 }
 
-func init() {
+func initRouteHelper() error {
 	databaseUrl := os.Getenv("ROUTER_MONGO_URL")
 
 	if databaseUrl == "" {
@@ -84,9 +86,13 @@ func init() {
 
 	sess, err := mgo.Dial(databaseUrl)
 	if err != nil {
-		panic("Failed to connect to mongo: " + err.Error())
+		return fmt.Errorf("Failed to connect to mongo: " + err.Error())
 	}
+	sess.SetSyncTimeout(10 * time.Minute)
+	sess.SetSocketTimeout(10 * time.Minute)
+
 	routerDB = sess.DB("router_test")
+	return nil
 }
 
 func addBackend(id, url string) {
