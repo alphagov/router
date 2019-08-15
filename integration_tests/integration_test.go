@@ -24,6 +24,10 @@ var _ = BeforeSuite(func() {
 	if err != nil {
 		Fail(err.Error())
 	}
+	err = initRouteHelper()
+	if err != nil {
+		Fail(err.Error())
+	}
 })
 
 var _ = BeforeEach(func() {

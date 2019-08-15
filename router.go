@@ -10,7 +10,7 @@ import (
 	"github.com/alphagov/router/handlers"
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its

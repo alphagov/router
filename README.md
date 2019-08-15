@@ -80,19 +80,10 @@ environment requirements that make them unfeasible to run within CI.
 Dependencies
 ------------
 
-This project uses [Godep][godep] to manage its dependencies.  If you have a
-working [Go][go] development setup, you should be able to install Godep by
-running:
+This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to vendor its dependencies.
+If you have a working [Go][go] development setup, you should be able to update the dependencies via:
 
-    go get github.com/tools/godep
-
-Note that you only need to install Godep if you need to update or change any
-dependencies.  It's not required to just build or run the application, as all
-sependencies are [vendored][vendoring].
-
-[godep]: https://github.com/tools/godep
-[go]: http://golang.org
-[vendoring]: https://blog.gopheracademy.com/advent-2015/vendor-folder/
+    go mod vendor
 
 Data structure
 -----------------
