@@ -95,13 +95,6 @@ node ('mongodb-2.4') {
         govuk.pushTag('router', env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
       }
 
-      stage("Push to Gitlab") {
-        try {
-          govuk.pushToMirror('router', env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
-        } catch (e) {
-        }
-      }
-
       stage("Deploy to integration") {
         govuk.deployIntegration('router', env.BRANCH_NAME, "release_${env.BUILD_NUMBER}", 'deploy')
       }
