@@ -42,18 +42,18 @@ var _ = Describe("reload API endpoint", func() {
 			end := time.Now()
 			duration := end.Sub(start)
 
-			Expect(duration.Nanoseconds()).To(BeNumerically("<", 1000000))
+			Expect(duration.Nanoseconds()).To(BeNumerically("<", 5000000))
 
 			addRoute("/bar", NewRedirectRoute("/qux", "prefix"))
 			doRequest(newRequest("POST", routerAPIURL("/reload")))
 
-			time.Sleep(time.Millisecond * 50)
+			Eventually(func() int {
+				return routerRequest("/foo").StatusCode
+			}, time.Second*1).Should(Equal(301))
 
-			addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
-
-			Expect(routerRequest("/foo").StatusCode).To(Equal(301))
-			Expect(routerRequest("/bar").StatusCode).To(Equal(301))
-			Expect(routerRequest("/baz").StatusCode).To(Equal(404))
+			Eventually(func() int {
+				return routerRequest("/bar").StatusCode
+			}, time.Second*1).Should(Equal(301))
 		})
 	})
 
