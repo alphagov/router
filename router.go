@@ -78,7 +78,10 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ServeHTTP:", r)
-			rt.logger.LogFromClientRequest(map[string]interface{}{"error": fmt.Sprintf("panic: %v", r), "status": 500}, req)
+			errorMessage := fmt.Sprintf("panic: %v", r)
+			err := logger.RecoveredError{ ErrorMessage: errorMessage }
+			logger.NotifySentry(logger.ReportableError{ Error: err, Request: req })
+			rt.logger.LogFromClientRequest(map[string]interface{}{"error": errorMessage, "status": 500}, req)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}()
@@ -97,6 +100,9 @@ func (rt *Router) ReloadRoutes() {
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ReloadRoutes:", r)
 			logInfo("router: original routes have not been modified")
+			errorMessage := fmt.Sprintf("panic: %v", r)
+			err := logger.RecoveredError{ ErrorMessage: errorMessage }
+			logger.NotifySentry(logger.ReportableError{ Error: err })
 		}
 	}()
 

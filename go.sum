@@ -1,7 +1,10 @@
 github.com/alext/tablecloth v0.0.0-20150502092832-fbddb1a44a21 h1:oNDnuu3fHqcUrClLyfdUmugXioJorjZnCZkB5Hh3NQs=
 github.com/alext/tablecloth v0.0.0-20150502092832-fbddb1a44a21/go.mod h1:jKjUrWeqND77iVx9JTIHBPwsFrcvHWg0+LinaAH6NXM=
+github.com/getsentry/sentry-go v0.2.1 h1:zCyr8wS1NQM7ixbWNh8lBRMlQZSM3aMXQCqXgCDwI44=
+github.com/getsentry/sentry-go v0.2.1/go.mod h1:2QfSdvxz4IZGyB5izm1TtADFhlhfj1Dcesrg8+A/T9Y=
 github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8 h1:DujepqpGd1hyOd7aW59XpK7Qymp8iy83xq74fLr21is=
 github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8/go.mod h1:xkRDCp4j0OGD1HRkm4kmhM+pmpv3AKq5SU7GMg4oO/Q=
+github.com/go-errors/errors v1.0.1/go.mod h1:f4zRHt4oKfwPJE5k8C9vpYG+aDHdBFUsgrm6/TyX73Q=
 github.com/golang/protobuf v0.0.0-20160712193813-874264fbbb43 h1:hqD5LoecFbk/F8KRMF5THTQDx6HLNdfCcth8BDpy6JQ=
 github.com/golang/protobuf v0.0.0-20160712193813-874264fbbb43/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
@@ -13,6 +16,8 @@ github.com/onsi/ginkgo v0.0.0-20160716051733-7d3240191d7b h1:tQgOdRdXLi5UmMEBGnz
 github.com/onsi/ginkgo v0.0.0-20160716051733-7d3240191d7b/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v0.0.0-20160713044445-9574b2d94c03 h1:0KuWmiYjZpQkXeyUgpH7dbSCPdNxZQOpsUuMNaYC0E8=
 github.com/onsi/gomega v0.0.0-20160713044445-9574b2d94c03/go.mod h1:C1qb7wdrVGGVU+Z6iS04AVkA3Q65CEZX59MT0QO5uiA=
+github.com/pingcap/errors v0.11.1/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
+github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 h1:7z3LSn867ex6VSaahyKadf4WtSsJIgne6A1WLOAGM8A=
 github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25/go.mod h1:lbP8tGiBjZ5YWIc2fzuRpTaz0b/53vT6PEs3QuAWzuU=
 github.com/tsenart/vegeta v0.0.0-20160525192120-dbb7ee1d3e54 h1:cAbFLD597fDhkRdQSZJE1wWvC/E2FpWE8lzYxhwrt00=

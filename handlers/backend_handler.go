@@ -82,6 +82,7 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		// Log the error (deferred to allow special case error handling to add/change details)
 		logDetails := map[string]interface{}{"error": err.Error(), "status": 500}
 		defer bt.logger.LogFromBackendRequest(logDetails, req)
+		defer logger.NotifySentry(logger.ReportableError{ Error: err, Request: req, Response: resp })
 
 		// Intercept some specific errors and generate an appropriate HTTP error response
 		if netErr, ok := err.(net.Error); ok {

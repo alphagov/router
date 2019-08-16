@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/alext/tablecloth v0.0.0-20150502092832-fbddb1a44a21
+	github.com/getsentry/sentry-go v0.2.1 // indirect
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/golang/protobuf v0.0.0-20160712193813-874264fbbb43 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
