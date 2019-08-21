@@ -3,6 +3,7 @@ package logger
 import (
   "log"
   "time"
+  "net"
   "net/http"
 
   sentry "github.com/getsentry/sentry-go"
@@ -41,7 +42,19 @@ func (re ReportableError) scope() *sentry.Scope {
   return scope
 }
 
+func (re ReportableError) timeoutError() bool {
+  opErr, ok := re.Error.(*net.OpError)
+  return ok && opErr.Timeout()
+}
+
+func (re ReportableError) ignorableError() bool {
+  // We don't want to hear about timeouts. These get visibility elsewhere.
+  return re.timeoutError()
+}
+
 func NotifySentry(re ReportableError) {
+  if re.ignorableError() { return }
+
   // We don't need to set SENTRY_ENVIRONMENT, SENTRY_DSN or SENTRY_RELEASE
   // in ClientOptions as they are automatically picked up as env vars.
   // https://docs.sentry.io/platforms/go/config/
