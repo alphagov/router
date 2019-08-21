@@ -30,7 +30,15 @@ func (re ReportableError) hint() *sentry.EventHint {
 }
 
 func (re ReportableError) scope() *sentry.Scope {
-  return &sentry.Scope{}
+  scope := sentry.NewScope()
+  if re.hint().Request != nil {
+    request := sentry.Request{}.FromHTTPRequest(re.hint().Request)
+    scope.SetRequest(request)
+  }
+  if re.hint().Response != nil {
+    scope.SetExtra("Response Status", re.hint().Response.Status);
+  }
+  return scope
 }
 
 func NotifySentry(re ReportableError) {
@@ -38,11 +46,13 @@ func NotifySentry(re ReportableError) {
   // in ClientOptions as they are automatically picked up as env vars.
   // https://docs.sentry.io/platforms/go/config/
   client, err := sentry.NewClient(sentry.ClientOptions{})
+
   if err != nil {
     log.Printf("router: Sentry initialization failed: %v\n", err)
     return
   }
 
-  client.CaptureException(re.Error, re.hint(), re.scope())
-  client.Flush(time.Second * 5)
+  hub := sentry.NewHub(client, re.scope())
+  hub.CaptureException(re.Error)
+  sentry.Flush(time.Second * 5)
 }
