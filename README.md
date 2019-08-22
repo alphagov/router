@@ -154,6 +154,11 @@ The `backends` collection uses the following data structure:
 }
 ```
 
+Error logging
+-------------
+
+The logger package stores errors in logfiles and reports them to Sentry.
+
 License
 -------
 
