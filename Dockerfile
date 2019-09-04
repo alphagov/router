@@ -1,4 +1,4 @@
-FROM golang:1.9.1 AS builder
+FROM golang:1.12.9 AS builder
 ADD . /go/src/github.com/alphagov/router
 WORKDIR /go/src/github.com/alphagov/router
 RUN CGO_ENABLED=0 go build -o router
@@ -14,5 +14,3 @@ ENV ROUTER_MONGO_DB router
 ENV DEBUG true
 ENTRYPOINT ["/bin/router"]
 CMD []
-
-
