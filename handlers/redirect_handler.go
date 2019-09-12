@@ -3,8 +3,11 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
+
+	"github.com/alphagov/router/logger"
 )
 
 const cacheDuration = 30 * time.Minute
@@ -25,6 +28,21 @@ func addCacheHeaders(writer http.ResponseWriter) {
 	writer.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", cacheDuration/time.Second))
 }
 
+func addGAQueryParam(target string, request *http.Request) string {
+	if ga := request.URL.Query().Get("_ga"); ga != "" {
+		u, err := url.Parse(target)
+		if err != nil {
+			defer logger.NotifySentry(logger.ReportableError{ Error: err, Request: request })
+			return target
+		}
+		values := u.Query()
+		values.Set("_ga", ga)
+		u.RawQuery = values.Encode()
+		return u.String()
+	}
+	return target
+}
+
 type redirectHandler struct {
 	url  string
 	code int
@@ -32,7 +50,8 @@ type redirectHandler struct {
 
 func (handler *redirectHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	addCacheHeaders(writer)
-	http.Redirect(writer, request, handler.url, handler.code)
+	target := addGAQueryParam(handler.url, request)
+	http.Redirect(writer, request, target, handler.code)
 }
 
 type pathPreservingRedirectHandler struct {

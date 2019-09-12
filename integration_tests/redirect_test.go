@@ -179,4 +179,52 @@ var _ = Describe("Redirection", func() {
 			})
 		})
 	})
+
+	Describe("redirects with a _ga parameter", func() {
+		BeforeEach(func() {
+			addRoute("/foo", NewRedirectRoute("https://hmrc.service.gov.uk/pay", "prefix", "permanent", "ignore"))
+			addRoute("/bar", NewRedirectRoute("https://bar.service.gov.uk/bar", "exact", "temporary", "preserve"))
+			addRoute("/baz", NewRedirectRoute("https://gov.uk/baz-luhrmann", "exact", "permanent", "ignore"))
+			addRoute("/pay-tax", NewRedirectRoute("https://tax.service.gov.uk/pay", "exact", "permanent", "ignore"))
+			addRoute("/biz-bank", NewRedirectRoute("https://british-business-bank.co.uk", "prefix", "permanent", "ignore"))
+			addRoute("/query-paramed", NewRedirectRoute("https://param.servicegov.uk?included-param=true", "exact", "permanent", "ignore"))
+			reloadRoutes()
+		})
+
+		It("should only preserve the _ga parameter when redirecting to service URLs that want to ignore query params", func() {
+			resp := routerRequest("/foo?_ga=identifier&blah=xyz")
+			Expect(resp.Header.Get("Location")).To(Equal("https://hmrc.service.gov.uk/pay?_ga=identifier"))
+		})
+
+		It("should retain all params when redirecting to a route that wants them", func() {
+			resp := routerRequest("/bar?wanted=param&_ga=xyz&blah=xyz")
+			Expect(resp.Header.Get("Location")).To(Equal("https://bar.service.gov.uk/bar?wanted=param&_ga=xyz&blah=xyz"))
+		})
+
+		It("should preserve the _ga parameter when redirecting to gov.uk URLs", func() {
+			resp := routerRequest("/baz?_ga=identifier")
+			Expect(resp.Header.Get("Location")).To(Equal("https://gov.uk/baz-luhrmann?_ga=identifier"))
+		})
+
+		It("should preserve the _ga parameter when redirecting to service.gov.uk URLs", func() {
+			resp := routerRequest("/pay-tax?_ga=12345")
+			Expect(resp.Header.Get("Location")).To(Equal("https://tax.service.gov.uk/pay?_ga=12345"))
+		})
+
+		It("should preserve only the first _ga parameter", func() {
+			resp := routerRequest("/pay-tax/?_ga=12345&_ga=6789")
+			Expect(resp.Header.Get("Location")).To(Equal("https://tax.service.gov.uk/pay?_ga=12345"))
+		})
+
+		It("should preserve the _ga param when redirecting to british business bank", func() {
+			resp := routerRequest("/biz-bank?unwanted=param&_ga=12345")
+			Expect(resp.Header.Get("Location")).To(Equal("https://british-business-bank.co.uk?_ga=12345"))
+		})
+
+		It("should preserve the _ga param and any existing query string that the target URL has", func() {
+			resp := routerRequest("/query-paramed?unwanted_param=blah&_ga=12345")
+			// https://param.servicegov.uk?included-param=true?unwanted_param=blah&_ga=12345
+			Expect(resp.Header.Get("Location")).To(Equal("https://param.servicegov.uk?_ga=12345&included-param=true"))
+		})
+	})
 })
