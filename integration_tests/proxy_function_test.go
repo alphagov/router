@@ -32,7 +32,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			logDetails := lastRouterErrorLogEntry()
 			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-				"error":          "dial tcp 127.0.0.1:3164: connect: connection refused",
+				"error":          "dial tcp 127.0.0.1:3164: getsockopt: connection refused",
 				"request":        "GET /not-running HTTP/1.1",
 				"request_method": "GET",
 				"status":         float64(502), // All numbers in JSON are floating point
@@ -48,7 +48,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			It("should log and return a 504 if the connection times out in the configured time", func() {
 				startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
 				defer stopRouter(3167)
-				addBackend("firewall-blocked", "http://127.0.0.1:3170/")
+				addBackend("firewall-blocked", "http://localhost:3170/")
 				addRoute("/blocked", NewBackendRoute("firewall-blocked"))
 				reloadRoutes(3166)
 
@@ -69,7 +69,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 					"request":        "GET /blocked HTTP/1.1",
 					"request_method": "GET",
 					"status":         float64(504), // All numbers in JSON are floating point
-					"upstream_addr":  "127.0.0.1:3170",
+					"upstream_addr":  "localhost:3170",
 					"varnish_id":     "12341111",
 				}))
 				Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
