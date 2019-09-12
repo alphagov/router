@@ -81,7 +81,7 @@ func initRouteHelper() error {
 	databaseUrl := os.Getenv("ROUTER_MONGO_URL")
 
 	if databaseUrl == "" {
-		databaseUrl = "127.0.0.1"
+		databaseUrl = "localhost"
 	}
 
 	sess, err := mgo.Dial(databaseUrl)

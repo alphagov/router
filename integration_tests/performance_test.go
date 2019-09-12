@@ -74,7 +74,7 @@ var _ = Describe("Performance", func() {
 
 		Describe("one downed backend hit separately", func() {
 			It("should not significantly increase latency", func() {
-				addBackend("backend-down", "http://127.0.0.1:3162/")
+				addBackend("backend-down", "http://localhost:3162/")
 				addRoute("/down", NewBackendRoute("backend-down"))
 				reloadRoutes()
 
