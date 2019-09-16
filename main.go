@@ -16,7 +16,7 @@ import (
 var (
 	pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
 	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
-	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "localhost")
+	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "127.0.0.1")
 	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
 	tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
@@ -34,7 +34,7 @@ The following environment variables and defaults are available:
 
 ROUTER_PUBADDR=:8080        Address on which to serve public requests
 ROUTER_APIADDR=:8081        Address on which to receive reload requests
-ROUTER_MONGO_URL=localhost  Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')
+ROUTER_MONGO_URL=127.0.0.1  Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')
 ROUTER_MONGO_DB=router      Name of mongo database to use
 ROUTER_ERROR_LOG=STDERR     File to log errors to (in JSON format)
 DEBUG=                      Whether to enable debug output - set to anything to enable
