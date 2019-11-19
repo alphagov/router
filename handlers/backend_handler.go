@@ -74,6 +74,12 @@ func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger log
 	return
 }
 
+func closeBody(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
+}
+
 func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	resp, err = bt.wrapped.RoundTrip(req)
 	if err == nil {
@@ -83,6 +89,7 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		logDetails := map[string]interface{}{"error": err.Error(), "status": 500}
 		defer bt.logger.LogFromBackendRequest(logDetails, req)
 		defer logger.NotifySentry(logger.ReportableError{ Error: err, Request: req, Response: resp })
+		defer closeBody(resp)
 
 		// Intercept some specific errors and generate an appropriate HTTP error response
 		if netErr, ok := err.(net.Error); ok {
