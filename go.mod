@@ -15,6 +15,5 @@ require (
 	golang.org/x/net v0.0.0-20160717224510-3797cd886499 // indirect
 	golang.org/x/sys v0.0.0-20160717071931-a646d33e2ee3 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
-	gopkg.in/mgo.v2 v2.0.0-20160609180028-29cc868a5ca6 // indirect
 	gopkg.in/yaml.v2 v2.0.0-20160715033755-e4d366fc3c79 // indirect
 )
