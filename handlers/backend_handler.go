@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -59,7 +60,7 @@ type backendTransport struct {
 func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger logger.Logger) (transport *backendTransport) {
 	transport = &backendTransport{&http.Transport{}, logger}
 
-	transport.wrapped.Dial = func(network, address string) (net.Conn, error) {
+	transport.wrapped.DialContext = func(_ context.Context, network, address string) (net.Conn, error) {
 		return net.DialTimeout(network, address, connectTimeout)
 	}
 	// Allow the proxy to keep more than the default (2) keepalive connections
