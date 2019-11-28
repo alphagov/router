@@ -5,7 +5,7 @@ RUN CGO_ENABLED=0 go build -o router
 
 FROM alpine:3.8
 COPY --from=builder /go/src/github.com/alphagov/router/router /bin/router
-RUN wget -O /etc/ssl/certs/aws-rds-ca.pem https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+RUN wget -O /etc/ssl/certs/rds-combined-ca-bundle.pem https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
 ENV GOVUK_APP_NAME router
 ENV ROUTER_PUBADDR :3054
 ENV ROUTER_APIADDR :3055
