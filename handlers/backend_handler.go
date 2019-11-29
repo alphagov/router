@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -60,9 +59,11 @@ type backendTransport struct {
 func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger logger.Logger) *backendTransport {
 	transport := http.Transport{}
 
-	transport.DialContext = func(_ context.Context, network, address string) (net.Conn, error) {
-		return net.DialTimeout(network, address, connectTimeout)
-	}
+	transport.DialContext = (&net.Dialer{
+		Timeout:   connectTimeout,   // Configured by caller
+		KeepAlive: 30 * time.Second, // same as DefaultTransport
+		DualStack: true,             // same as DefaultTransport
+	}).DialContext
 
 	// Remember, we have one transport per backend
 	//
