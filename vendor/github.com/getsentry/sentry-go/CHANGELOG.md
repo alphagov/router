@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.1
+
+- fix: Run `Contextify` integration on `Threads` as well
+
+## v0.2.0
+
+- feat: Add `SetTransaction()` method on the `Scope`
+- feat: `fasthttp` framework support with `sentryfasthttp` package
+- fix: Add `RWMutex` locks to internal `Hub` and `Scope` changes
+
 ## v0.1.3
 
 - feat: Move frames context reading into `contextifyFramesIntegration` (#28)

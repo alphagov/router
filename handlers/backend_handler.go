@@ -56,22 +56,49 @@ type backendTransport struct {
 // Construct a backendTransport that wraps an http.Transport and implements http.RoundTripper.
 // This allows us to intercept the response from the backend and modify it before it's copied
 // back to the client.
-func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger logger.Logger) (transport *backendTransport) {
-	transport = &backendTransport{&http.Transport{}, logger}
+func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger logger.Logger) *backendTransport {
+	transport := http.Transport{}
 
-	transport.wrapped.Dial = func(network, address string) (net.Conn, error) {
-		return net.DialTimeout(network, address, connectTimeout)
-	}
-	// Allow the proxy to keep more than the default (2) keepalive connections
-	// per upstream.
-	transport.wrapped.MaxIdleConnsPerHost = 20
-	transport.wrapped.ResponseHeaderTimeout = headerTimeout
+	transport.DialContext = (&net.Dialer{
+		Timeout:   connectTimeout,   // Configured by caller
+		KeepAlive: 30 * time.Second, // same as DefaultTransport
+		DualStack: true,             // same as DefaultTransport
+	}).DialContext
+
+	// Remember, we have one transport per backend
+	//
+	// Using the below settings, and (for example) we have 25 backends
+	//   25 * 60 = 1500
+	// we will have a maximum of 1500 open idle connections
+	//
+	// The Go http.DefaultTransport sets this to 100,
+	// we set to 60 because of potential file handle limits
+	// because we have multiple backends
+	transport.MaxIdleConns = 60
+	// This is an arbitrarily selected number that is less than 60
+	transport.MaxIdleConnsPerHost = 20
+	// By default, idle connections do not expire,
+	// unless they are closed by the other end of the connection,
+	// and sometimes the other end will silently close the connection.
+	// We should expire idle connections after a while.
+	//
+	// We arbitrarily chose 10 minutes
+	transport.IdleConnTimeout = 10 * time.Minute
+
+	// If we do not configure the timeouts, then connections will hang
+	//
+	// Configured by the caller
+	transport.ResponseHeaderTimeout = headerTimeout
+	//
+	// Same values as http.DefaultTransport
+	transport.TLSHandshakeTimeout = 10 * time.Second
+	transport.ExpectContinueTimeout = 1 * time.Second
 
 	if TLSSkipVerify {
-		transport.wrapped.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
-	return
+	return &backendTransport{&transport, logger}
 }
 
 func closeBody(resp *http.Response) {
@@ -88,7 +115,7 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		// Log the error (deferred to allow special case error handling to add/change details)
 		logDetails := map[string]interface{}{"error": err.Error(), "status": 500}
 		defer bt.logger.LogFromBackendRequest(logDetails, req)
-		defer logger.NotifySentry(logger.ReportableError{ Error: err, Request: req, Response: resp })
+		defer logger.NotifySentry(logger.ReportableError{Error: err, Request: req, Response: resp})
 		defer closeBody(resp)
 
 		// Intercept some specific errors and generate an appropriate HTTP error response
