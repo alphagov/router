@@ -138,6 +138,8 @@ func (rt *Router) ReloadRoutes() {
 	rt.lock.Unlock()
 
 	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
+
+	routesCountMetric.Set(float64(rt.mux.RouteCount()))
 }
 
 // loadBackends is a helper function which loads backends from the

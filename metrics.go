@@ -26,6 +26,13 @@ var (
 			Help: "Number of errors encountered by reloading routing table",
 		},
 	)
+
+	routesCountMetric = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "router_routes_count",
+			Help: "Number of routes currently loaded",
+		},
+	)
 )
 
 func initMetrics() {
@@ -33,4 +40,6 @@ func initMetrics() {
 
 	prometheus.MustRegister(routeReloadCountMetric)
 	prometheus.MustRegister(routeReloadErrorCountMetric)
+
+	prometheus.MustRegister(routesCountMetric)
 }

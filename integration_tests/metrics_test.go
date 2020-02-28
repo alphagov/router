@@ -30,6 +30,8 @@ var _ = Describe("metrics API endpoint", func() {
 		It("should contain routing table metrics", func() {
 			Expect(responseBody).To(ContainSubstring("router_route_reload_count"))
 			Expect(responseBody).To(ContainSubstring("router_route_reload_error_count"))
+
+			Expect(responseBody).To(ContainSubstring("router_routes_count"))
 		})
 	})
 })
