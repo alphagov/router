@@ -7,10 +7,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/alphagov/router/logger"
 )
 
-const cacheDuration = 30 * time.Minute
+const (
+	cacheDuration = 30 * time.Minute
+
+	redirectHandlerType               = "redirect-handler"
+	pathPreservingRedirectHandlerType = "path-preserving-redirect-handler"
+)
 
 func NewRedirectHandler(source, target string, preserve bool, temporary bool) http.Handler {
 	statusMoved := http.StatusMovedPermanently
@@ -50,8 +57,15 @@ type redirectHandler struct {
 
 func (handler *redirectHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	addCacheHeaders(writer)
+
 	target := addGAQueryParam(handler.url, request)
 	http.Redirect(writer, request, target, handler.code)
+
+	RedirectHandlerRedirectCountMetric.With(prometheus.Labels{
+		"redirect_type": redirectHandlerType,
+		"redirect_code": fmt.Sprintf("%d", handler.code),
+		"redirect_url":  handler.url,
+	}).Inc()
 }
 
 type pathPreservingRedirectHandler struct {
@@ -62,10 +76,23 @@ type pathPreservingRedirectHandler struct {
 
 func (handler *pathPreservingRedirectHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	target := handler.targetPrefix + strings.TrimPrefix(request.URL.Path, handler.sourcePrefix)
+
 	if request.URL.RawQuery != "" {
 		target = target + "?" + request.URL.RawQuery
 	}
 
 	addCacheHeaders(writer)
 	http.Redirect(writer, request, target, handler.code)
+
+	RedirectHandlerRedirectCountMetric.With(prometheus.Labels{
+		"redirect_code": fmt.Sprintf("%d", handler.code),
+		"redirect_type": pathPreservingRedirectHandlerType,
+		"redirect_url":  stripQuery(target),
+	}).Inc()
+}
+
+func stripQuery(us string) string {
+	u, _ := url.Parse(us)
+	u.RawQuery = ""
+	return u.String()
 }
