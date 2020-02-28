@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/alphagov/router/handlers"
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
@@ -78,11 +80,16 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ServeHTTP:", r)
+
 			errorMessage := fmt.Sprintf("panic: %v", r)
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
+
 			logger.NotifySentry(logger.ReportableError{Error: err, Request: req})
 			rt.logger.LogFromClientRequest(map[string]interface{}{"error": errorMessage, "status": 500}, req)
+
 			w.WriteHeader(http.StatusInternalServerError)
+
+			internalServerErrorCountMetric.With(prometheus.Labels{"host": req.Host}).Inc()
 		}
 	}()
 	rt.lock.RLock()
@@ -96,6 +103,8 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
 func (rt *Router) ReloadRoutes() {
+	routeReloadCountMetric.Inc()
+
 	defer func() {
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ReloadRoutes:", r)
@@ -103,6 +112,8 @@ func (rt *Router) ReloadRoutes() {
 			errorMessage := fmt.Sprintf("panic: %v", r)
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
 			logger.NotifySentry(logger.ReportableError{Error: err})
+
+			routeReloadErrorCountMetric.Inc()
 		}
 	}()
 
