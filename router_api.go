@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"runtime"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func newAPIHandler(rout *Router) (api http.Handler, err error) {
@@ -86,6 +88,7 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 		w.Write(jsonData)
 		w.Write([]byte("\n"))
 	})
+	mux.Handle("/metrics", promhttp.Handler())
 
 	return mux, nil
 }
