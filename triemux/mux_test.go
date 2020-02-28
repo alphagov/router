@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 func init() {
@@ -167,8 +169,34 @@ var lookupExamples = []LookupExample{
 }
 
 func TestLookup(t *testing.T) {
+	beforeCount := promtest.ToFloat64(EntryNotFoundCountMetric)
+
 	for _, ex := range lookupExamples {
 		testLookup(t, ex)
+	}
+
+	afterCount := promtest.ToFloat64(EntryNotFoundCountMetric)
+	notFoundCount := afterCount - beforeCount
+
+	var expectedNotFoundCount int
+
+	for _, ex := range lookupExamples {
+		for _, c := range ex.checks {
+			if !c.ok {
+				expectedNotFoundCount++
+			}
+		}
+	}
+
+	if expectedNotFoundCount == 0 {
+		t.Errorf("expectedNotFoundCount should not be zero")
+	}
+
+	if notFoundCount != float64(expectedNotFoundCount) {
+		t.Errorf(
+			"Expected notFoundCount (%f) ok to be %f",
+			notFoundCount, float64(expectedNotFoundCount),
+		)
 	}
 }
 

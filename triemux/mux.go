@@ -62,12 +62,14 @@ func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
 		val, ok = mux.prefixTrie.GetLongestPrefix(pathSegments)
 	}
 	if !ok {
+		EntryNotFoundCountMetric.Inc()
 		return nil, false
 	}
 
 	entry, ok := val.(muxEntry)
 	if !ok {
 		log.Printf("lookup: got value (%v) from trie that wasn't a muxEntry!", val)
+		EntryNotFoundCountMetric.Inc()
 		return nil, false
 	}
 
