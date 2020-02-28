@@ -21,20 +21,22 @@ var (
 )
 
 type Route struct {
-	IncomingPath string `bson:"incoming_path"`
-	RouteType    string `bson:"route_type"`
-	Handler      string `bson:"handler"`
-	BackendID    string `bson:"backend_id"`
-	RedirectTo   string `bson:"redirect_to"`
-	RedirectType string `bson:"redirect_type"`
-	SegmentsMode string `bson:"segments_mode"`
-	Disabled     bool   `bson:"disabled"`
+	IncomingPath string    `bson:"incoming_path"`
+	RouteType    string    `bson:"route_type"`
+	Handler      string    `bson:"handler"`
+	BackendID    string    `bson:"backend_id"`
+	Methods      []string  `bson:"methods"`
+	RedirectTo   string    `bson:"redirect_to"`
+	RedirectType string    `bson:"redirect_type"`
+	SegmentsMode string    `bson:"segments_mode"`
+	Disabled     bool      `bson:"disabled"`
 }
 
-func NewBackendRoute(backendID string, extraParams ...string) Route {
+func NewBackendRouteWithMethods(backendID string, methods []string, extraParams ...string) Route {
 	route := Route{
 		Handler:   "backend",
 		BackendID: backendID,
+		Methods:   methods,
 	}
 
 	if len(extraParams) > 0 {
@@ -42,6 +44,10 @@ func NewBackendRoute(backendID string, extraParams ...string) Route {
 	}
 
 	return route
+}
+
+func NewBackendRoute(backendID string, extraParams ...string) Route {
+	return NewBackendRouteWithMethods(backendID, []string{}, extraParams...)
 }
 
 func NewRedirectRoute(redirectTo string, extraParams ...string) Route {

@@ -13,7 +13,11 @@ import (
 )
 
 func routerRequest(path string, optionalPort ...int) *http.Response {
-	return doRequest(newRequest("GET", routerURL(path, optionalPort...)))
+	return routerRequestWithMethod("GET", path, optionalPort...)
+}
+
+func routerRequestWithMethod(method string, path string, optionalPort ...int) *http.Response {
+	return doRequest(newRequest(method, routerURL(path, optionalPort...)))
 }
 
 func routerRequestWithHeaders(path string, headers map[string]string, optionalPort ...int) *http.Response {

@@ -20,7 +20,7 @@ var _ = Describe("Gone routes", func() {
 
 		resp = routerRequest("/foo/bar")
 		Expect(resp.StatusCode).To(Equal(404))
-		Expect(readBody(resp)).To(Equal("404 page not found\n"))
+		Expect(readBody(resp)).To(Equal("404 Not Found\n"))
 	})
 
 	It("should support a prefix gone route", func() {

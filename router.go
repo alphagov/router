@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,14 +32,15 @@ type Backend struct {
 }
 
 type Route struct {
-	IncomingPath string `bson:"incoming_path"`
-	RouteType    string `bson:"route_type"`
-	Handler      string `bson:"handler"`
-	BackendID    string `bson:"backend_id"`
-	RedirectTo   string `bson:"redirect_to"`
-	RedirectType string `bson:"redirect_type"`
-	SegmentsMode string `bson:"segments_mode"`
-	Disabled     bool   `bson:"disabled"`
+	BackendID    	string    `bson:"backend_id"`
+	Disabled     	bool      `bson:"disabled"`
+	Handler      	string    `bson:"handler"`
+	IncomingPath 	string    `bson:"incoming_path"`
+	Methods      	[]string  `bson:"methods"`
+	RedirectTo   	string    `bson:"redirect_to"`
+	RedirectType 	string    `bson:"redirect_type"`
+	RouteType    	string    `bson:"route_type"`
+	SegmentsMode 	string    `bson:"segments_mode"`
 }
 
 // NewRouter returns a new empty router instance. You will still need to call
@@ -182,7 +184,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		}
 
 		if route.Disabled {
-			mux.Handle(incomingURL.Path, prefix, unavailableHandler)
+			mux.Handle(incomingURL.Path, route.Methods, prefix, unavailableHandler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v)(disabled) -> Unavailable", incomingURL.Path, prefix))
 			continue
 		}
@@ -195,21 +197,21 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 					"%s, skipping!", route, route.BackendID))
 				continue
 			}
-			mux.Handle(incomingURL.Path, prefix, handler)
-			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
-				incomingURL.Path, prefix, route.BackendID))
+			mux.Handle(incomingURL.Path, route.Methods, prefix, handler)
+			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) with methods %s for %s",
+				incomingURL.Path, prefix, strings.Join(route.Methods,","), route.BackendID))
 		case "redirect":
 			redirectTemporarily := (route.RedirectType == "temporary")
 			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route), redirectTemporarily)
-			mux.Handle(incomingURL.Path, prefix, handler)
+			mux.Handle(incomingURL.Path, route.Methods, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				incomingURL.Path, prefix, route.RedirectTo))
 		case "gone":
-			mux.Handle(incomingURL.Path, prefix, goneHandler)
+			mux.Handle(incomingURL.Path, route.Methods, prefix, goneHandler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", incomingURL.Path, prefix))
 		case "boom":
 			// Special handler so that we can test failure behaviour.
-			mux.Handle(incomingURL.Path, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mux.Handle(incomingURL.Path, route.Methods, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				panic("Boom!!!")
 			}))
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Boom!!!", incomingURL.Path, prefix))

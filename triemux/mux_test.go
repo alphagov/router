@@ -61,15 +61,23 @@ func (dh *DummyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
 
 var a, b, c *DummyHandler = &DummyHandler{"a"}, &DummyHandler{"b"}, &DummyHandler{"c"}
 
+type MethodSet []string
+
+var gets, empty, readonly MethodSet = MethodSet{"GET"}, MethodSet{}, MethodSet{"GET", "HEAD"}
+var writeonly, readandwrite MethodSet = MethodSet{"PUT", "POST"}, MethodSet{"GET", "HEAD", "PUT", "POST"}
+var get, post, put, head, delete string = "GET", "POST", "PUT", "HEAD", "DELETE"
+
 type Registration struct {
 	path    string
+	methods MethodSet
 	prefix  bool
 	handler http.Handler
 }
 
 type Check struct {
 	path    string
-	ok      bool
+	method  string
+	code    int
 	handler http.Handler
 }
 
@@ -81,87 +89,143 @@ type LookupExample struct {
 var lookupExamples = []LookupExample{
 	{ // simple routes
 		registrations: []Registration{
-			{"/foo", false, a},
-			{"/bar", false, b},
+			{"/foo", empty, false, a},
+			{"/bar", empty, false, b},
 		},
 		checks: []Check{
-			{"/foo", true, a},
-			{"/bar", true, b},
-			{"/baz", false, nil},
+			{"/foo", get, 200, a},
+			{"/bar", get, 200, b},
+			{"/baz", get, 404, nil},
 		},
 	},
 	{ // a prefix route
 		registrations: []Registration{
-			{"/foo", true, a},
-			{"/bar", false, b},
+			{"/foo", gets, true, a},
+			{"/bar", gets, false, b},
 		},
 		checks: []Check{
-			{"/foo", true, a},
-			{"/bar", true, b},
-			{"/baz", false, nil},
-			{"/foo/bar", true, a},
+			{"/foo", get, 200, a},
+			{"/bar", get, 200, b},
+			{"/baz", get, 404, nil},
+			{"/foo/bar", get, 200, a},
 		},
 	},
 	{ // a prefix route with an exact route child
 		registrations: []Registration{
-			{"/foo", true, a},
-			{"/foo/bar", false, b},
+			{"/foo", gets, true, a},
+			{"/foo/bar", gets, false, b},
 		},
 		checks: []Check{
-			{"/foo", true, a},
-			{"/foo/baz", true, a},
-			{"/foo/bar", true, b},
-			{"/foo/bar/bat", true, a},
+			{"/foo", get, 200, a},
+			{"/foo/baz", get, 200, a},
+			{"/foo/bar", get, 200, b},
+			{"/foo/bar/bat", get, 200, a},
 		},
 	},
 	{ // a prefix route with an exact route child with a prefix route child
 		registrations: []Registration{
-			{"/foo", true, a},
-			{"/foo/bar", false, b},
-			{"/foo/bar/baz", true, c},
+			{"/foo", gets, true, a},
+			{"/foo/bar", gets, false, b},
+			{"/foo/bar/baz", gets, true, c},
 		},
 		checks: []Check{
-			{"/foo", true, a},
-			{"/foo/baz", true, a},
-			{"/foo/bar", true, b},
-			{"/foo/bar/bat", true, a},
-			{"/foo/bar/baz", true, c},
-			{"/foo/bar/baz/qux", true, c},
+			{"/foo", get, 200, a},
+			{"/foo/baz", get, 200, a},
+			{"/foo/bar", get, 200, b},
+			{"/foo/bar/bat", get, 200, a},
+			{"/foo/bar/baz", get, 200, c},
+			{"/foo/bar/baz/qux", get, 200, c},
 		},
 	},
 	{ // a prefix route with an exact route at the same level
 		registrations: []Registration{
-			{"/foo", false, a},
-			{"/foo", true, b},
+			{"/foo", gets, false, a},
+			{"/foo", gets, true, b},
 		},
 		checks: []Check{
-			{"/foo", true, a},
-			{"/foo/baz", true, b},
-			{"/foo/bar", true, b},
-			{"/bar", false, nil},
+			{"/foo", get, 200, a},
+			{"/foo/baz", get, 200, b},
+			{"/foo/bar", get, 200, b},
+			{"/bar", get, 404, nil},
 		},
 	},
 	{ // prefix route on the root
 		registrations: []Registration{
-			{"/", true, a},
+			{"/", gets, true, a},
 		},
 		checks: []Check{
-			{"/anything", true, a},
-			{"", true, a},
-			{"/the/hell", true, a},
-			{"///you//", true, a},
-			{"!like!", true, a},
+			{"/anything", get, 200, a},
+			{"", get, 200, a},
+			{"/the/hell", get, 200, a},
+			{"///you//",get,  200, a},
+			{"!like!", get, 200, a},
 		},
 	},
 	{ // exact route on the root
 		registrations: []Registration{
-			{"/", false, a},
-			{"/foo", false, b},
+			{"/", gets, false, a},
+			{"/foo", gets, false, b},
 		},
 		checks: []Check{
-			{"/", true, a},
-			{"/foo", true, b},
-			{"/bar", false, nil},
+			{"/", get, 200, a},
+			{"/foo", get, 200, b},
+			{"/bar", get, 404, nil},
+		},
+	},
+	{ // routes with empty method sets
+		registrations: []Registration{
+			{"/",    empty, false, a },
+			{"/foo", nil,   false, b },
+		},
+		checks: []Check{
+			{"/",    get,    200, a   },
+			{"/",    head,   200, a   },
+			{"/",    post,   200, a   },
+			{"/",    put,    200, a   },
+			{"/",    delete, 200, a   },
+			{"/foo", get,    200, b   },
+			{"/foo", head,   200, b   },
+			{"/foo", post,   200, b   },
+			{"/foo", put,    200, b   },
+			{"/foo", delete, 200, b   },
+			{"/bar", get,    404, nil },
+			{"/bar", head,   404, nil },
+			{"/bar", post,   404, nil },
+		},
+	},
+	{ // invalid request methods
+		registrations: []Registration{
+			{"/",    gets,         false, a },
+			{"/foo", readonly,     false, b },
+			{"/bar", writeonly,    false, b },
+			{"/zat", readandwrite, false, b },
+			{"/qux", empty,        false, b },
+		},
+		checks: []Check{
+			{"/",    get,    200, a   },
+			{"/",    post,   405, nil },
+			{"/",    put,    405, nil },
+			{"/",    head,   405, nil },
+			{"/foo", get,    200, b   },
+			{"/foo", head,   200, b   },
+			{"/foo", post,   405, nil },
+			{"/foo", put,    405, nil },
+			{"/foo", delete, 405, nil },
+			{"/bar", get,    405, nil },
+			{"/bar", head,   405, nil },
+			{"/bar", post,   200, b   },
+			{"/bar", put,    200, b   },
+			{"/bar", delete, 405, nil },
+			{"/zat", get,    200, b   },
+			{"/zat", head,   200, b   },
+			{"/zat", post,   200, b   },
+			{"/zat", put,    200, b   },
+			{"/zat", delete, 405, nil },
+			{"/qux", get,    200, b   },
+			{"/qux", head,   200, b   },
+			{"/qux", post,   200, b   },
+			{"/qux", put,    200, b   },
+			{"/qux", delete, 200, b   },
 		},
 	},
 }
@@ -176,12 +240,15 @@ func testLookup(t *testing.T, ex LookupExample) {
 	mux := NewMux()
 	for _, r := range ex.registrations {
 		t.Logf("Register(path:%v, prefix:%v, handler:%v)", r.path, r.prefix, r.handler)
-		mux.Handle(r.path, r.prefix, r.handler)
+		mux.Handle(r.path, r.methods, r.prefix, r.handler)
 	}
 	for _, c := range ex.checks {
-		handler, ok := mux.lookup(c.path)
-		if ok != c.ok {
-			t.Errorf("Expected lookup(%v) ok to be %v, was %v", c.path, c.ok, ok)
+		handler, err := mux.lookup(c.method, c.path)
+		if err != nil && err.code != c.code {
+			t.Errorf("Expected lookup(%v) code to be %v, was %v", c.path, c.code, err.code)
+		}
+		if err == nil && c.code >= 400 {
+			t.Errorf("Expected lookup(%v) error code to be %v, but no error was raised", c.path, c.code)
 		}
 		if handler != c.handler {
 			t.Errorf("Expected lookup(%v) to map to handler %v, was %v", c.path, c.handler, handler)
@@ -190,15 +257,15 @@ func testLookup(t *testing.T, ex LookupExample) {
 }
 
 var statsExample = []Registration{
-	{"/", false, a},
-	{"/foo", true, a},
-	{"/bar", false, a},
+	{"/", gets, false, a},
+	{"/foo", gets, true, a},
+	{"/bar", gets, false, a},
 }
 
 func TestRouteCount(t *testing.T) {
 	mux := NewMux()
 	for _, reg := range statsExample {
-		mux.Handle(reg.path, reg.prefix, reg.handler)
+		mux.Handle(reg.path, reg.methods, reg.prefix, reg.handler)
 	}
 	actual := mux.RouteCount()
 	if actual != 3 {
@@ -210,8 +277,8 @@ func TestChecksum(t *testing.T) {
 	mux := NewMux()
 	hash := sha1.New()
 	for _, reg := range statsExample {
-		mux.Handle(reg.path, reg.prefix, reg.handler)
-		hash.Write([]byte(fmt.Sprintf("%s(%v)", reg.path, reg.prefix)))
+		mux.Handle(reg.path, reg.methods, reg.prefix, reg.handler)
+		hash.Write([]byte(fmt.Sprintf("%s(%v)%s", reg.path, reg.prefix, strings.Join(reg.methods,","))))
 	}
 	expected := fmt.Sprintf("%x", hash.Sum(nil))
 	actual := fmt.Sprintf("%x", mux.RouteChecksum())
@@ -232,10 +299,10 @@ func benchSetup() *Mux {
 	routes := loadStrings("testdata/routes")
 
 	tm := NewMux()
-	tm.Handle("/government", true, a)
+	tm.Handle("/government", gets, true, a)
 
 	for _, l := range routes {
-		tm.Handle(l, false, b)
+		tm.Handle(l, gets, false, b)
 	}
 	return tm
 }
@@ -249,7 +316,7 @@ func BenchmarkLookup(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		tm.lookup(urls[perm[i%len(urls)]])
+		tm.lookup(get, urls[perm[i%len(urls)]])
 	}
 }
 
@@ -262,7 +329,7 @@ func BenchmarkLookupBogus(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		tm.lookup(urls[perm[i%len(urls)]])
+		tm.lookup(get, urls[perm[i%len(urls)]])
 	}
 }
 
@@ -274,6 +341,6 @@ func BenchmarkLookupMalicious(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		tm.lookup("/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/")
+		tm.lookup(get, "/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/")
 	}
 }

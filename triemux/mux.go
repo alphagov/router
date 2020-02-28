@@ -9,6 +9,7 @@ import (
 	"hash"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -24,6 +25,12 @@ type Mux struct {
 type muxEntry struct {
 	prefix  bool
 	handler http.Handler
+	methods []string
+}
+
+type muxError struct {
+	code    int
+	message string
 }
 
 // NewMux makes a new empty Mux.
@@ -41,18 +48,18 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler, ok := mux.lookup(r.URL.Path)
-	if !ok {
-		http.NotFound(w, r)
+	handler, err := mux.lookup(r.Method, r.URL.Path)
+	if err != nil {
+		http.Error(w, err.message, err.code)
 		return
 	}
 
 	handler.ServeHTTP(w, r)
 }
 
-// lookup takes a path and looks up its registered entry in the mux trie,
+// lookup takes a method and path and looks up its registered entry in the mux trie,
 // returning the handler for that path, if any matches.
-func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
+func (mux *Mux) lookup(method string, path string) (http.Handler, *muxError) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
@@ -61,35 +68,43 @@ func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
 	if !ok {
 		val, ok = mux.prefixTrie.GetLongestPrefix(pathSegments)
 	}
+
 	if !ok {
-		return nil, false
+		return nil, &muxError{ code: http.StatusNotFound, message: "404 Not Found" }
 	}
 
 	entry, ok := val.(muxEntry)
 	if !ok {
 		log.Printf("lookup: got value (%v) from trie that wasn't a muxEntry!", val)
-		return nil, false
+		return nil, &muxError{ code: http.StatusInternalServerError, message: "500 Internal Server Error" }
 	}
 
-	return entry.handler, ok
+	if !entry.methodSupported(method) {
+		return nil, &muxError{ code: http.StatusMethodNotAllowed, message: "405 Method Not Allowed" }
+	}
+
+	return entry.handler, nil
 }
 
 // Handle registers the specified route (either an exact or a prefix route)
 // and associates it with the specified handler. Requests through the mux for
 // paths matching the route will be passed to that handler.
-func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
+func (mux *Mux) Handle(path string, methods []string, prefix bool, handler http.Handler) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	mux.addToStats(path, prefix)
+	// For faster lookups and consistent checksums
+	sort.Strings(methods)
+
+	mux.addToStats(path, prefix, methods)
 	if prefix {
-		mux.prefixTrie.Set(splitpath(path), muxEntry{prefix, handler})
+		mux.prefixTrie.Set(splitpath(path), muxEntry{prefix, handler, methods})
 	} else {
-		mux.exactTrie.Set(splitpath(path), muxEntry{prefix, handler})
+		mux.exactTrie.Set(splitpath(path), muxEntry{prefix, handler, methods})
 	}
 }
 
-func (mux *Mux) addToStats(path string, prefix bool) {
+func (mux *Mux) addToStats(path string, prefix bool, methods []string) {
 	mux.count++
 	mux.checksum.Write([]byte(path))
 	if prefix {
@@ -97,6 +112,7 @@ func (mux *Mux) addToStats(path string, prefix bool) {
 	} else {
 		mux.checksum.Write([]byte("(false)"))
 	}
+	mux.checksum.Write([]byte(strings.Join(methods,",")))
 }
 
 func (mux *Mux) RouteCount() int {
@@ -105,6 +121,21 @@ func (mux *Mux) RouteCount() int {
 
 func (mux *Mux) RouteChecksum() []byte {
 	return mux.checksum.Sum(nil)
+}
+
+func (e muxEntry) methodSupported(method string) bool {
+	if len(e.methods) == 0 {
+		// If routes don't specify the methods they allow, we assume they
+		// allow all methods.
+		return true
+	}
+	return contains(e.methods, method)
+}
+
+// contains searches a sorted list efficiently using the sort package
+func contains(sortedStrings []string, s string) bool {
+	i := sort.SearchStrings(sortedStrings, s)
+	return i < len(sortedStrings) && sortedStrings[i] == s
 }
 
 // splitpath turns a slash-delimited string into a lookup path (a slice
