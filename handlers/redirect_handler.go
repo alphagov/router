@@ -32,7 +32,7 @@ func addGAQueryParam(target string, request *http.Request) string {
 	if ga := request.URL.Query().Get("_ga"); ga != "" {
 		u, err := url.Parse(target)
 		if err != nil {
-			defer logger.NotifySentry(logger.ReportableError{ Error: err, Request: request })
+			defer logger.NotifySentry(logger.ReportableError{Error: err, Request: request})
 			return target
 		}
 		values := u.Query()
