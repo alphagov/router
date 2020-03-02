@@ -144,6 +144,11 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 			"backend_id":    bt.backendID,
 			"response_code": fmt.Sprintf("%d", responseCode),
 		}).Add(durationSeconds)
+
+		BackendHandlerResponseCountMetric.With(prometheus.Labels{
+			"backend_id":    bt.backendID,
+			"response_code": fmt.Sprintf("%d", responseCode),
+		}).Inc()
 	}()
 
 	resp, err = bt.wrapped.RoundTrip(req)

@@ -141,6 +141,7 @@ var _ = Describe("Backend handler", func() {
 	Context("metrics", func() {
 		var (
 			beforeRequestCountMetric            float64
+			beforeResponseCountMetric           float64
 			beforeResponseDurationSecondsMetric float64
 		)
 
@@ -148,6 +149,15 @@ var _ = Describe("Backend handler", func() {
 			return promtest.ToFloat64(
 				handlers.BackendHandlerRequestCountMetric.With(prometheus.Labels{
 					"backend_id": "backend-metrics",
+				}),
+			)
+		}
+
+		var measureResponseCount = func(responseCode string) float64 {
+			return promtest.ToFloat64(
+				handlers.BackendHandlerResponseCountMetric.With(prometheus.Labels{
+					"backend_id":    "backend-metrics",
+					"response_code": responseCode,
 				}),
 			)
 		}
@@ -179,6 +189,7 @@ var _ = Describe("Backend handler", func() {
 					rw.WriteHeader(http.StatusOK)
 				})
 
+				beforeResponseCountMetric = measureResponseCount("200")
 				beforeResponseDurationSecondsMetric = measureResponseDurationSeconds("200")
 
 				router.ServeHTTP(
@@ -190,6 +201,12 @@ var _ = Describe("Backend handler", func() {
 			It("should count the number of requests", func() {
 				Expect(
 					measureRequestCount() - beforeRequestCountMetric,
+				).To(Equal(float64(1)))
+			})
+
+			It("should count the number of proxied responses", func() {
+				Expect(
+					measureResponseCount("200") - beforeResponseCountMetric,
 				).To(Equal(float64(1)))
 			})
 
@@ -207,6 +224,7 @@ var _ = Describe("Backend handler", func() {
 					rw.WriteHeader(http.StatusOK)
 				})
 
+				beforeResponseCountMetric = measureResponseCount("504")
 				beforeResponseDurationSecondsMetric = measureResponseDurationSeconds("504")
 
 				router.ServeHTTP(
@@ -218,6 +236,12 @@ var _ = Describe("Backend handler", func() {
 			It("should count the number of requests", func() {
 				Expect(
 					measureRequestCount() - beforeRequestCountMetric,
+				).To(Equal(float64(1)))
+			})
+
+			It("should count the number of proxied responses", func() {
+				Expect(
+					measureResponseCount("504") - beforeResponseCountMetric,
 				).To(Equal(float64(1)))
 			})
 

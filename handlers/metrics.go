@@ -27,6 +27,17 @@ var (
 		},
 	)
 
+	BackendHandlerResponseCountMetric = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "router_backend_handler_response_count",
+			Help: "Number of responses returned by router backend handlers",
+		},
+		[]string{
+			"backend_id",
+			"response_code",
+		},
+	)
+
 	BackendHandlerResponseDurationSecondsMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "router_backend_handler_response_duration_seconds",
@@ -43,5 +54,6 @@ func initMetrics() {
 	prometheus.MustRegister(RedirectHandlerRedirectCountMetric)
 
 	prometheus.MustRegister(BackendHandlerRequestCountMetric)
+	prometheus.MustRegister(BackendHandlerResponseCountMetric)
 	prometheus.MustRegister(BackendHandlerResponseDurationSecondsMetric)
 }
