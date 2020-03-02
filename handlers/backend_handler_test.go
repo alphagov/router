@@ -48,6 +48,7 @@ var _ = Describe("Backend handler", func() {
 	Context("when the backend times out", func() {
 		BeforeEach(func() {
 			router = handlers.NewBackendHandler(
+				"backend-timeout",
 				backendURL,
 				timeout, timeout,
 				logger,
@@ -76,6 +77,7 @@ var _ = Describe("Backend handler", func() {
 	Context("when the backend handles the connection", func() {
 		BeforeEach(func() {
 			router = handlers.NewBackendHandler(
+				"backend-handle",
 				backendURL,
 				timeout, timeout,
 				logger,

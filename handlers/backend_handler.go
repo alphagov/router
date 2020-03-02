@@ -16,9 +16,20 @@ import (
 
 var TLSSkipVerify bool
 
-func NewBackendHandler(backendURL *url.URL, connectTimeout, headerTimeout time.Duration, logger logger.Logger) http.Handler {
+func NewBackendHandler(
+	backendID string,
+	backendURL *url.URL,
+	connectTimeout, headerTimeout time.Duration,
+	logger logger.Logger,
+) http.Handler {
+
 	proxy := httputil.NewSingleHostReverseProxy(backendURL)
-	proxy.Transport = newBackendTransport(connectTimeout, headerTimeout, logger)
+
+	proxy.Transport = newBackendTransport(
+		backendID,
+		connectTimeout, headerTimeout,
+		logger,
+	)
 
 	defaultDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
@@ -49,6 +60,8 @@ func populateViaHeader(header http.Header, httpVersion string) {
 }
 
 type backendTransport struct {
+	backendID string
+
 	wrapped *http.Transport
 	logger  logger.Logger
 }
@@ -56,7 +69,12 @@ type backendTransport struct {
 // Construct a backendTransport that wraps an http.Transport and implements http.RoundTripper.
 // This allows us to intercept the response from the backend and modify it before it's copied
 // back to the client.
-func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger logger.Logger) *backendTransport {
+func newBackendTransport(
+	backendID string,
+	connectTimeout, headerTimeout time.Duration,
+	logger logger.Logger,
+) *backendTransport {
+
 	transport := http.Transport{}
 
 	transport.DialContext = (&net.Dialer{
@@ -98,7 +116,7 @@ func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger log
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
-	return &backendTransport{&transport, logger}
+	return &backendTransport{backendID, &transport, logger}
 }
 
 func closeBody(resp *http.Response) {

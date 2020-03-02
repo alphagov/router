@@ -159,7 +159,12 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 			continue
 		}
 
-		backends[backend.BackendID] = handlers.NewBackendHandler(backendURL, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
+		backends[backend.BackendID] = handlers.NewBackendHandler(
+			backend.BackendID,
+			backendURL,
+			rt.backendConnectTimeout, rt.backendHeaderTimeout,
+			rt.logger,
+		)
 	}
 
 	if err := iter.Err(); err != nil {
