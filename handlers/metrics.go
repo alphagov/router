@@ -24,27 +24,21 @@ var (
 		},
 		[]string{
 			"backend_id",
+			"request_method",
 		},
 	)
 
-	BackendHandlerResponseCountMetric = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "router_backend_handler_response_count",
-			Help: "Number of responses returned by router backend handlers",
-		},
-		[]string{
-			"backend_id",
-			"response_code",
-		},
-	)
-
-	BackendHandlerResponseDurationSecondsMetric = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
+	BackendHandlerResponseDurationSecondsMetric = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
 			Name: "router_backend_handler_response_duration_seconds",
-			Help: "Time in seconds spent proxying requests to backends by router backend handlers",
+			Help: "Histogram of response durations by router backend handlers",
+			Buckets: prometheus.ExponentialBuckets(
+				0.25, 2, 6, // This buckets [...0.25  0.5  1  2  4  8...]
+			),
 		},
 		[]string{
 			"backend_id",
+			"request_method",
 			"response_code",
 		},
 	)
@@ -54,6 +48,5 @@ func initMetrics() {
 	prometheus.MustRegister(RedirectHandlerRedirectCountMetric)
 
 	prometheus.MustRegister(BackendHandlerRequestCountMetric)
-	prometheus.MustRegister(BackendHandlerResponseCountMetric)
 	prometheus.MustRegister(BackendHandlerResponseDurationSecondsMetric)
 }

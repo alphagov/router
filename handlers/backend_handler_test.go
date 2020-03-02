@@ -13,6 +13,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
+	prommodel "github.com/prometheus/client_model/go"
 
 	"github.com/alphagov/router/handlers"
 	log "github.com/alphagov/router/logger"
@@ -140,35 +141,59 @@ var _ = Describe("Backend handler", func() {
 
 	Context("metrics", func() {
 		var (
-			beforeRequestCountMetric            float64
+			beforeRequestCountMetric float64
+
 			beforeResponseCountMetric           float64
 			beforeResponseDurationSecondsMetric float64
 		)
 
-		var measureRequestCount = func() float64 {
+		measureRequestCount := func() float64 {
 			return promtest.ToFloat64(
 				handlers.BackendHandlerRequestCountMetric.With(prometheus.Labels{
-					"backend_id": "backend-metrics",
+					"backend_id":     "backend-metrics",
+					"request_method": "GET",
 				}),
 			)
 		}
 
-		var measureResponseCount = func(responseCode string) float64 {
-			return promtest.ToFloat64(
-				handlers.BackendHandlerResponseCountMetric.With(prometheus.Labels{
-					"backend_id":    "backend-metrics",
-					"response_code": responseCode,
-				}),
-			)
+		measureResponseHistogram := func(responseCode string) *prommodel.Histogram {
+			var err error
+			metricChan := make(chan prometheus.Metric, 1024)
+
+			handlers.BackendHandlerResponseDurationSecondsMetric.Collect(metricChan)
+			close(metricChan)
+			for m := range metricChan {
+				metric := new(prommodel.Metric)
+				err = m.Write(metric)
+				Expect(err).NotTo(HaveOccurred())
+
+				foundCount := 0
+				for _, label := range metric.Label {
+					if *label.Name == "backend_id" && *label.Value == "backend-metrics" {
+						foundCount++
+					}
+					if *label.Name == "request_method" && *label.Value == "GET" {
+						foundCount++
+					}
+					if *label.Name == "response_code" && *label.Value == responseCode {
+						foundCount++
+					}
+				}
+
+				if foundCount == 3 {
+					return metric.Histogram
+				}
+			}
+
+			return &prommodel.Histogram{}
 		}
 
-		var measureResponseDurationSeconds = func(responseCode string) float64 {
-			return promtest.ToFloat64(
-				handlers.BackendHandlerResponseDurationSecondsMetric.With(prometheus.Labels{
-					"backend_id":    "backend-metrics",
-					"response_code": responseCode,
-				}),
-			)
+		measureResponseCount := func(responseCode string) float64 {
+			return float64(measureResponseHistogram(responseCode).GetSampleCount())
+		}
+
+		measureResponseDurationSeconds := func(responseCode string) float64 {
+			return float64(measureResponseHistogram(responseCode).GetSampleSum())
 		}
 
 		BeforeEach(func() {
