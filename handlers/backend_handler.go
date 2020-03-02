@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/alphagov/router/logger"
 )
 
@@ -126,8 +128,27 @@ func closeBody(resp *http.Response) {
 }
 
 func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	var (
+		responseCode int
+		startTime    = time.Now()
+	)
+
+	BackendHandlerRequestCountMetric.With(prometheus.Labels{
+		"backend_id": bt.backendID,
+	}).Inc()
+
+	defer func() {
+		durationSeconds := time.Since(startTime).Seconds()
+
+		BackendHandlerResponseDurationSecondsMetric.With(prometheus.Labels{
+			"backend_id":    bt.backendID,
+			"response_code": fmt.Sprintf("%d", responseCode),
+		}).Add(durationSeconds)
+	}()
+
 	resp, err = bt.wrapped.RoundTrip(req)
 	if err == nil {
+		responseCode = resp.StatusCode
 		populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
 	} else {
 		// Log the error (deferred to allow special case error handling to add/change details)
@@ -140,15 +161,18 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		if netErr, ok := err.(net.Error); ok {
 			if netErr.Timeout() {
 				logDetails["status"] = 504
+				responseCode = 504
 				return newErrorResponse(504), nil
 			}
 		}
 		if strings.Contains(err.Error(), "connection refused") {
 			logDetails["status"] = 502
+			responseCode = 502
 			return newErrorResponse(502), nil
 		}
 
 		// 500 for all other errors
+		responseCode = 500
 		return newErrorResponse(500), nil
 	}
 	return

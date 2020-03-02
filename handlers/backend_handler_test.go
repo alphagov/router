@@ -11,6 +11,9 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 
+	"github.com/prometheus/client_golang/prometheus"
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
+
 	"github.com/alphagov/router/handlers"
 	log "github.com/alphagov/router/logger"
 )
@@ -131,6 +134,97 @@ var _ = Describe("Backend handler", func() {
 
 			It("should populate the Via header", func() {
 				Expect(rw.Result().Header.Get("Via")).To(Equal("1.1 router"))
+			})
+		})
+	})
+
+	Context("metrics", func() {
+		var (
+			beforeRequestCountMetric            float64
+			beforeResponseDurationSecondsMetric float64
+		)
+
+		var measureRequestCount = func() float64 {
+			return promtest.ToFloat64(
+				handlers.BackendHandlerRequestCountMetric.With(prometheus.Labels{
+					"backend_id": "backend-metrics",
+				}),
+			)
+		}
+
+		var measureResponseDurationSeconds = func(responseCode string) float64 {
+			return promtest.ToFloat64(
+				handlers.BackendHandlerResponseDurationSecondsMetric.With(prometheus.Labels{
+					"backend_id":    "backend-metrics",
+					"response_code": responseCode,
+				}),
+			)
+		}
+
+		BeforeEach(func() {
+			router = handlers.NewBackendHandler(
+				"backend-metrics",
+				backendURL,
+				timeout, timeout,
+				logger,
+			)
+
+			beforeRequestCountMetric = measureRequestCount()
+		})
+
+		Context("when the request/response succeeds", func() {
+			BeforeEach(func() {
+				backend.AppendHandlers(func(rw http.ResponseWriter, r *http.Request) {
+					time.Sleep(200 * time.Millisecond)
+					rw.WriteHeader(http.StatusOK)
+				})
+
+				beforeResponseDurationSecondsMetric = measureResponseDurationSeconds("200")
+
+				router.ServeHTTP(
+					rw,
+					httptest.NewRequest("GET", backendURL.String(), nil),
+				)
+			})
+
+			It("should count the number of requests", func() {
+				Expect(
+					measureRequestCount() - beforeRequestCountMetric,
+				).To(Equal(float64(1)))
+			})
+
+			It("should record the duration of proxied responses", func() {
+				Expect(
+					measureResponseDurationSeconds("200") - beforeResponseDurationSecondsMetric,
+				).To(BeNumerically("~", 0.2, 0.1))
+			})
+		})
+
+		Context("when the request times out", func() {
+			BeforeEach(func() {
+				backend.AppendHandlers(func(rw http.ResponseWriter, r *http.Request) {
+					time.Sleep(timeout * 2)
+					rw.WriteHeader(http.StatusOK)
+				})
+
+				beforeResponseDurationSecondsMetric = measureResponseDurationSeconds("504")
+
+				router.ServeHTTP(
+					rw,
+					httptest.NewRequest("GET", backendURL.String(), nil),
+				)
+			})
+
+			It("should count the number of requests", func() {
+				Expect(
+					measureRequestCount() - beforeRequestCountMetric,
+				).To(Equal(float64(1)))
+			})
+
+			It("should record the duration of proxied responses", func() {
+				Expect(
+					measureResponseDurationSeconds("504") - beforeResponseDurationSecondsMetric,
+				).To(BeNumerically("~", 1.0, 0.1))
 			})
 		})
 	})
