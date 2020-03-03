@@ -189,5 +189,41 @@ var _ = Describe("loading routes from the db", func() {
 				}
 			})
 		})
+
+		Context("when routes overlap", func() {
+			BeforeEach(func() {
+				addRoute("/overlap", NewBackendRouteWithMethods("backend-1", readOnlyMethods))
+				addRoute("/overlap", NewBackendRouteWithMethods("backend-2", writeOnlyMethods))
+				reloadRoutes()
+			})
+
+			It("should allow you to read from the read only backend", func() {
+				for _, method := range readOnlyMethods {
+					resp := routerRequestWithMethod(method, "/overlap")
+					Expect(resp.StatusCode).To(Equal(200))
+					Expect(readBody(resp)).To(Equal("backend 1"))
+				}
+			})
+
+			It("should allow you to write to the write only backend", func() {
+				for _, method := range writeOnlyMethods {
+					resp := routerRequestWithMethod(method, "/overlap")
+					Expect(resp.StatusCode).To(Equal(200))
+					Expect(readBody(resp)).To(Equal("backend 2"))
+				}
+			})
+
+			It("should reject other methods", func() {
+				for _, method := range junkMethods {
+					resp := routerRequestWithMethod(method, "/overlap")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
+
+				for _, method := range badMethods {
+					resp := routerRequestWithMethod(method, "/overlap")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
+			})
+		})
 	})
 })
