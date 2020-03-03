@@ -7,7 +7,7 @@ import (
 var (
 	RedirectHandlerRedirectCountMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "router_redirect_handler_redirect_count",
+			Name: "router_redirect_handler_redirect_total",
 			Help: "Number of redirects handled by router redirect handlers",
 		},
 		[]string{
@@ -19,7 +19,7 @@ var (
 
 	BackendHandlerRequestCountMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "router_backend_handler_request_count",
+			Name: "router_backend_handler_request_total",
 			Help: "Number of requests handled by router backend handlers",
 		},
 		[]string{
