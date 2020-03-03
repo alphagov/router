@@ -72,60 +72,122 @@ var _ = Describe("loading routes from the db", func() {
 		})
 	})
 
-	Context("a route with methods", func() {
-		ReadOnlyMethods := []string{"GET", "HEAD"}
-		WriteOnlyMethods := []string{"POST", "PUT", "PATCH"}
-		ReadWriteMethods := []string{"GET", "HEAD", "POST", "PUT", "PATCH"}
+	Context("when methods might be specified", func() {
+		readOnlyMethods := []string{"GET", "HEAD"}
+		writeOnlyMethods := []string{"POST", "PUT", "PATCH"}
+		junkMethods := []string{"FOO", "PSOT", "BAR"}
+		badMethods := []string{"TRACE", "DEBUG"}
 
-		BeforeEach(func() {
-			addRoute("/accept-all", NewBackendRoute("backend-1"))
-			addRoute("/read", NewBackendRouteWithMethods("backend-1", ReadOnlyMethods))
-			addRoute("/write", NewBackendRouteWithMethods("backend-1", WriteOnlyMethods))
-			addRoute("/readwrite", NewBackendRouteWithMethods("backend-2", ReadWriteMethods))
-			reloadRoutes()
+		Context("routes without methods", func() {
+			BeforeEach(func() {
+				addRoute("/accept-all", NewBackendRoute("backend-1"))
+				reloadRoutes()
+			})
+
+			It("should be able to accept the request", func() {
+				for _, method := range readOnlyMethods {
+					resp := routerRequestWithMethod(method, "/accept-all")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
+
+				for _, method := range writeOnlyMethods {
+					resp := routerRequestWithMethod(method, "/accept-all")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
+
+				for _, method := range junkMethods {
+					resp := routerRequestWithMethod(method, "/accept-all")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
+
+				for _, method := range badMethods {
+					resp := routerRequestWithMethod(method, "/accept-all")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
+			})
 		})
 
-		It("should accept all methods when methods are not unset", func() {
-      for _, method := range ReadWriteMethods {
-				resp := routerRequestWithMethod(method, "/accept-all")
-				Expect(resp.StatusCode).To(Equal(200))
-			}
+		Context("routes with methods", func() {
+			BeforeEach(func() {
+				addRoute("/read", NewBackendRouteWithMethods("backend-1", readOnlyMethods))
+				addRoute("/readwrite", NewBackendRouteWithMethods("backend-2", append(readOnlyMethods, writeOnlyMethods...)))
+				reloadRoutes()
+			})
 
-			resp := routerRequestWithMethod("JUNK_METHOD", "/accept-all")
-			Expect(resp.StatusCode).To(Equal(200))
-		})
+			It("can accept only read methods", func() {
+				addRoute("/read", NewBackendRouteWithMethods("backend-1", readOnlyMethods))
+				reloadRoutes()
 
-		It("should accept only specified methods when methods are set", func() {
-			resp := routerRequestWithMethod("POST", "/read")
-			Expect(resp.StatusCode).To(Equal(405))
+				for _, method := range readOnlyMethods {
+					resp := routerRequestWithMethod(method, "/read")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
 
-      for _, method := range ReadOnlyMethods {
-				resp := routerRequestWithMethod(method, "/read")
-				Expect(resp.StatusCode).To(Equal(200))
+				for _, method := range writeOnlyMethods {
+					resp := routerRequestWithMethod(method, "/read")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
 
-				resp = routerRequestWithMethod(method, "/readwrite")
-				Expect(resp.StatusCode).To(Equal(200))
+				for _, method := range junkMethods {
+					resp := routerRequestWithMethod(method, "/read")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
 
-				resp = routerRequestWithMethod(method, "/write")
-				Expect(resp.StatusCode).To(Equal(405))
-			}
+				for _, method := range badMethods {
+					resp := routerRequestWithMethod(method, "/read")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
+			})
 
-			for _, method := range WriteOnlyMethods {
-				resp := routerRequestWithMethod(method, "/write")
-				Expect(resp.StatusCode).To(Equal(200))
+			It("can accept only write methods", func() {
+				addRoute("/write", NewBackendRouteWithMethods("backend-1", writeOnlyMethods))
+				reloadRoutes()
 
-				resp = routerRequestWithMethod(method, "/readwrite")
-				Expect(resp.StatusCode).To(Equal(200))
+				for _, method := range readOnlyMethods {
+					resp := routerRequestWithMethod(method, "/write")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
 
-				resp = routerRequestWithMethod(method, "/read")
-				Expect(resp.StatusCode).To(Equal(405))
-			}
+				for _, method := range writeOnlyMethods {
+					resp := routerRequestWithMethod(method, "/write")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
 
-			resp = routerRequestWithMethod("FOO_METHOD", "/readwrite")
-			Expect(resp.StatusCode).To(Equal(405))
+				for _, method := range junkMethods {
+					resp := routerRequestWithMethod(method, "/write")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
 
-			resp = routerRequestWithMethod("JUNK_METHOD", "/read")
-			Expect(resp.StatusCode).To(Equal(405))
+				for _, method := range badMethods {
+					resp := routerRequestWithMethod(method, "/write")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
+			})
+
+			It("can accept only read and write methods", func() {
+				addRoute("/readwrite", NewBackendRouteWithMethods("backend-1", append(readOnlyMethods, writeOnlyMethods...)))
+				reloadRoutes()
+
+				for _, method := range readOnlyMethods {
+					resp := routerRequestWithMethod(method, "/readwrite")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
+
+				for _, method := range writeOnlyMethods {
+					resp := routerRequestWithMethod(method, "/readwrite")
+					Expect(resp.StatusCode).To(Equal(200))
+				}
+
+				for _, method := range junkMethods {
+					resp := routerRequestWithMethod(method, "/readwrite")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
+
+				for _, method := range badMethods {
+					resp := routerRequestWithMethod(method, "/readwrite")
+					Expect(resp.StatusCode).To(Equal(405))
+				}
+			})
 		})
 	})
 })
