@@ -159,6 +159,16 @@ Error logging
 
 The logger package stores errors in logfiles and reports them to Sentry.
 
+Metrics
+-------
+
+Router exposes metrics in [Prometheus](https://prometheus.io) format using the
+[Go prometheus client
+library](https://godoc.org/github.com/dnesting/client_golang/prometheus).
+
+See commit b443d3dd9cf776143eed270d01bd98d2233caea6 as an example for how to
+add a metric.
+
 License
 -------
 
