@@ -106,9 +106,10 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
 func (rt *Router) ReloadRoutes() {
-	routeReloadCountMetric.Inc()
-
 	defer func() {
+		// increment this metric regardless of whether the route reload succeeded
+		routeReloadCountMetric.Inc()
+
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ReloadRoutes:", r)
 			logInfo("router: original routes have not been modified")
