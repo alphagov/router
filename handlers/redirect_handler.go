@@ -91,6 +91,8 @@ func (handler *pathPreservingRedirectHandler) ServeHTTP(writer http.ResponseWrit
 	}).Inc()
 }
 
+// stripQuery should only be called with valid URL
+// stripQuery should only be used for recording the URL used by the handler
 func stripQuery(us string) string {
 	u, _ := url.Parse(us)
 	u.RawQuery = ""
