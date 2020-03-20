@@ -57,3 +57,12 @@ show_metrics:
 		| awk 'NR%2 == 1 { s=50-length($$0) ; $$0 = sprintf("%s%" sprintf("%s", s) "s", $$0, "") }1' `# right pad the help text`\
 		| sed 'N;s/\n/ /'              `# put help text and metric name on same line` \
 		| sort
+
+check_metrics: build cleanup_mongo start_mongo
+	$(BINARY) & echo "$$$$!" > /tmp/router.pid
+	@until [ "`curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/metrics`" = "200" ]; do \
+		echo '.\c'  ; \
+	  sleep 1     ; \
+	done          ; \
+	echo
+	(curl -sf http://localhost:8081/metrics ; &> /dev/null kill $$(cat /tmp/router.pid)) | promtool check metrics
