@@ -162,20 +162,20 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		// Intercept some specific errors and generate an appropriate HTTP error response
 		if netErr, ok := err.(net.Error); ok {
 			if netErr.Timeout() {
-				logDetails["status"] = 504
-				responseCode = 504
-				return newErrorResponse(504), nil
+				responseCode = http.StatusGatewayTimeout
+				logDetails["status"] = responseCode
+				return newErrorResponse(responseCode), nil
 			}
 		}
 		if strings.Contains(err.Error(), "connection refused") {
-			logDetails["status"] = 502
-			responseCode = 502
-			return newErrorResponse(502), nil
+			responseCode = http.StatusBadGateway
+			logDetails["status"] = responseCode
+			return newErrorResponse(responseCode), nil
 		}
 
 		// 500 for all other errors
-		responseCode = 500
-		return newErrorResponse(500), nil
+		responseCode = http.StatusInternalServerError
+		return newErrorResponse(responseCode), nil
 	}
 	return
 }

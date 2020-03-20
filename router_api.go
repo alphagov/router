@@ -63,7 +63,7 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 
 		jsonData, err := json.MarshalIndent(stats, "", "  ")
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -81,7 +81,7 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 
 		jsonData, err := json.MarshalIndent(memStats, "", "  ")
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 

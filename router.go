@@ -85,7 +85,10 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
 
 			logger.NotifySentry(logger.ReportableError{Error: err, Request: req})
-			rt.logger.LogFromClientRequest(map[string]interface{}{"error": errorMessage, "status": 500}, req)
+			rt.logger.LogFromClientRequest(map[string]interface{}{
+				"error":  errorMessage,
+				"status": http.StatusInternalServerError,
+			}, req)
 
 			w.WriteHeader(http.StatusInternalServerError)
 
@@ -182,7 +185,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	iter := c.Find(nil).Sort("incoming_path", "route_type").Iter()
 
 	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "410 gone", http.StatusGone)
+		http.Error(w, "410 Gone", http.StatusGone)
 	})
 	unavailableHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "503 Service Unavailable", http.StatusServiceUnavailable)
