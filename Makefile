@@ -1,4 +1,4 @@
-.PHONY: build run test clean set_local_env start_mongo cleanup_mongo
+.PHONY: build run test clean set_local_env start_mongo cleanup_mongo show_metrics
 
 BINARY ?= $(PWD)/router
 
@@ -47,3 +47,22 @@ cleanup_mongo:
 	@docker rm -f router-mongo || true
 
 test_with_docker: cleanup_mongo start_mongo set_local_env test
+
+show_metrics:
+	@git grep 'Name\|Help' `# this generate awful output when there is no Help defined for a metric` \
+		| grep -v vendor  `# do not look for vendored metrics` \
+		| grep metrics.go `# we only define our metrics here` \
+		| sed 's/.*: //'  `# do not look at the filename from git grep` \
+		| tr -d ',"' \
+		| awk 'NR%2 == 1 { s=50-length($$0) ; $$0 = sprintf("%s%" sprintf("%s", s) "s", $$0, "") }1' `# right pad the help text`\
+		| sed 'N;s/\n/ /'              `# put help text and metric name on same line` \
+		| sort
+
+check_metrics: build cleanup_mongo start_mongo
+	$(BINARY) & echo "$$$$!" > /tmp/router.pid
+	@until [ "`curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/metrics`" = "200" ]; do \
+		echo '.\c'  ; \
+	  sleep 1     ; \
+	done          ; \
+	echo
+	(curl -sf http://localhost:8081/metrics ; &> /dev/null kill $$(cat /tmp/router.pid)) | promtool check metrics

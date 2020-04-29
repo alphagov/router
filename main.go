@@ -88,6 +88,8 @@ func main() {
 		os.Exit(0)
 	}
 
+	initMetrics()
+
 	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
 
 	if tlsSkipVerify {

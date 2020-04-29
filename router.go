@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/alphagov/router/handlers"
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
@@ -78,11 +80,19 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ServeHTTP:", r)
+
 			errorMessage := fmt.Sprintf("panic: %v", r)
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
+
 			logger.NotifySentry(logger.ReportableError{Error: err, Request: req})
-			rt.logger.LogFromClientRequest(map[string]interface{}{"error": errorMessage, "status": 500}, req)
+			rt.logger.LogFromClientRequest(map[string]interface{}{
+				"error":  errorMessage,
+				"status": http.StatusInternalServerError,
+			}, req)
+
 			w.WriteHeader(http.StatusInternalServerError)
+
+			internalServerErrorCountMetric.With(prometheus.Labels{"host": req.Host}).Inc()
 		}
 	}()
 	rt.lock.RLock()
@@ -97,12 +107,17 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // then flip the "mux" pointer in the Router.
 func (rt *Router) ReloadRoutes() {
 	defer func() {
+		// increment this metric regardless of whether the route reload succeeded
+		routeReloadCountMetric.Inc()
+
 		if r := recover(); r != nil {
 			logWarn("router: recovered from panic in ReloadRoutes:", r)
 			logInfo("router: original routes have not been modified")
 			errorMessage := fmt.Sprintf("panic: %v", r)
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
 			logger.NotifySentry(logger.ReportableError{Error: err})
+
+			routeReloadErrorCountMetric.Inc()
 		}
 	}()
 
@@ -127,6 +142,8 @@ func (rt *Router) ReloadRoutes() {
 	rt.lock.Unlock()
 
 	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
+
+	routesCountMetric.Set(float64(rt.mux.RouteCount()))
 }
 
 // loadBackends is a helper function which loads backends from the
@@ -146,7 +163,12 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 			continue
 		}
 
-		backends[backend.BackendID] = handlers.NewBackendHandler(backendURL, rt.backendConnectTimeout, rt.backendHeaderTimeout, rt.logger)
+		backends[backend.BackendID] = handlers.NewBackendHandler(
+			backend.BackendID,
+			backendURL,
+			rt.backendConnectTimeout, rt.backendHeaderTimeout,
+			rt.logger,
+		)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -164,7 +186,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	iter := c.Find(nil).Sort("incoming_path", "route_type").Iter()
 
 	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "410 gone", http.StatusGone)
+		http.Error(w, "410 Gone", http.StatusGone)
 	})
 	unavailableHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "503 Service Unavailable", http.StatusServiceUnavailable)

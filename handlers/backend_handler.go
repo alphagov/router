@@ -11,14 +11,27 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/alphagov/router/logger"
 )
 
 var TLSSkipVerify bool
 
-func NewBackendHandler(backendURL *url.URL, connectTimeout, headerTimeout time.Duration, logger logger.Logger) http.Handler {
+func NewBackendHandler(
+	backendID string,
+	backendURL *url.URL,
+	connectTimeout, headerTimeout time.Duration,
+	logger logger.Logger,
+) http.Handler {
+
 	proxy := httputil.NewSingleHostReverseProxy(backendURL)
-	proxy.Transport = newBackendTransport(connectTimeout, headerTimeout, logger)
+
+	proxy.Transport = newBackendTransport(
+		backendID,
+		connectTimeout, headerTimeout,
+		logger,
+	)
 
 	defaultDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
@@ -49,6 +62,8 @@ func populateViaHeader(header http.Header, httpVersion string) {
 }
 
 type backendTransport struct {
+	backendID string
+
 	wrapped *http.Transport
 	logger  logger.Logger
 }
@@ -56,7 +71,12 @@ type backendTransport struct {
 // Construct a backendTransport that wraps an http.Transport and implements http.RoundTripper.
 // This allows us to intercept the response from the backend and modify it before it's copied
 // back to the client.
-func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger logger.Logger) *backendTransport {
+func newBackendTransport(
+	backendID string,
+	connectTimeout, headerTimeout time.Duration,
+	logger logger.Logger,
+) *backendTransport {
+
 	transport := http.Transport{}
 
 	transport.DialContext = (&net.Dialer{
@@ -98,7 +118,7 @@ func newBackendTransport(connectTimeout, headerTimeout time.Duration, logger log
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
-	return &backendTransport{&transport, logger}
+	return &backendTransport{backendID, &transport, logger}
 }
 
 func closeBody(resp *http.Response) {
@@ -108,8 +128,29 @@ func closeBody(resp *http.Response) {
 }
 
 func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	var (
+		responseCode int
+		startTime    = time.Now()
+	)
+
+	BackendHandlerRequestCountMetric.With(prometheus.Labels{
+		"backend_id":     bt.backendID,
+		"request_method": req.Method,
+	}).Inc()
+
+	defer func() {
+		durationSeconds := time.Since(startTime).Seconds()
+
+		BackendHandlerResponseDurationSecondsMetric.With(prometheus.Labels{
+			"backend_id":     bt.backendID,
+			"request_method": req.Method,
+			"response_code":  fmt.Sprintf("%d", responseCode),
+		}).Observe(durationSeconds)
+	}()
+
 	resp, err = bt.wrapped.RoundTrip(req)
 	if err == nil {
+		responseCode = resp.StatusCode
 		populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
 	} else {
 		// Log the error (deferred to allow special case error handling to add/change details)
@@ -121,17 +162,20 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 		// Intercept some specific errors and generate an appropriate HTTP error response
 		if netErr, ok := err.(net.Error); ok {
 			if netErr.Timeout() {
-				logDetails["status"] = 504
-				return newErrorResponse(504), nil
+				responseCode = http.StatusGatewayTimeout
+				logDetails["status"] = responseCode
+				return newErrorResponse(responseCode), nil
 			}
 		}
 		if strings.Contains(err.Error(), "connection refused") {
-			logDetails["status"] = 502
-			return newErrorResponse(502), nil
+			responseCode = http.StatusBadGateway
+			logDetails["status"] = responseCode
+			return newErrorResponse(responseCode), nil
 		}
 
 		// 500 for all other errors
-		return newErrorResponse(500), nil
+		responseCode = http.StatusInternalServerError
+		return newErrorResponse(responseCode), nil
 	}
 	return
 }

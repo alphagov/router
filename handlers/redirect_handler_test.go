@@ -9,6 +9,9 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
+	"github.com/prometheus/client_golang/prometheus"
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
+
 	"github.com/alphagov/router/handlers"
 )
 
@@ -45,6 +48,36 @@ var _ = Describe("Redirect handlers", func() {
 			handler := handlers.NewRedirectHandler(
 				"/source-prefix", "/target-prefix",
 				t.preserve, t.temporary,
+			)
+
+			var (
+				redirectCode string
+				redirectType string
+				redirectURL  string
+			)
+
+			if t.temporary {
+				redirectCode = "302"
+			} else {
+				redirectCode = "301"
+			}
+
+			if t.preserve {
+				redirectType = "path-preserving-redirect-handler"
+				redirectURL = "/target-prefix/path/subpath"
+			} else {
+				redirectType = "redirect-handler"
+				redirectURL = "/target-prefix"
+			}
+
+			labels := prometheus.Labels{
+				"redirect_code": redirectCode,
+				"redirect_type": redirectType,
+				"redirect_url":  redirectURL,
+			}
+
+			beforeCount := promtest.ToFloat64(
+				handlers.RedirectHandlerRedirectCountMetric.With(labels),
 			)
 
 			handler.ServeHTTP(
@@ -101,6 +134,15 @@ var _ = Describe("Redirect handlers", func() {
 				),
 				"Be RFC1123 compliant and expire around 30 minutes in the future",
 			)
+
+			afterCount := promtest.ToFloat64(
+				handlers.RedirectHandlerRedirectCountMetric.With(labels),
+			)
+
+			Expect(afterCount-beforeCount).To(
+				Equal(1.0),
+				"Making a request should increment the redirect handler count metric",
+			)
 		},
 		entries...,
 	)
@@ -153,6 +195,42 @@ var _ = Describe("Redirect handlers", func() {
 				Expect(rw.Result().Header.Get("Location")).To(
 					Equal("/target-prefix"),
 					"Do not have any query params",
+				)
+			})
+		})
+
+		Context("metrics", func() {
+			It("should increment the metric with redirect-handler label", func() {
+				labels := prometheus.Labels{
+					"redirect_code": "302",
+					"redirect_type": "redirect-handler",
+					"redirect_url":  "/target-prefix",
+				}
+
+				beforeCount := promtest.ToFloat64(
+					handlers.RedirectHandlerRedirectCountMetric.With(labels),
+				)
+
+				handler.ServeHTTP(
+					rw,
+					httptest.NewRequest(
+						"GET",
+						"https://source.gov.uk/source-prefix",
+						nil,
+					),
+				)
+
+				Expect(rw.Result().Header.Get("Location")).To(
+					Equal("/target-prefix"),
+				)
+
+				afterCount := promtest.ToFloat64(
+					handlers.RedirectHandlerRedirectCountMetric.With(labels),
+				)
+
+				Expect(afterCount-beforeCount).To(
+					Equal(1.0),
+					"Making a request should increment the redirect handler count metric",
 				)
 			})
 		})
