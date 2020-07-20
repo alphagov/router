@@ -4,10 +4,10 @@ go 1.12
 
 require (
 	github.com/alext/tablecloth v0.0.0-20150502092832-fbddb1a44a21
-	github.com/getsentry/sentry-go v0.2.1
+	github.com/getsentry/sentry-go v0.6.1
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
-	github.com/onsi/ginkgo v0.0.0-20160716051733-7d3240191d7b
-	github.com/onsi/gomega v0.0.0-20160713044445-9574b2d94c03
+	github.com/onsi/ginkgo v1.10.3
+	github.com/onsi/gomega v1.7.1
 	github.com/prometheus/client_golang v1.4.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
