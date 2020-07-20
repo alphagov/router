@@ -1,4 +1,4 @@
-FROM golang:1.12 AS builder
+FROM golang:1.14.6 AS builder
 ADD . /go/src/github.com/alphagov/router
 WORKDIR /go/src/github.com/alphagov/router
 RUN CGO_ENABLED=0 go build -o router
