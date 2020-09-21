@@ -18,7 +18,7 @@ build:
 
 test: build
 	go test -race ./trie ./triemux ./handlers
-	go test -race -v ./integration_tests
+	go test -cover -race -v ./integration_tests
 
 run: build
 	$(BINARY)
