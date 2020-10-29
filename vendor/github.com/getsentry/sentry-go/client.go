@@ -12,21 +12,83 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"sync"
 	"time"
 )
 
-// Logger is an instance of log.Logger that is use to provide debug information about running Sentry Client
-// can be enabled by either using `Logger.SetOutput` directly or with `Debug` client option
-var Logger = log.New(ioutil.Discard, "[Sentry] ", log.LstdFlags) // nolint: gochecknoglobals
+// maxErrorDepth is the maximum number of errors reported in a chain of errors.
+// This protects the SDK from an arbitrarily long chain of wrapped errors.
+//
+// An additional consideration is that arguably reporting a long chain of errors
+// is of little use when debugging production errors with Sentry. The Sentry UI
+// is not optimized for long chains either. The top-level error together with a
+// stack trace is often the most useful information.
+const maxErrorDepth = 10
 
+// hostname is the host name reported by the kernel. It is precomputed once to
+// avoid syscalls when capturing events.
+//
+// The error is ignored because retrieving the host name is best-effort. If the
+// error is non-nil, there is nothing to do other than retrying. We choose not
+// to retry for now.
+var hostname, _ = os.Hostname()
+
+// lockedRand is a random number generator safe for concurrent use. Its API is
+// intentionally limited and it is not meant as a full replacement for a
+// rand.Rand.
+type lockedRand struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+// Float64 returns a pseudo-random number in [0.0,1.0).
+func (r *lockedRand) Float64() float64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.r.Float64()
+}
+
+// rng is the internal random number generator.
+//
+// We do not use the global functions from math/rand because, while they are
+// safe for concurrent use, any package in a build could change the seed and
+// affect the generated numbers, for instance making them deterministic. On the
+// other hand, the source returned from rand.NewSource is not safe for
+// concurrent use, so we need to couple its use with a sync.Mutex.
+var rng = &lockedRand{
+	r: rand.New(rand.NewSource(time.Now().UnixNano())),
+}
+
+// usageError is used to report to Sentry an SDK usage error.
+//
+// It is not exported because it is never returned by any function or method in
+// the exported API.
+type usageError struct {
+	error
+}
+
+// Logger is an instance of log.Logger that is use to provide debug information about running Sentry Client
+// can be enabled by either using Logger.SetOutput directly or with Debug client option.
+var Logger = log.New(ioutil.Discard, "[Sentry] ", log.LstdFlags)
+
+// EventProcessor is a function that processes an event.
+// Event processors are used to change an event before it is sent to Sentry.
 type EventProcessor func(event *Event, hint *EventHint) *Event
 
+// EventModifier is the interface that wraps the ApplyToEvent method.
+//
+// ApplyToEvent changes an event based on external data and/or
+// an event hint.
 type EventModifier interface {
 	ApplyToEvent(event *Event, hint *EventHint) *Event
 }
 
-var globalEventProcessors []EventProcessor // nolint: gochecknoglobals
+var globalEventProcessors []EventProcessor
 
+// AddGlobalEventProcessor adds processor to the global list of event
+// processors. Global event processors apply to all events.
+//
+// Deprecated: Use Scope.AddEventProcessor or Client.AddEventProcessor instead.
 func AddGlobalEventProcessor(processor EventProcessor) {
 	globalEventProcessors = append(globalEventProcessors, processor)
 }
@@ -37,17 +99,19 @@ type Integration interface {
 	SetupOnce(client *Client)
 }
 
-// ClientOptions that configures a SDK Client
+// ClientOptions that configures a SDK Client.
 type ClientOptions struct {
-	// The DSN to use. If the DSN is not set, the client is effectively disabled.
+	// The DSN to use. If the DSN is not set, the client is effectively
+	// disabled.
 	Dsn string
-	// In debug mode, the debug information is printed to stdout to help you understand what
-	// sentry is doing.
+	// In debug mode, the debug information is printed to stdout to help you
+	// understand what sentry is doing.
 	Debug bool
-	// Configures whether SDK should generate and attach stacktraces to pure capture message calls.
+	// Configures whether SDK should generate and attach stacktraces to pure
+	// capture message calls.
 	AttachStacktrace bool
 	// The sample rate for event submission (0.0 - 1.0, defaults to 1.0).
-	SampleRate float32
+	SampleRate float64
 	// List of regexp strings that will be used to match against event's message
 	// and if applicable, caught errors type and value.
 	// If the match is found, then a whole event will be dropped.
@@ -56,13 +120,12 @@ type ClientOptions struct {
 	BeforeSend func(event *Event, hint *EventHint) *Event
 	// Before breadcrumb add callback.
 	BeforeBreadcrumb func(breadcrumb *Breadcrumb, hint *BreadcrumbHint) *Breadcrumb
-	// Integrations to be installed on the current Client, receives default integrations
+	// Integrations to be installed on the current Client, receives default
+	// integrations.
 	Integrations func([]Integration) []Integration
-	// io.Writer implementation that should be used with the `Debug` mode
+	// io.Writer implementation that should be used with the Debug mode.
 	DebugWriter io.Writer
-	// The transport to use.
-	// This is an instance of a struct implementing `Transport` interface.
-	// Defaults to `httpTransport` from `transport.go`
+	// The transport to use. Defaults to HTTPTransport.
 	Transport Transport
 	// The server name to be reported.
 	ServerName string
@@ -74,22 +137,27 @@ type ClientOptions struct {
 	Environment string
 	// Maximum number of breadcrumbs.
 	MaxBreadcrumbs int
-	// An optional pointer to `http.Transport` that will be used with a default HTTPTransport.
-	HTTPTransport *http.Transport
+	// An optional pointer to http.Client that will be used with a default
+	// HTTPTransport. Using your own client will make HTTPTransport, HTTPProxy,
+	// HTTPSProxy and CaCerts options ignored.
+	HTTPClient *http.Client
+	// An optional pointer to http.Transport that will be used with a default
+	// HTTPTransport. Using your own transport will make HTTPProxy, HTTPSProxy
+	// and CaCerts options ignored.
+	HTTPTransport http.RoundTripper
 	// An optional HTTP proxy to use.
-	// This will default to the `http_proxy` environment variable.
-	// or `https_proxy` if that one exists.
+	// This will default to the HTTP_PROXY environment variable.
 	HTTPProxy string
 	// An optional HTTPS proxy to use.
-	// This will default to the `HTTPS_PROXY` environment variable
-	// or `http_proxy` if that one exists.
+	// This will default to the HTTPS_PROXY environment variable.
+	// HTTPS_PROXY takes precedence over HTTP_PROXY for https requests.
 	HTTPSProxy string
-	// An optionsl CaCerts to use.
-	// Defaults to `gocertifi.CACerts()`.
+	// An optional set of SSL certificates to use.
 	CaCerts *x509.CertPool
 }
 
-// Client is the underlying processor that's used by the main API and `Hub` instances.
+// Client is the underlying processor that is used by the main API and Hub
+// instances.
 type Client struct {
 	options         ClientOptions
 	dsn             *Dsn
@@ -98,12 +166,12 @@ type Client struct {
 	Transport       Transport
 }
 
-// NewClient creates and returns an instance of `Client` configured using `ClientOptions`.
+// NewClient creates and returns an instance of Client configured using ClientOptions.
 func NewClient(options ClientOptions) (*Client, error) {
 	if options.Debug {
 		debugWriter := options.DebugWriter
 		if debugWriter == nil {
-			debugWriter = os.Stdout
+			debugWriter = os.Stderr
 		}
 		Logger.SetOutput(debugWriter)
 	}
@@ -183,7 +251,7 @@ func (client *Client) AddEventProcessor(processor EventProcessor) {
 	client.eventProcessors = append(client.eventProcessors, processor)
 }
 
-// Options return `ClientOptions` for the current `Client`.
+// Options return ClientOptions for the current Client.
 func (client Client) Options() ClientOptions {
 	return client.options
 }
@@ -203,36 +271,29 @@ func (client *Client) CaptureException(exception error, hint *EventHint, scope E
 // CaptureEvent captures an event on the currently active client if any.
 //
 // The event must already be assembled. Typically code would instead use
-// the utility methods like `CaptureException`. The return value is the
+// the utility methods like CaptureException. The return value is the
 // event ID. In case Sentry is disabled or event was dropped, the return value will be nil.
 func (client *Client) CaptureEvent(event *Event, hint *EventHint, scope EventModifier) *EventID {
 	return client.processEvent(event, hint, scope)
 }
 
 // Recover captures a panic.
-// Returns `EventID` if successfully, or `nil` if there's no error to recover from.
+// Returns EventID if successfully, or nil if there's no error to recover from.
 func (client *Client) Recover(err interface{}, hint *EventHint, scope EventModifier) *EventID {
 	if err == nil {
 		err = recover()
 	}
 
-	if err != nil {
-		if err, ok := err.(error); ok {
-			event := client.eventFromException(err, LevelFatal)
-			return client.CaptureEvent(event, hint, scope)
-		}
-
-		if err, ok := err.(string); ok {
-			event := client.eventFromMessage(err, LevelFatal)
-			return client.CaptureEvent(event, hint, scope)
-		}
-	}
-
-	return nil
+	// Normally we would not pass a nil Context, but RecoverWithContext doesn't
+	// use the Context for communicating deadline nor cancelation. All it does
+	// is store the Context in the EventHint and there nil means the Context is
+	// not available.
+	//nolint: staticcheck
+	return client.RecoverWithContext(nil, err, hint, scope)
 }
 
-// Recover captures a panic and passes relevant context object.
-// Returns `EventID` if successfully, or `nil` if there's no error to recover from.
+// RecoverWithContext captures a panic and passes relevant context object.
+// Returns EventID if successfully, or nil if there's no error to recover from.
 func (client *Client) RecoverWithContext(
 	ctx context.Context,
 	err interface{},
@@ -242,33 +303,51 @@ func (client *Client) RecoverWithContext(
 	if err == nil {
 		err = recover()
 	}
+	if err == nil {
+		return nil
+	}
 
-	if err != nil {
-		if hint.Context == nil && ctx != nil {
+	if ctx != nil {
+		if hint == nil {
+			hint = &EventHint{}
+		}
+		if hint.Context == nil {
 			hint.Context = ctx
-		}
-
-		if err, ok := err.(error); ok {
-			event := client.eventFromException(err, LevelFatal)
-			return client.CaptureEvent(event, hint, scope)
-		}
-
-		if err, ok := err.(string); ok {
-			event := client.eventFromMessage(err, LevelFatal)
-			return client.CaptureEvent(event, hint, scope)
 		}
 	}
 
-	return nil
+	var event *Event
+	switch err := err.(type) {
+	case error:
+		event = client.eventFromException(err, LevelFatal)
+	case string:
+		event = client.eventFromMessage(err, LevelFatal)
+	default:
+		event = client.eventFromMessage(fmt.Sprintf("%#v", err), LevelFatal)
+	}
+	return client.CaptureEvent(event, hint, scope)
 }
 
-// Flush notifies when all the buffered events have been sent by returning `true`
-// or `false` if timeout was reached. It calls `Flush` method of the configured `Transport`.
+// Flush waits until the underlying Transport sends any buffered events to the
+// Sentry server, blocking for at most the given timeout. It returns false if
+// the timeout was reached. In that case, some events may not have been sent.
+//
+// Flush should be called before terminating the program to avoid
+// unintentionally dropping events.
+//
+// Do not call Flush indiscriminately after every call to CaptureEvent,
+// CaptureException or CaptureMessage. Instead, to have the SDK send events over
+// the network synchronously, configure it to use the HTTPSyncTransport in the
+// call to Init.
 func (client *Client) Flush(timeout time.Duration) bool {
 	return client.Transport.Flush(timeout)
 }
 
 func (client *Client) eventFromMessage(message string, level Level) *Event {
+	if message == "" {
+		err := usageError{fmt.Errorf("%s called with empty message", callerFunctionName())}
+		return client.eventFromException(err, level)
+	}
 	event := NewEvent()
 	event.Level = level
 	event.Message = message
@@ -285,30 +364,58 @@ func (client *Client) eventFromMessage(message string, level Level) *Event {
 }
 
 func (client *Client) eventFromException(exception error, level Level) *Event {
-	if exception == nil {
-		event := NewEvent()
-		event.Level = level
-		event.Message = fmt.Sprintf("Called %s with nil value", callerFunctionName())
-		return event
-	}
-
-	stacktrace := ExtractStacktrace(exception)
-
-	if stacktrace == nil {
-		stacktrace = NewStacktrace()
+	err := exception
+	if err == nil {
+		err = usageError{fmt.Errorf("%s called with nil error", callerFunctionName())}
 	}
 
 	event := NewEvent()
 	event.Level = level
-	event.Exception = []Exception{{
-		Value:      exception.Error(),
-		Type:       reflect.TypeOf(exception).String(),
-		Stacktrace: stacktrace,
-	}}
+
+	for i := 0; i < maxErrorDepth && err != nil; i++ {
+		event.Exception = append(event.Exception, Exception{
+			Value:      err.Error(),
+			Type:       reflect.TypeOf(err).String(),
+			Stacktrace: ExtractStacktrace(err),
+		})
+		switch previous := err.(type) {
+		case interface{ Unwrap() error }:
+			err = previous.Unwrap()
+		case interface{ Cause() error }:
+			err = previous.Cause()
+		default:
+			err = nil
+		}
+	}
+
+	// Add a trace of the current stack to the most recent error in a chain if
+	// it doesn't have a stack trace yet.
+	// We only add to the most recent error to avoid duplication and because the
+	// current stack is most likely unrelated to errors deeper in the chain.
+	if event.Exception[0].Stacktrace == nil {
+		event.Exception[0].Stacktrace = NewStacktrace()
+	}
+
+	// event.Exception should be sorted such that the most recent error is last.
+	reverse(event.Exception)
+
 	return event
 }
 
+// reverse reverses the slice a in place.
+func reverse(a []Exception) {
+	for i := len(a)/2 - 1; i >= 0; i-- {
+		opp := len(a) - 1 - i
+		a[i], a[opp] = a[opp], a[i]
+	}
+}
+
 func (client *Client) processEvent(event *Event, hint *EventHint, scope EventModifier) *EventID {
+	if event == nil {
+		err := usageError{fmt.Errorf("%s called with nil event", callerFunctionName())}
+		return client.CaptureException(err, hint, scope)
+	}
+
 	options := client.Options()
 
 	// TODO: Reconsider if its worth going away from default implementation
@@ -316,7 +423,7 @@ func (client *Client) processEvent(event *Event, hint *EventHint, scope EventMod
 	// which means that if someone uses ClientOptions{} struct directly
 	// and we would not check for 0 here, we'd skip all events by default
 	if options.SampleRate != 0.0 {
-		randomFloat := rand.New(rand.NewSource(time.Now().UnixNano())).Float32()
+		randomFloat := rng.Float64()
 		if randomFloat > options.SampleRate {
 			Logger.Println("Event dropped due to SampleRate hit.")
 			return nil
@@ -327,7 +434,8 @@ func (client *Client) processEvent(event *Event, hint *EventHint, scope EventMod
 		return nil
 	}
 
-	if options.BeforeSend != nil {
+	// As per spec, transactions do not go through BeforeSend.
+	if event.Type != transactionType && options.BeforeSend != nil {
 		h := &EventHint{}
 		if hint != nil {
 			h = hint
@@ -348,8 +456,8 @@ func (client *Client) prepareEvent(event *Event, hint *EventHint, scope EventMod
 		event.EventID = EventID(uuid())
 	}
 
-	if event.Timestamp == 0 {
-		event.Timestamp = time.Now().Unix()
+	if event.Timestamp.IsZero() {
+		event.Timestamp = time.Now().UTC()
 	}
 
 	if event.Level == "" {
@@ -359,7 +467,7 @@ func (client *Client) prepareEvent(event *Event, hint *EventHint, scope EventMod
 	if event.ServerName == "" {
 		if client.Options().ServerName != "" {
 			event.ServerName = client.Options().ServerName
-		} else if hostname, err := os.Hostname(); err == nil {
+		} else {
 			event.ServerName = hostname
 		}
 	}
@@ -387,7 +495,12 @@ func (client *Client) prepareEvent(event *Event, hint *EventHint, scope EventMod
 		}},
 	}
 
-	event = scope.ApplyToEvent(event, hint)
+	if scope != nil {
+		event = scope.ApplyToEvent(event, hint)
+		if event == nil {
+			return nil
+		}
+	}
 
 	for _, processor := range client.eventProcessors {
 		id := event.EventID
