@@ -17,7 +17,7 @@ build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY)
 
 test: build
-	go test -race ./trie ./triemux ./handlers
+	go test -race $$(go list ./... | grep -v integration_tests)
 	go test -race -v ./integration_tests
 
 run: build
