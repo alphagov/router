@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/alext/tablecloth v0.0.0-20150502092832-fbddb1a44a21
-	github.com/getsentry/sentry-go v0.2.1
+	github.com/getsentry/sentry-go v0.9.0
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3

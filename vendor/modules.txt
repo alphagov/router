@@ -6,8 +6,10 @@ github.com/beorn7/perks/quantile
 github.com/cespare/xxhash/v2
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
-# github.com/getsentry/sentry-go v0.2.1
+# github.com/getsentry/sentry-go v0.9.0
 github.com/getsentry/sentry-go
+github.com/getsentry/sentry-go/internal/crypto/randutil
+github.com/getsentry/sentry-go/internal/debug
 # github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 github.com/globalsign/mgo
 github.com/globalsign/mgo/bson
