@@ -49,7 +49,7 @@ github.com/onsi/ginkgo/reporters/stenographer
 github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable
 github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
 github.com/onsi/ginkgo/types
-# github.com/onsi/gomega v1.10.3
+# github.com/onsi/gomega v1.10.4
 github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/ghttp
@@ -83,7 +83,7 @@ github.com/prometheus/procfs/internal/util
 github.com/streadway/quantile
 # github.com/tsenart/vegeta v0.0.0-20160525192120-dbb7ee1d3e54
 github.com/tsenart/vegeta/lib
-# golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
+# golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
 golang.org/x/net/html
 golang.org/x/net/html/atom
 golang.org/x/net/html/charset
