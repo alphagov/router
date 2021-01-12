@@ -32,9 +32,6 @@ var (
 		prometheus.HistogramOpts{
 			Name: "router_backend_handler_response_duration_seconds",
 			Help: "Histogram of response durations by router backend handlers",
-			Buckets: prometheus.ExponentialBuckets(
-				0.0625, 2, 7, // This buckets [...0.0625  0.125  0.25  0.5  1  2  4...]
-			),
 		},
 		[]string{
 			"backend_id",
