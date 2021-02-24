@@ -11,6 +11,7 @@ var _ = Describe("loading routes from the db", func() {
 	var (
 		backend1 *httptest.Server
 		backend2 *httptest.Server
+		backend3 *httptest.Server
 	)
 
 	BeforeEach(func() {
@@ -69,6 +70,34 @@ var _ = Describe("loading routes from the db", func() {
 
 			resp = routerRequest("/qux")
 			Expect(readBody(resp)).To(Equal("backend 1"))
+		})
+	})
+
+	Context("a backend an env var overriding the backend_url", func() {
+		BeforeEach(func() {
+			// This tests the behaviour of backend.ParseURL overriding the backend_url
+			// provided in the DB with the value of an env var
+			black_hole := "192.0.2.0/24"
+			backend3 = startSimpleBackend("backend 3")
+			addBackend("backend-3", black_hole)
+
+			stopRouter(3169)
+			startRouter(3169, 3168, envMap{"BACKEND_URL_backend-3": backend3.URL})
+
+			addRoute("/oof", NewBackendRoute("backend-3"))
+			reloadRoutes()
+		})
+
+		AfterEach(func() {
+			stopRouter(3169)
+			startRouter(3169, 3168)
+			backend3.Close()
+		})
+
+		It("should send requests to the backend_url provided in the env var", func() {
+			resp := routerRequest("/oof")
+			Expect(resp.StatusCode).To(Equal(200))
+			Expect(readBody(resp)).To(Equal("backend 3"))
 		})
 	})
 })

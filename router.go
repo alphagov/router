@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -28,8 +29,9 @@ type Router struct {
 }
 
 type Backend struct {
-	BackendID  string `bson:"backend_id"`
-	BackendURL string `bson:"backend_url"`
+	BackendID     string `bson:"backend_id"`
+	BackendURL    string `bson:"backend_url"`
+	SubdomainName string `bson:"subdomain_name"`
 }
 
 type Route struct {
@@ -156,7 +158,7 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 	iter := c.Find(nil).Iter()
 
 	for iter.Next(&backend) {
-		backendURL, err := url.Parse(backend.BackendURL)
+		backendURL, err := backend.ParseURL()
 		if err != nil {
 			logWarn(fmt.Sprintf("router: couldn't parse URL %s for backend %s "+
 				"(error: %v), skipping!", backend.BackendURL, backend.BackendID, err))
@@ -245,6 +247,14 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	if err := iter.Err(); err != nil {
 		panic(err)
 	}
+}
+
+func (be *Backend) ParseURL() (*url.URL, error) {
+	backend_url := os.Getenv(fmt.Sprintf("BACKEND_URL_%s", be.BackendID))
+	if backend_url == "" {
+		return url.Parse(be.BackendURL)
+	}
+	return url.Parse(backend_url)
 }
 
 func (rt *Router) RouteStats() (stats map[string]interface{}) {
