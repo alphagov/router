@@ -18,6 +18,7 @@ var (
 	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
 	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "127.0.0.1")
 	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
+	mongoPollInterval     = getenvDefault("ROUTER_MONGO_POLL_INTERVAL", "2s")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
 	tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
 	enableDebugOutput     = os.Getenv("DEBUG") != ""
@@ -32,12 +33,13 @@ Usage: %s [-version]
 
 The following environment variables and defaults are available:
 
-ROUTER_PUBADDR=:8080        Address on which to serve public requests
-ROUTER_APIADDR=:8081        Address on which to receive reload requests
-ROUTER_MONGO_URL=127.0.0.1  Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')
-ROUTER_MONGO_DB=router      Name of mongo database to use
-ROUTER_ERROR_LOG=STDERR     File to log errors to (in JSON format)
-DEBUG=                      Whether to enable debug output - set to anything to enable
+ROUTER_PUBADDR=:8080             Address on which to serve public requests
+ROUTER_APIADDR=:8081             Address on which to receive reload requests
+ROUTER_MONGO_URL=127.0.0.1       Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')
+ROUTER_MONGO_DB=router           Name of mongo database to use
+ROUTER_MONGO_POLL_INTERVAL=2s    Interval to poll mongo for route changes
+ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
+DEBUG=                           Whether to enable debug output - set to anything to enable
 
 Timeouts: (values must be parseable by http://golang.org/pkg/time/#ParseDuration)
 
@@ -105,11 +107,11 @@ func main() {
 		tablecloth.WorkingDir = wd
 	}
 
-	rout, err := NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
+	rout, err := NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	rout.ReloadRoutes()
+	go rout.SelfUpdateRoutes()
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)

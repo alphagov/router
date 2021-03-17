@@ -12,16 +12,6 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 	if err != nil {
 		return nil, err
 	}
-	reloadChan := make(chan bool, 1)
-	go func(r chan bool) {
-		// This goroutine blocks until it receives a message on reloadChan,
-		// and will immediately reload again if another message was received
-		// during reload.
-		for range r {
-			logInfo("router: reload triggered")
-			rout.ReloadRoutes()
-		}
-	}(reloadChan)
 
 	mux := http.NewServeMux()
 
@@ -31,11 +21,12 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		// Send a message to the goroutine which will start reloading immediately.
+		// Send a message to the Router goroutine which will check the latest
+		// oplog optime and start a reload if necessary.
 		// If the channel is already full, no message will be sent and the request
 		// won't be blocked.
 		select {
-		case reloadChan <- true:
+		case rout.ReloadChan <- true:
 		default:
 		}
 		logInfo("router: reload queued")
