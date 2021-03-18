@@ -1,6 +1,6 @@
 # Tablecloth
 
-[![Build Status](https://travis-ci.org/alext/tablecloth.png?branch=master)](https://travis-ci.org/alext/tablecloth)
+[![CircleCI](https://circleci.com/gh/alext/tablecloth.svg?style=shield)](https://circleci.com/gh/alext/tablecloth)
 
 A [Go](http://golang.org/) library to enable implementing an HTTP server that supports zero-downtime
 restarts and upgrades

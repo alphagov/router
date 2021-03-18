@@ -1,9 +1,11 @@
 package tablecloth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,7 +20,7 @@ import (
 var StartupDelay = 5 * time.Second
 
 // The maximum time to wait for outstanding connections to complete after
-// closing the listeners.
+// closing the servers.
 var CloseWaitTimeout = 30 * time.Second
 
 // Optional: the working directory for the application.  This directory (if specified)
@@ -106,16 +108,22 @@ func ListenAndServe(addr string, handler http.Handler, identifier ...string) err
 	return theManager.listenAndServe(addr, handler, ident)
 }
 
+type serverInfo struct {
+	listener *net.TCPListener
+	server   *http.Server
+	wg       sync.WaitGroup
+}
+
 type manager struct {
-	once            sync.Once
-	listeners       map[string]*gracefulListener
-	listenersLock   sync.Mutex
-	activeListeners sync.WaitGroup
-	inParent        bool
+	once          sync.Once
+	servers       map[string]*serverInfo
+	serversLock   sync.Mutex
+	activeServers sync.WaitGroup
+	inParent      bool
 }
 
 func (m *manager) setup() {
-	m.listeners = make(map[string]*gracefulListener)
+	m.servers = make(map[string]*serverInfo)
 	m.inParent = os.Getenv("TEMPORARY_CHILD") != "1"
 
 	go m.handleSignals()
@@ -126,42 +134,38 @@ func (m *manager) setup() {
 }
 
 func (m *manager) listenAndServe(addr string, handler http.Handler, ident string) error {
-	m.activeListeners.Add(1)
-	defer m.activeListeners.Done()
+	m.activeServers.Add(1)
+	defer m.activeServers.Done()
 
-	l, err := m.setupListener(addr, ident)
+	si, err := m.setupServer(addr, ident, handler)
 	if err != nil {
 		return err
 	}
 
-	err = http.Serve(l, handler)
-	if l.stopping {
-		err = l.waitForClients(CloseWaitTimeout)
+	si.wg.Add(1)
+	err = si.server.Serve(si.listener)
+	if err == http.ErrServerClosed {
+		si.wg.Wait() // Done() called in stopServers()
 		if m.inParent {
-			// TODO: notify/log WaitForClients errors somehow.
-
 			// This function will now never return, so the above defer won't happen.
-			m.activeListeners.Done()
+			m.activeServers.Done()
 
 			// prevent this goroutine returning before the server has re-exec'd
 			// This is to cover the case where this is the main goroutine, and exiting
 			// would therefore prevent the re-exec happening
 			c := make(chan bool)
 			<-c
-		} else if err != nil {
-			return err
 		}
-	} else if err != nil {
-		return err
+		return nil
 	}
-	return nil
+	return err
 }
 
-func (m *manager) setupListener(addr, ident string) (*gracefulListener, error) {
-	m.listenersLock.Lock()
-	defer m.listenersLock.Unlock()
+func (m *manager) setupServer(addr, ident string, handler http.Handler) (*serverInfo, error) {
+	m.serversLock.Lock()
+	defer m.serversLock.Unlock()
 
-	if m.listeners[ident] != nil {
+	if m.servers[ident] != nil {
 		return nil, errors.New("duplicate ident")
 	}
 
@@ -169,8 +173,12 @@ func (m *manager) setupListener(addr, ident string) (*gracefulListener, error) {
 	if err != nil {
 		return nil, err
 	}
-	m.listeners[ident] = l
-	return l, nil
+	si := &serverInfo{
+		listener: l,
+		server:   &http.Server{Handler: handler},
+	}
+	m.servers[ident] = si
+	return si, nil
 }
 
 func listenFdFromEnv(ident string) int {
@@ -191,8 +199,8 @@ func (m *manager) handleSignals() {
 }
 
 func (m *manager) handleHUP() {
-	m.listenersLock.Lock()
-	defer m.listenersLock.Unlock()
+	m.serversLock.Lock()
+	defer m.serversLock.Unlock()
 
 	if m.inParent {
 		err := m.upgradeServer()
@@ -202,13 +210,13 @@ func (m *manager) handleHUP() {
 		}
 	}
 
-	m.closeListeners()
+	m.stopServers()
 }
 
 func (m *manager) upgradeServer() error {
-	fds := make(map[string]int, len(m.listeners))
-	for ident, l := range m.listeners {
-		fd, err := l.prepareFd()
+	fds := make(map[string]int, len(m.servers))
+	for ident, si := range m.servers {
+		fd, err := prepareListenerFd(si.listener)
 		if err != nil {
 			// Close any that were successfully prepared so we don't leak.
 			closeFds(fds)
@@ -253,15 +261,22 @@ func assertChildStillRunning(pid int) error {
 	return nil
 }
 
-func (m *manager) closeListeners() {
-	for _, l := range m.listeners {
-		l.Close()
+func (m *manager) stopServers() {
+	ctx, _ := context.WithTimeout(context.Background(), CloseWaitTimeout)
+	for _, si := range m.servers {
+		go func(si *serverInfo) {
+			defer si.wg.Done()
+			err := si.server.Shutdown(ctx)
+			if err != nil {
+				log.Println("[tablecloth] error shutting down server:", err)
+			}
+		}(si)
 	}
 }
 
 func (m *manager) reExecSelf(fds map[string]int, childPid int) {
-	// wait until there are no active listeners
-	m.activeListeners.Wait()
+	// wait until there are no active servers
+	m.activeServers.Wait()
 
 	em := newEnvMap(os.Environ())
 	for ident, fd := range fds {
