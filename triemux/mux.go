@@ -10,8 +10,11 @@ import (
 	"hash"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Mux struct {
@@ -38,11 +41,16 @@ func NewMux() *Mux {
 // If the routing table is empty, return a 503.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if mux.count == 0 {
-		defer logger.NotifySentry(logger.ReportableError{
+		w.WriteHeader(http.StatusServiceUnavailable)
+		logger.NotifySentry(logger.ReportableError{
 			Error: logger.RecoveredError{"Route table is empty!"},
 			Request: r,
 		})
-		w.WriteHeader(http.StatusServiceUnavailable)
+		tempChild, isParent := os.LookupEnv("TEMPORARY_CHILD")
+		if !isParent { tempChild = "0" }
+		InternalServiceUnavailableCountMetric.With(prometheus.Labels{
+			"temporary_child": tempChild,
+		}).Inc()
 		return
 	}
 
