@@ -33,8 +33,7 @@ func (re ReportableError) hint() *sentry.EventHint {
 func (re ReportableError) scope() *sentry.Scope {
   scope := sentry.NewScope()
   if re.hint().Request != nil {
-    request := sentry.Request{}.FromHTTPRequest(re.hint().Request)
-    scope.SetRequest(request)
+    scope.SetRequest(re.hint().Request)
   }
   if re.hint().Response != nil {
     scope.SetExtra("Response Status", re.hint().Response.Status);

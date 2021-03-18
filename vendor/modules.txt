@@ -1,4 +1,5 @@
 # github.com/alext/tablecloth v0.0.0-20150502092832-fbddb1a44a21
+## explicit
 github.com/alext/tablecloth
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
@@ -6,9 +7,13 @@ github.com/beorn7/perks/quantile
 github.com/cespare/xxhash/v2
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
-# github.com/getsentry/sentry-go v0.2.1
+# github.com/getsentry/sentry-go v0.10.0
+## explicit
 github.com/getsentry/sentry-go
+github.com/getsentry/sentry-go/internal/crypto/randutil
+github.com/getsentry/sentry-go/internal/debug
 # github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
+## explicit
 github.com/globalsign/mgo
 github.com/globalsign/mgo/bson
 github.com/globalsign/mgo/internal/json
@@ -29,6 +34,7 @@ github.com/nxadm/tail/util
 github.com/nxadm/tail/watch
 github.com/nxadm/tail/winfile
 # github.com/onsi/ginkgo v1.14.2
+## explicit
 github.com/onsi/ginkgo
 github.com/onsi/ginkgo/config
 github.com/onsi/ginkgo/extensions/table
@@ -50,6 +56,7 @@ github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable
 github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
 github.com/onsi/ginkgo/types
 # github.com/onsi/gomega v1.10.3
+## explicit
 github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/ghttp
@@ -64,12 +71,14 @@ github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
 # github.com/prometheus/client_golang v1.8.0
+## explicit
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
 github.com/prometheus/client_golang/prometheus/testutil
 github.com/prometheus/client_golang/prometheus/testutil/promlint
 # github.com/prometheus/client_model v0.2.0
+## explicit
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.14.0
 github.com/prometheus/common/expfmt
@@ -80,8 +89,10 @@ github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25
+## explicit
 github.com/streadway/quantile
 # github.com/tsenart/vegeta v0.0.0-20160525192120-dbb7ee1d3e54
+## explicit
 github.com/tsenart/vegeta/lib
 # golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
 golang.org/x/net/html
