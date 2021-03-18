@@ -6,6 +6,7 @@ package triemux
 import (
 	"crypto/sha1"
 	"github.com/alphagov/router/trie"
+	"github.com/alphagov/router/logger"
 	"hash"
 	"log"
 	"net/http"
@@ -37,6 +38,10 @@ func NewMux() *Mux {
 // If the routing table is empty, return a 503.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if mux.count == 0 {
+		defer logger.NotifySentry(logger.ReportableError{
+			Error: logger.RecoveredError{"Route table is empty!"},
+			Request: r,
+		})
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
