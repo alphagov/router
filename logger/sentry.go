@@ -5,6 +5,8 @@ import (
   "time"
   "net"
   "net/http"
+  "os"
+  "strconv"
 
   sentry "github.com/getsentry/sentry-go"
 )
@@ -38,6 +40,9 @@ func (re ReportableError) scope() *sentry.Scope {
   if re.hint().Response != nil {
     scope.SetExtra("Response Status", re.hint().Response.Status);
   }
+  // TEMPORARY_CHILD set in tablecloth package
+  inParent := strconv.FormatBool(os.Getenv("TEMPORARY_CHILD") != "1")
+  scope.SetTag("in_parent", inParent)
   return scope
 }
 
