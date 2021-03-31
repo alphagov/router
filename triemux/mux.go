@@ -6,11 +6,15 @@ package triemux
 import (
 	"crypto/sha1"
 	"github.com/alphagov/router/trie"
+	"github.com/alphagov/router/logger"
 	"hash"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Mux struct {
@@ -38,6 +42,15 @@ func NewMux() *Mux {
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if mux.count == 0 {
 		w.WriteHeader(http.StatusServiceUnavailable)
+		logger.NotifySentry(logger.ReportableError{
+			Error: logger.RecoveredError{"Route table is empty!"},
+			Request: r,
+		})
+		tempChild, isParent := os.LookupEnv("TEMPORARY_CHILD")
+		if !isParent { tempChild = "0" }
+		InternalServiceUnavailableCountMetric.With(prometheus.Labels{
+			"temporary_child": tempChild,
+		}).Inc()
 		return
 	}
 

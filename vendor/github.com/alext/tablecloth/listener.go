@@ -1,26 +1,13 @@
 package tablecloth
 
 import (
-	"fmt"
+	"errors"
 	"net"
 	"os"
-	"sync/atomic"
 	"syscall"
-	"time"
 )
 
-type watchedConn struct {
-	net.Conn
-	listener *gracefulListener
-}
-
-func (c *watchedConn) Close() error {
-	err := c.Conn.Close()
-	c.listener.decCount()
-	return err
-}
-
-func resumeOrListen(fd int, addr string) (*gracefulListener, error) {
+func resumeOrListen(fd int, addr string) (*net.TCPListener, error) {
 	var l net.Listener
 	var err error
 	if fd != 0 {
@@ -36,89 +23,35 @@ func resumeOrListen(fd int, addr string) (*gracefulListener, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &gracefulListener{Listener: l}, nil
-}
-
-type gracefulListener struct {
-	net.Listener
-	connCount int64
-	stopping  bool
-}
-
-func (l *gracefulListener) Addr() net.Addr {
-	tcpListener, ok := l.Listener.(*net.TCPListener)
-	if ok {
-		return tcpListener.Addr()
+	tl, ok := l.(*net.TCPListener)
+	if !ok {
+		return nil, errors.New("passed file descriptor is not for a TCP socket")
 	}
-	return nil
+	return tl, nil
 }
 
-func (l *gracefulListener) Accept() (c net.Conn, err error) {
-	c, err = l.Listener.Accept()
-	if err != nil {
-		return nil, err
-	}
-	c = &watchedConn{Conn: c, listener: l}
-	l.incCount()
-	return c, nil
-}
-
-func (l *gracefulListener) Close() error {
-	l.stopping = true
-	return l.Listener.Close()
-}
-
-func (l *gracefulListener) getCount() int64 {
-	return atomic.LoadInt64(&l.connCount)
-}
-func (l *gracefulListener) incCount() {
-	atomic.AddInt64(&l.connCount, 1)
-}
-func (l *gracefulListener) decCount() {
-	atomic.AddInt64(&l.connCount, -1)
-}
-
-func (l *gracefulListener) waitForClients(timeout time.Duration) error {
-	if l.getCount() == 0 {
-		return nil
-	}
-	timeoutCh := time.After(timeout)
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			if l.getCount() == 0 {
-				return nil
-			}
-		case <-timeoutCh:
-			return fmt.Errorf("Still %d active clients after %s", l.getCount(), timeout)
-		}
-	}
-}
-
-func (l *gracefulListener) prepareFd() (fd int, err error) {
-	tl := l.Listener.(*net.TCPListener)
+func prepareListenerFd(tl *net.TCPListener) (fd int, err error) {
 	fl, err := tl.File()
 	if err != nil {
 		return 0, err
 	}
 	defer fl.Close()
 
-	// The TCPListener.File() sets the underlying socket to be blocking
-	// (http://git.io/veIh6).  This alters the behaviour of Accept such that
-	// when the listener fd is closed, Accept doesn't return an error until the
-	// next connection comes in.
+	// With Go versions prior to 1.11 The TCPListener.File() call sets the
+	// underlying socket to be blocking (http://git.io/veIh6). With Go 1.11
+	// onwards, this is no longer the case, however the File.Fd() call now sets
+	// the underlying socket to be blocking (https://git.io/fhtYn). Setting it
+	// to blocking alters the behaviour of Accept such that when the listener
+	// fd is closed, Accept doesn't return an error until the next connection
+	// comes in.
 	//
-	// Setting this back to non-blocking allows this to continue to use the
-	// epoll mechanism meaning that Accept will return an error immediately
-	// when the listener fd is closed.
-	syscall.SetNonblock(int(fl.Fd()), true)
+	// Setting this back to non-blocking allows Accept to return an error
+	// immediately when the listener fd is closed.
+	fd = int(fl.Fd())
+	syscall.SetNonblock(fd, true)
 
 	// Dup the fd to clear the CloseOnExec flag
-	fd, err = syscall.Dup(int(fl.Fd()))
+	fd, err = syscall.Dup(fd)
 	if err != nil {
 		return 0, err
 	}
