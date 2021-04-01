@@ -29,19 +29,23 @@ set_local_env:
 	$(eval export DEBUG ?= true)
 
 start_mongo:
+	docker network create router-mongo-cluster || true
 	docker run -dit \
 		         --name router-mongo \
 						 -d \
 						 -p 27017:27017 \
 						 --health-cmd 'curl localhost:27017' \
 						 --health-start-period 15s \
-						 mongo:2.4.11
+						 --network router-mongo-cluster \
+						 mongo:2.4.11 --replSet router-mongo-replica-set 
 	@echo Waiting for mongo to be up
 	@until [ "`docker inspect -f '{{.State.Health.Status}}' router-mongo`" = "healthy" ]; do \
 		echo '.\c'  ; \
 	  sleep 1     ; \
 	done          ; \
 	echo
+
+	docker exec -dit router-mongo mongo --eval "rs.initiate()"
 
 cleanup_mongo:
 	@docker rm -f router-mongo || true

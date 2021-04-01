@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
@@ -23,15 +25,28 @@ type Router struct {
 	lock                  sync.RWMutex
 	mongoURL              string
 	mongoDbName           string
+	mongoPollInterval     time.Duration
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
+	mongoReadToOptime     bson.MongoTimestamp
 	logger                logger.Logger
+	ReloadChan            chan bool
 }
 
 type Backend struct {
 	BackendID     string `bson:"backend_id"`
 	BackendURL    string `bson:"backend_url"`
 	SubdomainName string `bson:"subdomain_name"`
+}
+
+type MongoReplicaSet struct {
+	Members []MongoReplicaSetMember `bson:"members"`
+}
+
+type MongoReplicaSetMember struct {
+	Name    string              `bson:"name"`
+	Optime  bson.MongoTimestamp `bson:"optime"`
+	Current bool                `bson:"self"`
 }
 
 type Route struct {
@@ -45,9 +60,13 @@ type Route struct {
 	Disabled     bool   `bson:"disabled"`
 }
 
-// NewRouter returns a new empty router instance. You will still need to call
-// ReloadRoutes() to do the initial route load.
-func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
+// NewRouter returns a new empty router instance. You will need to call
+// SelfUpdateRoutes() to initialise the self-update process for routes.
+func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
+	mgoPollInterval, err := time.ParseDuration(mongoPollInterval)
+	if err != nil {
+		return nil, err
+	}
 	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
 	if err != nil {
 		return nil, err
@@ -56,6 +75,7 @@ func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	if err != nil {
 		return nil, err
 	}
+	logInfo("router: using mongo poll interval:", mgoPollInterval)
 	logInfo("router: using backend connect timeout:", beConnTimeout)
 	logInfo("router: using backend header timeout:", beHeaderTimeout)
 
@@ -63,16 +83,29 @@ func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	if err != nil {
 		return nil, err
 	}
+
+	mongoReadToOptime, err := bson.NewMongoTimestamp(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), 1)
+	if err != nil {
+		return nil, err
+	}
+
 	logInfo("router: logging errors as JSON to", logFileName)
 
+	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		mux:                   triemux.NewMux(),
 		mongoURL:              mongoURL,
+		mongoPollInterval:     mgoPollInterval,
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
+		mongoReadToOptime:     mongoReadToOptime,
 		logger:                l,
+		ReloadChan:            reloadChan,
 	}
+
+	go rt.pollAndReload()
+
 	return rt, nil
 }
 
@@ -104,34 +137,86 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mux.ServeHTTP(w, req)
 }
 
-// ReloadRoutes reloads the routes for this Router instance on the fly. It will
+func (rt *Router) SelfUpdateRoutes() {
+	logInfo(fmt.Sprintf("router: starting self-update process, polling for route changes every %v", rt.mongoPollInterval))
+
+	tick := time.Tick(rt.mongoPollInterval)
+	for range tick {
+		logInfo("router: polling MongoDB for changes")
+
+		rt.ReloadChan <- true
+	}
+}
+
+// pollAndReload blocks until it receives a message on reloadChan,
+// and will immediately reload again if another message was received
+// during reload.
+func (rt *Router) pollAndReload()  {
+	for range rt.ReloadChan {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logWarn(r)
+				}
+			}()
+
+			logDebug("mgo: connecting to", rt.mongoURL)
+
+			sess, err := mgo.Dial(rt.mongoURL)
+			if err != nil {
+				logWarn(fmt.Sprintf("mgo: error connecting to MongoDB, skipping update (error: %v)", err))
+				return
+			}
+
+			defer sess.Close()
+			sess.SetMode(mgo.SecondaryPreferred, true)
+
+			currentMongoInstance, err := rt.getCurrentMongoInstance(sess.DB("admin"))
+			if err != nil {
+				logWarn(err)
+				return
+			}
+
+			logDebug("mgo: communicating with replica set member", currentMongoInstance.Name)
+
+			logDebug("router: polled mongo instance is ", currentMongoInstance.Name)
+			logDebug("router: polled mongo optime is ", currentMongoInstance.Optime)
+			logDebug("router: current read-to mongo optime is ", rt.mongoReadToOptime)
+			
+			if rt.shouldReload(currentMongoInstance) {
+				logInfo("router: updates found")
+				rt.reloadRoutes(sess.DB(rt.mongoDbName), currentMongoInstance.Optime)
+			} else {
+				logInfo("router: no updates found")
+			}
+		}()
+	}
+}
+
+type mongoDatabase interface {
+	Run(command interface{}, result interface{}) error
+}
+
+// reloadRoutes reloads the routes for this Router instance on the fly. It will
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
-func (rt *Router) ReloadRoutes() {
+func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimestamp) {
 	defer func() {
 		// increment this metric regardless of whether the route reload succeeded
 		routeReloadCountMetric.Inc()
 
 		if r := recover(); r != nil {
-			logWarn("router: recovered from panic in ReloadRoutes:", r)
+			logWarn("router: recovered from panic in reloadRoutes:", r)
 			logInfo("router: original routes have not been modified")
 			errorMessage := fmt.Sprintf("panic: %v", r)
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
 			logger.NotifySentry(logger.ReportableError{Error: err})
 
 			routeReloadErrorCountMetric.Inc()
+		} else {
+			rt.mongoReadToOptime = currentOptime
 		}
 	}()
-
-	logDebug("mgo: connecting to", rt.mongoURL)
-	sess, err := mgo.Dial(rt.mongoURL)
-	if err != nil {
-		panic(fmt.Sprintln("mgo:", err))
-	}
-	defer sess.Close()
-	sess.SetMode(mgo.Strong, true)
-
-	db := sess.DB(rt.mongoDbName)
 
 	logInfo("router: reloading routes")
 	newmux := triemux.NewMux()
@@ -146,6 +231,44 @@ func (rt *Router) ReloadRoutes() {
 	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
 
 	routesCountMetric.Set(float64(rt.mux.RouteCount()))
+}
+
+func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMember, error) {
+	replicaSetStatus := bson.M{}
+
+	if err := db.Run("replSetGetStatus", &replicaSetStatus); err != nil {
+		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err))
+	}
+
+	replicaSetStatusBytes, err := bson.Marshal(replicaSetStatus)
+	if err != nil {
+		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err))
+	}
+
+	replicaSet := MongoReplicaSet{}
+	err = bson.Unmarshal(replicaSetStatusBytes, &replicaSet)
+	if err != nil {
+		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err))
+	}
+
+	currentInstance := make([]MongoReplicaSetMember, 0)
+	for _, instance := range replicaSet.Members {
+		if instance.Current {
+			currentInstance = append(currentInstance, instance)
+		}
+	}
+
+	logDebug("router: MongoDB instances", currentInstance)
+
+	if len(currentInstance) != 1 {
+		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: did not find exactly one current MongoDB instance, skipping update (current instances found: %d)", len(currentInstance)))
+	}
+
+	return currentInstance[0], nil
+}
+
+func (rt *Router) shouldReload(currentMongoInstance MongoReplicaSetMember) bool {
+	return currentMongoInstance.Optime > rt.mongoReadToOptime
 }
 
 // loadBackends is a helper function which loads backends from the
