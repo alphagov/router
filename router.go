@@ -142,7 +142,7 @@ func (rt *Router) SelfUpdateRoutes() {
 
 	tick := time.Tick(rt.mongoPollInterval)
 	for range tick {
-		logInfo("router: polling MongoDB for changes")
+		logDebug("router: polling MongoDB for changes")
 
 		rt.ReloadChan <- true
 	}
@@ -151,7 +151,7 @@ func (rt *Router) SelfUpdateRoutes() {
 // pollAndReload blocks until it receives a message on reloadChan,
 // and will immediately reload again if another message was received
 // during reload.
-func (rt *Router) pollAndReload()  {
+func (rt *Router) pollAndReload() {
 	for range rt.ReloadChan {
 		func() {
 			defer func() {
@@ -182,12 +182,12 @@ func (rt *Router) pollAndReload()  {
 			logDebug("router: polled mongo instance is ", currentMongoInstance.Name)
 			logDebug("router: polled mongo optime is ", currentMongoInstance.Optime)
 			logDebug("router: current read-to mongo optime is ", rt.mongoReadToOptime)
-			
+
 			if rt.shouldReload(currentMongoInstance) {
-				logInfo("router: updates found")
+				logDebug("router: updates found")
 				rt.reloadRoutes(sess.DB(rt.mongoDbName), currentMongoInstance.Optime)
 			} else {
-				logInfo("router: no updates found")
+				logDebug("router: no updates found")
 			}
 		}()
 	}
