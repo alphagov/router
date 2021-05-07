@@ -4,15 +4,14 @@
 package triemux
 
 import (
-	"crypto/sha1"
-	"github.com/alphagov/router/trie"
-	"github.com/alphagov/router/logger"
-	"hash"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/alphagov/router/logger"
+	"github.com/alphagov/router/trie"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -22,7 +21,6 @@ type Mux struct {
 	exactTrie  *trie.Trie
 	prefixTrie *trie.Trie
 	count      int
-	checksum   hash.Hash
 }
 
 type muxEntry struct {
@@ -32,7 +30,7 @@ type muxEntry struct {
 
 // NewMux makes a new empty Mux.
 func NewMux() *Mux {
-	return &Mux{exactTrie: trie.NewTrie(), prefixTrie: trie.NewTrie(), checksum: sha1.New()}
+	return &Mux{exactTrie: trie.NewTrie(), prefixTrie: trie.NewTrie()}
 }
 
 // ServeHTTP dispatches the request to a backend with a registered route
@@ -98,7 +96,7 @@ func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	mux.addToStats(path, prefix)
+	mux.count++
 	if prefix {
 		mux.prefixTrie.Set(splitpath(path), muxEntry{prefix, handler})
 	} else {
@@ -106,22 +104,8 @@ func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 	}
 }
 
-func (mux *Mux) addToStats(path string, prefix bool) {
-	mux.count++
-	mux.checksum.Write([]byte(path))
-	if prefix {
-		mux.checksum.Write([]byte("(true)"))
-	} else {
-		mux.checksum.Write([]byte("(false)"))
-	}
-}
-
 func (mux *Mux) RouteCount() int {
 	return mux.count
-}
-
-func (mux *Mux) RouteChecksum() []byte {
-	return mux.checksum.Sum(nil)
 }
 
 // splitpath turns a slash-delimited string into a lookup path (a slice

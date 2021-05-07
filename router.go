@@ -227,7 +227,7 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 	rt.mux = newmux
 	rt.lock.Unlock()
 
-	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
+	logInfo(fmt.Sprintf("router: reloaded %d routes", rt.mux.RouteCount()))
 
 	routesCountMetric.Set(float64(rt.mux.RouteCount()))
 }
@@ -307,7 +307,7 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Handler) {
 	route := &Route{}
 
-	iter := c.Find(nil).Sort("incoming_path", "route_type").Iter()
+	iter := c.Find(nil).Iter()
 
 	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "410 Gone", http.StatusGone)
@@ -386,7 +386,6 @@ func (rt *Router) RouteStats() (stats map[string]interface{}) {
 
 	stats = make(map[string]interface{})
 	stats["count"] = mux.RouteCount()
-	stats["checksum"] = fmt.Sprintf("%x", mux.RouteChecksum())
 	return
 }
 
