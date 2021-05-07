@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"crypto/sha1"
-	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -89,14 +87,6 @@ var _ = Describe("reload API endpoint", func() {
 			It("should return the number of routes loaded", func() {
 				Expect(data["routes"]["count"]).To(BeEquivalentTo(3))
 			})
-
-			It("should return a checksum calculated from the sorted paths and route_types", func() {
-				hash := sha1.New()
-				hash.Write([]byte("/baz(true)"))
-				hash.Write([]byte("/foo(false)"))
-				hash.Write([]byte("/foo(true)"))
-				Expect(data["routes"]["checksum"]).To(Equal(fmt.Sprintf("%x", hash.Sum(nil))))
-			})
 		})
 
 		Context("with no routes", func() {
@@ -112,11 +102,6 @@ var _ = Describe("reload API endpoint", func() {
 
 			It("should return the number of routes loaded", func() {
 				Expect(data["routes"]["count"]).To(BeEquivalentTo(0))
-			})
-
-			It("should return a checksum of empty string", func() {
-				hash := sha1.New()
-				Expect(data["routes"]["checksum"]).To(Equal(fmt.Sprintf("%x", hash.Sum(nil))))
 			})
 		})
 

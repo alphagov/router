@@ -13,7 +13,7 @@ import (
 
 type mockMongoDB struct {
 	result bson.M
-	err error
+	err    error
 }
 
 func (m *mockMongoDB) Run(cmd interface{}, res interface{}) error {
@@ -63,7 +63,7 @@ var _ = Describe("Router", func() {
 				rt := Router{}
 				initialOptime, _ := bson.NewMongoTimestamp(time.Date(2021, time.March, 12, 8, 0, 0, 0, time.UTC), 1)
 				rt.mongoReadToOptime = initialOptime
-				
+
 				currentOptime, _ := bson.NewMongoTimestamp(time.Date(2021, time.March, 12, 8, 2, 30, 0, time.UTC), 1)
 				mongoInstance := MongoReplicaSetMember{}
 				mongoInstance.Optime = currentOptime
@@ -78,7 +78,7 @@ var _ = Describe("Router", func() {
 				rt := Router{}
 				initialOptime, _ := bson.NewMongoTimestamp(time.Date(2021, time.March, 12, 8, 0, 0, 0, time.UTC), 1)
 				rt.mongoReadToOptime = initialOptime
-				
+
 				currentOptime, _ := bson.NewMongoTimestamp(time.Date(2021, time.March, 12, 8, 0, 0, 0, time.UTC), 2)
 				mongoInstance := MongoReplicaSetMember{}
 				mongoInstance.Optime = currentOptime
@@ -101,12 +101,12 @@ var _ = Describe("Router", func() {
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
 			Expect(err).NotTo(
-				BeNil(), 
+				BeNil(),
 				"Router should raise an error when it can't get replica set status from Mongo")
 		})
 
 		It("should return fail to find an instance when the replica set status schema doesn't match the expected schema", func() {
-			replicaSetStatusBson := bson.M{"members": []bson.M{bson.M{"unknownProperty": "unknown"}}}
+			replicaSetStatusBson := bson.M{"members": []bson.M{{"unknownProperty": "unknown"}}}
 			mockMongoObj := &mockMongoDB{
 				result: replicaSetStatusBson,
 			}
@@ -115,12 +115,12 @@ var _ = Describe("Router", func() {
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
 			Expect(err).NotTo(
-				BeNil(), 
+				BeNil(),
 				"Router should raise an error when the current Mongo instance can't be found in the replica set status response")
 		})
 
 		It("should return fail to find an instance when the replica set status contains no instances marked with self:true", func() {
-			replicaSetStatusBson := bson.M{"members": []bson.M{bson.M{"name": "mongo1", "self": false}}}
+			replicaSetStatusBson := bson.M{"members": []bson.M{{"name": "mongo1", "self": false}}}
 			mockMongoObj := &mockMongoDB{
 				result: replicaSetStatusBson,
 			}
@@ -129,12 +129,12 @@ var _ = Describe("Router", func() {
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
 			Expect(err).NotTo(
-				BeNil(), 
+				BeNil(),
 				"Router should raise an error when the current Mongo instance can't be found in the replica set status response")
 		})
 
 		It("should return fail to find an instance when the replica set status contains multiple instances marked with self:true", func() {
-			replicaSetStatusBson := bson.M{"members": []bson.M{bson.M{"name": "mongo1", "self": true}, bson.M{"name": "mongo2", "self": true}}}
+			replicaSetStatusBson := bson.M{"members": []bson.M{{"name": "mongo1", "self": true}, {"name": "mongo2", "self": true}}}
 			mockMongoObj := &mockMongoDB{
 				result: replicaSetStatusBson,
 			}
@@ -143,19 +143,19 @@ var _ = Describe("Router", func() {
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
 			Expect(err).NotTo(
-				BeNil(), 
+				BeNil(),
 				"Router should raise an error when the replica set status response contains multiple current Mongo instances")
 		})
 
 		It("should successfully return the current Mongo instance from the replica set", func() {
-			replicaSetStatusBson := bson.M{"members": []bson.M{bson.M{"name": "mongo1", "self": false}, bson.M{"name": "mongo2", "optime": 6945383634312364034, "self": true}}}
+			replicaSetStatusBson := bson.M{"members": []bson.M{{"name": "mongo1", "self": false}, {"name": "mongo2", "optime": 6945383634312364034, "self": true}}}
 			mockMongoObj := &mockMongoDB{
 				result: replicaSetStatusBson,
 			}
 
 			expectedMongoInstance := MongoReplicaSetMember{
-				Name: "mongo2",
-				Optime: 6945383634312364034,
+				Name:    "mongo2",
+				Optime:  6945383634312364034,
 				Current: true,
 			}
 
@@ -167,5 +167,5 @@ var _ = Describe("Router", func() {
 				"Router should get the current Mongo instance from the replica set status response",
 			)
 		})
-	})		
+	})
 })

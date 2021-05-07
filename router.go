@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -228,7 +227,7 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 	rt.mux = newmux
 	rt.lock.Unlock()
 
-	logInfo(fmt.Sprintf("router: reloaded %d routes (checksum: %x)", rt.mux.RouteCount(), rt.mux.RouteChecksum()))
+	logInfo(fmt.Sprintf("router: reloaded %d routes", rt.mux.RouteCount()))
 
 	routesCountMetric.Set(float64(rt.mux.RouteCount()))
 }
@@ -237,18 +236,18 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 	replicaSetStatus := bson.M{}
 
 	if err := db.Run("replSetGetStatus", &replicaSetStatus); err != nil {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
 	replicaSetStatusBytes, err := bson.Marshal(replicaSetStatus)
 	if err != nil {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
 	replicaSet := MongoReplicaSet{}
 	err = bson.Unmarshal(replicaSetStatusBytes, &replicaSet)
 	if err != nil {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
 	currentInstance := make([]MongoReplicaSetMember, 0)
@@ -261,7 +260,7 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 	logDebug("router: MongoDB instances", currentInstance)
 
 	if len(currentInstance) != 1 {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: did not find exactly one current MongoDB instance, skipping update (current instances found: %d)", len(currentInstance)))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: did not find exactly one current MongoDB instance, skipping update (current instances found: %d)", len(currentInstance))
 	}
 
 	return currentInstance[0], nil
@@ -308,7 +307,7 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Handler) {
 	route := &Route{}
 
-	iter := c.Find(nil).Sort("incoming_path", "route_type").Iter()
+	iter := c.Find(nil).Iter()
 
 	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "410 Gone", http.StatusGone)
@@ -387,7 +386,6 @@ func (rt *Router) RouteStats() (stats map[string]interface{}) {
 
 	stats = make(map[string]interface{})
 	stats["count"] = mux.RouteCount()
-	stats["checksum"] = fmt.Sprintf("%x", mux.RouteChecksum())
 	return
 }
 

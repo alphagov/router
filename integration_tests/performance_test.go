@@ -94,7 +94,7 @@ var _ = Describe("Performance", func() {
 		}
 	})
 
-	Describe("many concurrent (slow) connectons", func() {
+	Describe("many concurrent (slow) connections", func() {
 		if os.Getenv("RUN_ULIMIT_DEPENDENT_TESTS") != "" {
 			var (
 				backend1 *httptest.Server
