@@ -43,11 +43,13 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if mux.count == 0 {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		logger.NotifySentry(logger.ReportableError{
-			Error: logger.RecoveredError{"Route table is empty!"},
+			Error:   logger.RecoveredError{ErrorMessage: "Route table is empty!"},
 			Request: r,
 		})
 		tempChild, isParent := os.LookupEnv("TEMPORARY_CHILD")
-		if !isParent { tempChild = "0" }
+		if !isParent {
+			tempChild = "0"
+		}
 		InternalServiceUnavailableCountMetric.With(prometheus.Labels{
 			"temporary_child": tempChild,
 		}).Inc()

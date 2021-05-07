@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -237,18 +236,18 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 	replicaSetStatus := bson.M{}
 
 	if err := db.Run("replSetGetStatus", &replicaSetStatus); err != nil {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
 	replicaSetStatusBytes, err := bson.Marshal(replicaSetStatus)
 	if err != nil {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
 	replicaSet := MongoReplicaSet{}
 	err = bson.Unmarshal(replicaSetStatusBytes, &replicaSet)
 	if err != nil {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
 	currentInstance := make([]MongoReplicaSetMember, 0)
@@ -261,7 +260,7 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 	logDebug("router: MongoDB instances", currentInstance)
 
 	if len(currentInstance) != 1 {
-		return MongoReplicaSetMember{}, errors.New(fmt.Sprintf("router: did not find exactly one current MongoDB instance, skipping update (current instances found: %d)", len(currentInstance)))
+		return MongoReplicaSetMember{}, fmt.Errorf("router: did not find exactly one current MongoDB instance, skipping update (current instances found: %d)", len(currentInstance))
 	}
 
 	return currentInstance[0], nil
