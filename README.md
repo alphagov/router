@@ -1,5 +1,4 @@
-router
-======
+# router
 
 This is a HTTP reverse proxy router built on top of [`triemux`][tm]. It
 loads a routing table into memory from a MongoDB database and acts as a:
@@ -19,8 +18,7 @@ Some of the thinking behind the router is documented in [this 2013 blog post][po
 [router-api]: https://github.com/alphagov/router-api
 [post]: https://gdstechnology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk/
 
-Environment assumptions
------------------------
+## Environment assumptions
 
 Our usage of `router` places it behind and in front of Nginx and/or Varnish.
 
@@ -38,8 +36,7 @@ And some features that we have no need to implement:
 - Response rewriting
 - Authentication
 
-Local Setup & Build
--------------------
+## Local Setup & Build
 
 The router needs to be built from within a Go [workspace][workspace] for it to
 correctly identify the vendored dependencies.  Assuming you already have Go and
@@ -54,8 +51,7 @@ is simple:
 
 [workspace]: https://golang.org/doc/code.html#Workspaces
 
-Tests
------
+## Tests
 
 You can run all tests by running:
 
@@ -77,16 +73,14 @@ These require a local MongoDB instance and can be run with:
 Some of the integration tests are optional because they have certain
 environment requirements that make them unfeasible to run within CI.
 
-Dependencies
-------------
+## Dependencies
 
 This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to vendor its dependencies.
 If you have a working [Go][go] development setup, you should be able to update the dependencies via:
 
     go mod vendor
 
-Data structure
------------------
+## Data structure
 
 The Router requires two MongoDB collections: `routes` and `backends`.
 
@@ -154,13 +148,11 @@ The `backends` collection uses the following data structure:
 }
 ```
 
-Error logging
--------------
+## Error logging
 
 The logger package stores errors in logfiles and reports them to Sentry.
 
-Metrics
--------
+## Metrics
 
 Router exposes metrics in [Prometheus](https://prometheus.io) format using the
 [Go prometheus client
@@ -169,8 +161,6 @@ library](https://godoc.org/github.com/dnesting/client_golang/prometheus).
 See commit b443d3dd9cf776143eed270d01bd98d2233caea6 as an example for how to
 add a metric.
 
-License
--------
+## License
 
-`router` is released under the MIT license, a copy of which can be found in
-`LICENSE`.
+[MIT Licence](LICENSE)
