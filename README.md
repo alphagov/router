@@ -18,22 +18,15 @@ Some of the thinking behind the router is documented in [this 2013 blog post][po
 [router-api]: https://github.com/alphagov/router-api
 [post]: https://gdstechnology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk/
 
-## Local Setup & Build
+## Technical documentation
 
-The router needs to be built from within a Go [workspace][workspace] for it to
-correctly identify the vendored dependencies.  Assuming you already have Go and
-a `$GOPATH` set up, you can simply run `go get github.com/alphagov/router` to
-pull the source into your workspace.
+Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
 
-Once you have the code set up correctly, building and running the application
-is simple:
+You can use the [GOV.UK Docker environment](https://github.com/alphagov/govuk-docker) to run the application and its tests with all the necessary dependencies. Follow [the usage instructions](https://github.com/alphagov/govuk-docker#usage) to get started.
 
-    make
-    ./router -h
+**Use GOV.UK Docker to run any commands that follow.**
 
-[workspace]: https://golang.org/doc/code.html#Workspaces
-
-## Tests
+### Running the test suite
 
 You can run all tests by running:
 
@@ -55,14 +48,14 @@ These require a local MongoDB instance and can be run with:
 Some of the integration tests are optional because they have certain
 environment requirements that make them unfeasible to run within CI.
 
-## Dependencies
+### Dependencies
 
 This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to vendor its dependencies.
 If you have a working [Go][go] development setup, you should be able to update the dependencies via:
 
     go mod vendor
 
-## Metrics
+### Metrics
 
 Router exposes metrics in [Prometheus](https://prometheus.io) format using the
 [Go prometheus client
@@ -71,7 +64,7 @@ library](https://godoc.org/github.com/dnesting/client_golang/prometheus).
 See commit b443d3dd9cf776143eed270d01bd98d2233caea6 as an example for how to
 add a metric.
 
-## Further documentation
+### Further documentation
 
 - [Data structure](docs/data-structure.md)
 
