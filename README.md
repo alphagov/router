@@ -30,23 +30,24 @@ You can use the [GOV.UK Docker environment](https://github.com/alphagov/govuk-do
 
 You can run all tests by running:
 
-    make test
+```
+make test
+```
 
 The `trie` and `triemux` sub-packages have unit tests and benchmarks written
 in Go's own testing framework. To run them individually:
 
-    go test -bench=. ./trie ./triemux
+```
+go test -bench=. ./trie ./triemux
+```
 
 The `router` itself doesn't really benefit from having unit tests around
 individual functions. Instead it has a comprehensive set of integration
 tests to exercise it's HTTP handling, error reporting, and performance.
 
-These require a local MongoDB instance and can be run with:
-
-    go test ./integration_tests
-
-Some of the integration tests are optional because they have certain
-environment requirements that make them unfeasible to run within CI.
+```
+go test ./integration_tests
+```
 
 ### Dependencies
 
