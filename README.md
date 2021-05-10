@@ -62,10 +62,6 @@ If you have a working [Go][go] development setup, you should be able to update t
 
     go mod vendor
 
-## Error logging
-
-The logger package stores errors in logfiles and reports them to Sentry.
-
 ## Metrics
 
 Router exposes metrics in [Prometheus](https://prometheus.io) format using the
