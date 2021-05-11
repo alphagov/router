@@ -46,10 +46,9 @@ tests to exercise it's HTTP handling, error reporting, and performance.
 go test ./integration_tests
 ```
 
-### Dependencies
+### Updating dependencies
 
-This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to vendor its dependencies.
-If you have a working [Go][go] development setup, you should be able to update the dependencies via:
+This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to vendor its dependencies. To update the dependencies:
 
     go mod vendor
 
