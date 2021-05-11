@@ -52,19 +52,11 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 
     go mod vendor
 
-### Metrics
-
-Router exposes metrics in [Prometheus](https://prometheus.io) format using the
-[Go prometheus client
-library](https://godoc.org/github.com/dnesting/client_golang/prometheus).
-
-See commit b443d3dd9cf776143eed270d01bd98d2233caea6 as an example for how to
-add a metric.
-
 ### Further documentation
 
 - [Data structure](docs/data-structure.md)
 - [Original thinking behind the router](https://gdstechnology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk)
+- [Example of adding a metric](https://github.com/alphagov/router/commit/b443d3dd9cf776143eed270d01bd98d2233caea6) using the [Go prometheus client library](https://godoc.org/github.com/dnesting/client_golang/prometheus)
 
 ## License
 
