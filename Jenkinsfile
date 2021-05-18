@@ -62,7 +62,7 @@ node ('mongodb-2.4') {
 
     // Push the Go binary for the build to S3, for AWS releases
     stage("Push binary to S3") {
-      if (env.BRANCH_NAME == "master") {
+      if (env.BRANCH_NAME == "main") {
         govuk.uploadArtefactToS3('router', "s3://govuk-integration-artefact/router/release/router")
         target_tag = "release_${env.BUILD_NUMBER}"
         govuk.uploadArtefactToS3('router', "s3://govuk-integration-artefact/router/${target_tag}/router")
@@ -80,7 +80,7 @@ node ('mongodb-2.4') {
         govuk.pushDockerImage(repoName, env.BRANCH_NAME)
       }
 
-      if (env.BRANCH_NAME == "master") {
+      if (env.BRANCH_NAME == "main") {
         stage("Tag Docker release image") {
           govuk.pushDockerImage(repoName, env.BRANCH_NAME, "release")
         }
@@ -92,9 +92,9 @@ node ('mongodb-2.4') {
       }
     }
 
-    if (env.BRANCH_NAME == "master") {
+    if (env.BRANCH_NAME == "main") {
       stage("Push release tag") {
-        govuk.pushTag('router', env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER)
+        govuk.pushTag('router', env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER, 'main')
       }
 
       stage("Deploy to integration") {
