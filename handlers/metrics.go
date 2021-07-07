@@ -13,7 +13,6 @@ var (
 		[]string{
 			"redirect_code",
 			"redirect_type",
-			"redirect_url",
 		},
 	)
 
