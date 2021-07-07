@@ -62,9 +62,8 @@ func (handler *redirectHandler) ServeHTTP(writer http.ResponseWriter, request *h
 	http.Redirect(writer, request, target, handler.code)
 
 	RedirectHandlerRedirectCountMetric.With(prometheus.Labels{
-		"redirect_type": redirectHandlerType,
 		"redirect_code": fmt.Sprintf("%d", handler.code),
-		"redirect_url":  handler.url,
+		"redirect_type": redirectHandlerType,
 	}).Inc()
 }
 
@@ -87,14 +86,5 @@ func (handler *pathPreservingRedirectHandler) ServeHTTP(writer http.ResponseWrit
 	RedirectHandlerRedirectCountMetric.With(prometheus.Labels{
 		"redirect_code": fmt.Sprintf("%d", handler.code),
 		"redirect_type": pathPreservingRedirectHandlerType,
-		"redirect_url":  stripQuery(target),
 	}).Inc()
-}
-
-// stripQuery should only be called with valid URL
-// stripQuery should only be used for recording the URL used by the handler
-func stripQuery(us string) string {
-	u, _ := url.Parse(us)
-	u.RawQuery = ""
-	return u.String()
 }

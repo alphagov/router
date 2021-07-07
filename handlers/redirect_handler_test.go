@@ -53,7 +53,6 @@ var _ = Describe("Redirect handlers", func() {
 			var (
 				redirectCode string
 				redirectType string
-				redirectURL  string
 			)
 
 			if t.temporary {
@@ -64,16 +63,13 @@ var _ = Describe("Redirect handlers", func() {
 
 			if t.preserve {
 				redirectType = "path-preserving-redirect-handler"
-				redirectURL = "/target-prefix/path/subpath"
 			} else {
 				redirectType = "redirect-handler"
-				redirectURL = "/target-prefix"
 			}
 
 			labels := prometheus.Labels{
 				"redirect_code": redirectCode,
 				"redirect_type": redirectType,
-				"redirect_url":  redirectURL,
 			}
 
 			beforeCount := promtest.ToFloat64(
@@ -204,7 +200,6 @@ var _ = Describe("Redirect handlers", func() {
 				labels := prometheus.Labels{
 					"redirect_code": "302",
 					"redirect_type": "redirect-handler",
-					"redirect_url":  "/target-prefix",
 				}
 
 				beforeCount := promtest.ToFloat64(
