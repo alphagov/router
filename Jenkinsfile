@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-library("govuk")
+library("govuk@3dac99d03435e44d38e8abcf088d6bfb6045e91a")
 
 REPOSITORY = 'router'
 
