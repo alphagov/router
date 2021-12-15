@@ -8,11 +8,6 @@ on:
       - "Jenkinsfile"
       - ".git**"
 
-  pull_request:
-    paths-ignore:
-      - "Jenkinsfile"
-      - ".git**"
-
 jobs:
   publish:
     name: Build
