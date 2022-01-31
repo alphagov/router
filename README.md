@@ -52,6 +52,15 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 
     go mod vendor
 
+### Updating the version of Go
+
+Dependabot raises PR's to update the dependencies for Router. This includes raising a PR when a new version of Go is available. However to update the version of Go, it's necessary to do more than just merge this dependabot PR. Here are the steps:
+
+1. Install the new version of Go on the CI machines. You do this via puppet. See [here](https://github.com/alphagov/govuk-puppet/pull/11457/files) for an example PR. Once this PR has been approved and merged wait for puppet to run, or trigger a puppet run yourself as per [the developer docs](https://docs.publishing.service.gov.uk/manual/deploy-puppet.html#convergence).
+2. Dependabot's PR will modify the Go version in the Dockerfile, but you also need to update the version number in the file `.go-version` See [here](https://github.com/alphagov/router/pull/241/files) for an example PR.
+3. Before you merge this PR, put the branch onto staging and leave it there for a couple of weekdays. Check for anything unexpected in icinga and sentry.
+4. If you are confident that the version bump is safe for production, you can merge your PR and deploy it to production. It is best to do this at a quiet time of the day (such as 7am) to minimise any potential disruption.
+
 ### Further documentation
 
 - [Data structure](docs/data-structure.md)
