@@ -37,7 +37,7 @@ start_mongo:
 						 --health-cmd 'curl localhost:27017' \
 						 --health-start-period 15s \
 						 --network router-mongo-cluster \
-						 mongo:2.4.11 --replSet router-mongo-replica-set 
+						 mongo:3.6 --replSet router-mongo-replica-set 
 	@echo Waiting for mongo to be up
 	@until [ "`docker inspect -f '{{.State.Health.Status}}' router-mongo`" = "healthy" ]; do \
 		echo '.\c'  ; \
