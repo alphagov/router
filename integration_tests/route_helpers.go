@@ -1,12 +1,13 @@
 package integration
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,7 +18,8 @@ var _ = AfterEach(func() {
 })
 
 var (
-	routerDB *mgo.Database
+	routerDB *mongo.Database
+	testContext context.Context = context.Background()
 )
 
 type Route struct {
@@ -84,32 +86,33 @@ func initRouteHelper() error {
 		databaseUrl = "127.0.0.1"
 	}
 
-	sess, err := mgo.Dial(databaseUrl)
+	uri := "mongodb://" + databaseUrl
+	client, err := mongo.Connect(testContext, options.Client().ApplyURI(uri))
 	if err != nil {
 		return fmt.Errorf("Failed to connect to mongo: " + err.Error())
 	}
-	sess.SetSyncTimeout(10 * time.Minute)
-	sess.SetSocketTimeout(10 * time.Minute)
+	// sess.SetSyncTimeout(10 * time.Minute)
+	// sess.SetSocketTimeout(10 * time.Minute)
 
-	routerDB = sess.DB("router_test")
+	routerDB = client.Database("router_test")
 	return nil
 }
 
 func addBackend(id, url string) {
-	err := routerDB.C("backends").Insert(bson.M{"backend_id": id, "backend_url": url})
+	_, err := routerDB.Collection("backends").InsertOne(testContext, bson.M{"backend_id": id, "backend_url": url})
 	Expect(err).To(BeNil())
 }
 
 func addRoute(path string, route Route) {
 	route.IncomingPath = path
 
-	err := routerDB.C("routes").Insert(route)
+	_, err := routerDB.Collection("routes").InsertOne(testContext, route)
 	Expect(err).To(BeNil())
 }
 
 func clearRoutes() {
-	routerDB.C("routes").DropCollection()
-	routerDB.C("backends").DropCollection()
+	routerDB.Collection("routes").Drop(testContext)
+	routerDB.Collection("backends").Drop(testContext)
 }
 
 func clearRoutesWithOpcounterBump() {
