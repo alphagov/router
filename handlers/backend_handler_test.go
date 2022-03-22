@@ -273,7 +273,7 @@ var _ = Describe("Backend handler", func() {
 			It("should record the duration of proxied responses", func() {
 				Expect(
 					measureResponseDurationSeconds("504") - beforeResponseDurationSecondsMetric,
-				).To(BeNumerically("~", 1.0, 0.1))
+				).To(BeNumerically("~", 1.0, 0.2))
 			})
 		})
 	})
