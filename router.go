@@ -27,7 +27,7 @@ type Router struct {
 	mongoPollInterval     time.Duration
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
-	mongoReadToOptime     bson.MongoTimestamp
+	mongoOpcounters       [3]uint
 	logger                logger.Logger
 	ReloadChan            chan bool
 }
@@ -38,14 +38,32 @@ type Backend struct {
 	SubdomainName string `bson:"subdomain_name"`
 }
 
+type MongoServerStatus struct {
+	Opcounters MongoOpcounters `bson:"opcounters"`
+}
+
+type MongoOpcounters struct {
+	Insert uint `bson:"insert"`
+	Query uint `bson:"query"`
+	Update uint `bson:"update"`
+	Delete uint `bson:"delete"`
+	Command uint `bson:"command"`
+}
+
 type MongoReplicaSet struct {
+	HBIM uint32    									`bson:"heartbeatIntervalMillis"`
 	Members []MongoReplicaSetMember `bson:"members"`
 }
 
 type MongoReplicaSetMember struct {
 	Name    string              `bson:"name"`
-	Optime  bson.MongoTimestamp `bson:"optime"`
+	Optime  bson.M							`bson:"optime"`
 	Current bool                `bson:"self"`
+}
+
+type MongoOptime struct {
+		ts uint64 `bson:"ts"`
+		t  uint32							 `bson:"t"`
 }
 
 type Route struct {
@@ -83,11 +101,6 @@ func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, 
 		return nil, err
 	}
 
-	mongoReadToOptime, err := bson.NewMongoTimestamp(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), 1)
-	if err != nil {
-		return nil, err
-	}
-
 	logInfo("router: logging errors as JSON to", logFileName)
 
 	reloadChan := make(chan bool, 1)
@@ -98,7 +111,7 @@ func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, 
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
-		mongoReadToOptime:     mongoReadToOptime,
+		mongoOpcounters:  		 [3]uint{0, 0, 0},
 		logger:                l,
 		ReloadChan:            reloadChan,
 	}
@@ -170,21 +183,28 @@ func (rt *Router) pollAndReload() {
 			defer sess.Close()
 			sess.SetMode(mgo.SecondaryPreferred, true)
 
-			currentMongoInstance, err := rt.getCurrentMongoInstance(sess.DB("admin"))
+			// currentMongoInstance, err := rt.getCurrentMongoInstance(sess.DB("admin"))
+			// if err != nil {
+			// 	logWarn(err)
+			// 	return
+			// }
+
+			// logDebug("mgo: communicating with replica set member", currentMongoInstance.Name)
+			//
+			// logDebug("router: polled mongo instance is ", currentMongoInstance.Name)
+
+			currentMongoServerStatus, err := rt.getCurrentMongoServerStatus(sess.DB(rt.mongoDbName))
 			if err != nil {
 				logWarn(err)
 				return
 			}
 
-			logDebug("mgo: communicating with replica set member", currentMongoInstance.Name)
+			logDebug(fmt.Sprintf("router: polled mongo opcounters are I: %d, U: %d, D: %d   ", currentMongoServerStatus.Opcounters.Insert, currentMongoServerStatus.Opcounters.Update, currentMongoServerStatus.Opcounters.Delete))
+			logDebug(fmt.Sprintf("router: current read-to mongo opcounters are I: %d, U: %d, D: %d   ", rt.mongoOpcounters[0], rt.mongoOpcounters[1], rt.mongoOpcounters[2]))
 
-			logDebug("router: polled mongo instance is ", currentMongoInstance.Name)
-			logDebug("router: polled mongo optime is ", currentMongoInstance.Optime)
-			logDebug("router: current read-to mongo optime is ", rt.mongoReadToOptime)
-
-			if rt.shouldReload(currentMongoInstance) {
+			if rt.shouldReload(currentMongoServerStatus) {
 				logDebug("router: updates found")
-				rt.reloadRoutes(sess.DB(rt.mongoDbName), currentMongoInstance.Optime)
+				rt.reloadRoutes(sess.DB(rt.mongoDbName), currentMongoServerStatus)
 			} else {
 				logDebug("router: no updates found")
 			}
@@ -199,7 +219,7 @@ type mongoDatabase interface {
 // reloadRoutes reloads the routes for this Router instance on the fly. It will
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
-func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimestamp) {
+func (rt *Router) reloadRoutes(db *mgo.Database, currentMongoServerStatus MongoServerStatus) {
 	defer func() {
 		// increment this metric regardless of whether the route reload succeeded
 		routeReloadCountMetric.Inc()
@@ -213,7 +233,9 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 
 			routeReloadErrorCountMetric.Inc()
 		} else {
-			rt.mongoReadToOptime = currentOptime
+			rt.mongoOpcounters[0] = currentMongoServerStatus.Opcounters.Insert
+			rt.mongoOpcounters[1] = currentMongoServerStatus.Opcounters.Update
+			rt.mongoOpcounters[2] = currentMongoServerStatus.Opcounters.Delete
 		}
 	}()
 
@@ -232,6 +254,26 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 	routesCountMetric.Set(float64(rt.mux.RouteCount()))
 }
 
+func (rt *Router) getCurrentMongoServerStatus(db mongoDatabase) (MongoServerStatus, error) {
+	serverStatusBson := bson.M{}
+
+	if err := db.Run("serverStatus", &serverStatusBson); err != nil {
+		return MongoServerStatus{}, fmt.Errorf("router: couldn't get server status from MongoDB, skipping update (error: %v)", err)
+	}
+	serverStatusBytes, err := bson.Marshal(serverStatusBson)
+	if err != nil {
+		return MongoServerStatus{}, fmt.Errorf("router: couldn't marshal server status bson, skipping update (error: %v)", err)
+	}
+
+	serverStatus := MongoServerStatus{}
+	err = bson.Unmarshal(serverStatusBytes, &serverStatus)
+	if err != nil {
+		return MongoServerStatus{}, fmt.Errorf("router: couldn't unmarshal server status bytes, skipping update (error: %v)", err)
+	}
+
+	return serverStatus, nil
+}
+
 func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMember, error) {
 	replicaSetStatus := bson.M{}
 
@@ -239,13 +281,21 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
+
+
 	replicaSetStatusBytes, err := bson.Marshal(replicaSetStatus)
+
+	m := map[string]interface{}{}
+	bson.Unmarshal(replicaSetStatusBytes, &m)
+	fmt.Printf("%+v\n", m)
+
 	if err != nil {
 		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err)
 	}
 
 	replicaSet := MongoReplicaSet{}
 	err = bson.Unmarshal(replicaSetStatusBytes, &replicaSet)
+	logInfo(fmt.Sprintf("mongo: HBIM %d", replicaSet.HBIM))
 	if err != nil {
 		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err)
 	}
@@ -266,8 +316,16 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 	return currentInstance[0], nil
 }
 
-func (rt *Router) shouldReload(currentMongoInstance MongoReplicaSetMember) bool {
-	return currentMongoInstance.Optime > rt.mongoReadToOptime
+func (rt *Router) shouldReload(currentMongoStatus MongoServerStatus) bool {
+	e := false
+
+	if currentMongoStatus.Opcounters.Insert > rt.mongoOpcounters[0] ||
+	   currentMongoStatus.Opcounters.Update > rt.mongoOpcounters[1] ||
+	   currentMongoStatus.Opcounters.Delete > rt.mongoOpcounters[2] {
+			 	e = true
+		 }
+
+	return e
 }
 
 // loadBackends is a helper function which loads backends from the
