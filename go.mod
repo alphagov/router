@@ -12,4 +12,5 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
 	github.com/tsenart/vegeta v0.0.0-20160525192120-dbb7ee1d3e54
+	go.mongodb.org/mongo-driver v1.8.4
 )
