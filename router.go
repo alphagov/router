@@ -48,10 +48,8 @@ type MongoServerStatus struct {
 
 type MongoOpcounters struct {
 	Insert uint `bson:"insert"`
-	Query uint `bson:"query"`
 	Update uint `bson:"update"`
 	Delete uint `bson:"delete"`
-	Command uint `bson:"command"`
 }
 
 type Route struct {
@@ -100,7 +98,7 @@ func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, 
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
 		mongoContext:					 context.Background(),
-		mongoOpcounters:  		 MongoOpcounters{0, 0, 0, 0, 0},
+		mongoOpcounters:  		 MongoOpcounters{0, 0, 0},
 		logger:                l,
 		ReloadChan:            reloadChan,
 	}

@@ -44,7 +44,7 @@ var _ = Describe("Router", func() {
 		Context("with an up-to-date mongo instance", func() {
 			It("should return false", func() {
 				rt := Router{}
-				rt.mongoOpcounters = MongoOpcounters{0, 0, 0, 0, 0}
+				rt.mongoOpcounters = MongoOpcounters{0, 0, 0}
 
 				mongoServerStatus := MongoServerStatus{}
 				mongoServerStatus.Opcounters.Insert = 0
@@ -61,7 +61,7 @@ var _ = Describe("Router", func() {
 		Context("with a stale mongo instance", func() {
 			It("should return false when insert differs", func() {
 				rt := Router{}
-				rt.mongoOpcounters = MongoOpcounters{1, 1, 1, 1, 1}
+				rt.mongoOpcounters = MongoOpcounters{1, 1, 1}
 
 				mongoServerStatus := MongoServerStatus{}
 				mongoServerStatus.Opcounters.Insert = 2
@@ -76,7 +76,7 @@ var _ = Describe("Router", func() {
 
 			It("should return false when update differs", func() {
 				rt := Router{}
-				rt.mongoOpcounters = MongoOpcounters{1, 1, 1, 1, 1}
+				rt.mongoOpcounters = MongoOpcounters{1, 1, 1}
 
 				mongoServerStatus := MongoServerStatus{}
 				mongoServerStatus.Opcounters.Insert = 1
