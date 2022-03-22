@@ -111,3 +111,9 @@ func clearRoutes() {
 	routerDB.C("routes").DropCollection()
 	routerDB.C("backends").DropCollection()
 }
+
+func clearRoutesWithOpcounterBump() {
+	clearRoutes()
+	addBackend("backend-1", "https://www.example.com/")
+	clearRoutes()
+}

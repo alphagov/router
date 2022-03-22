@@ -11,6 +11,7 @@ var _ = Describe("error handling", func() {
 
 	Describe("handling an empty routing table", func() {
 		BeforeEach(func() {
+			clearRoutesWithOpcounterBump()
 			reloadRoutes()
 		})
 

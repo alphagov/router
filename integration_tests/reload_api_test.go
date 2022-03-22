@@ -71,6 +71,23 @@ var _ = Describe("reload API endpoint", func() {
 
 	Describe("route stats", func() {
 
+		Context("with no routes", func() {
+			var data map[string]map[string]interface{}
+
+			BeforeEach(func() {
+				clearRoutesWithOpcounterBump()
+				reloadRoutes()
+
+				resp := doRequest(newRequest("GET", routerAPIURL("/stats")))
+				Expect(resp.StatusCode).To(Equal(200))
+				readJSONBody(resp, &data)
+			})
+
+			It("should return the number of routes loaded", func() {
+				Expect(data["routes"]["count"]).To(BeEquivalentTo(0))
+			})
+		})
+
 		Context("with some routes loaded", func() {
 			var data map[string]map[string]interface{}
 
@@ -86,22 +103,6 @@ var _ = Describe("reload API endpoint", func() {
 
 			It("should return the number of routes loaded", func() {
 				Expect(data["routes"]["count"]).To(BeEquivalentTo(3))
-			})
-		})
-
-		Context("with no routes", func() {
-			var data map[string]map[string]interface{}
-
-			BeforeEach(func() {
-				reloadRoutes()
-
-				resp := doRequest(newRequest("GET", routerAPIURL("/stats")))
-				Expect(resp.StatusCode).To(Equal(200))
-				readJSONBody(resp, &data)
-			})
-
-			It("should return the number of routes loaded", func() {
-				Expect(data["routes"]["count"]).To(BeEquivalentTo(0))
 			})
 		})
 
