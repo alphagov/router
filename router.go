@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,8 +14,10 @@ import (
 	"github.com/alphagov/router/handlers"
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
@@ -27,7 +30,8 @@ type Router struct {
 	mongoPollInterval     time.Duration
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
-	mongoOpcounters       [3]uint
+	mongoOpcounters       MongoOpcounters
+	mongoContext					context.Context
 	logger                logger.Logger
 	ReloadChan            chan bool
 }
@@ -48,22 +52,6 @@ type MongoOpcounters struct {
 	Update uint `bson:"update"`
 	Delete uint `bson:"delete"`
 	Command uint `bson:"command"`
-}
-
-type MongoReplicaSet struct {
-	HBIM uint32    									`bson:"heartbeatIntervalMillis"`
-	Members []MongoReplicaSetMember `bson:"members"`
-}
-
-type MongoReplicaSetMember struct {
-	Name    string              `bson:"name"`
-	Optime  bson.M							`bson:"optime"`
-	Current bool                `bson:"self"`
-}
-
-type MongoOptime struct {
-		ts uint64 `bson:"ts"`
-		t  uint32							 `bson:"t"`
 }
 
 type Route struct {
@@ -111,7 +99,8 @@ func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, 
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
-		mongoOpcounters:  		 [3]uint{0, 0, 0},
+		mongoContext:					 context.Background(),
+		mongoOpcounters:  		 MongoOpcounters{0, 0, 0, 0, 0},
 		logger:                l,
 		ReloadChan:            reloadChan,
 	}
@@ -174,37 +163,35 @@ func (rt *Router) pollAndReload() {
 
 			logDebug("mgo: connecting to", rt.mongoURL)
 
-			sess, err := mgo.Dial(rt.mongoURL)
+			uri := "mongodb://" + rt.mongoURL
+			client, err := mongo.Connect(rt.mongoContext, options.Client().ApplyURI(uri))
 			if err != nil {
-				logWarn(fmt.Sprintf("mgo: error connecting to MongoDB, skipping update (error: %v)", err))
+				logWarn(fmt.Sprintf("mongo: error connecting to MongoDB, skipping update (error: %v)", err))
 				return
 			}
 
-			defer sess.Close()
-			sess.SetMode(mgo.SecondaryPreferred, true)
+			defer client.Disconnect(rt.mongoContext)
 
-			// currentMongoInstance, err := rt.getCurrentMongoInstance(sess.DB("admin"))
-			// if err != nil {
-			// 	logWarn(err)
-			// 	return
-			// }
-
-			// logDebug("mgo: communicating with replica set member", currentMongoInstance.Name)
-			//
-			// logDebug("router: polled mongo instance is ", currentMongoInstance.Name)
-
-			currentMongoServerStatus, err := rt.getCurrentMongoServerStatus(sess.DB(rt.mongoDbName))
+			currentMongoServerStatus, err := rt.getCurrentMongoServerStatus(client.Database(rt.mongoDbName))
 			if err != nil {
 				logWarn(err)
 				return
 			}
 
-			logDebug(fmt.Sprintf("router: polled mongo opcounters are I: %d, U: %d, D: %d   ", currentMongoServerStatus.Opcounters.Insert, currentMongoServerStatus.Opcounters.Update, currentMongoServerStatus.Opcounters.Delete))
-			logDebug(fmt.Sprintf("router: current read-to mongo opcounters are I: %d, U: %d, D: %d   ", rt.mongoOpcounters[0], rt.mongoOpcounters[1], rt.mongoOpcounters[2]))
+			logDebug(fmt.Sprintf("router: polled mongo opcounters are I: %d, U: %d, D: %d   ",
+				currentMongoServerStatus.Opcounters.Insert,
+				currentMongoServerStatus.Opcounters.Update,
+				currentMongoServerStatus.Opcounters.Delete))
+
+			logDebug(fmt.Sprintf("router: current read-to mongo opcounters are I: %d, U: %d, D: %d   ",
+				rt.mongoOpcounters.Insert,
+				rt.mongoOpcounters.Update,
+				rt.mongoOpcounters.Delete))
+
 
 			if rt.shouldReload(currentMongoServerStatus) {
 				logDebug("router: updates found")
-				rt.reloadRoutes(sess.DB(rt.mongoDbName), currentMongoServerStatus)
+				rt.reloadRoutes(client.Database(rt.mongoDbName), currentMongoServerStatus)
 			} else {
 				logDebug("router: no updates found")
 			}
@@ -212,14 +199,10 @@ func (rt *Router) pollAndReload() {
 	}
 }
 
-type mongoDatabase interface {
-	Run(command interface{}, result interface{}) error
-}
-
 // reloadRoutes reloads the routes for this Router instance on the fly. It will
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
-func (rt *Router) reloadRoutes(db *mgo.Database, currentMongoServerStatus MongoServerStatus) {
+func (rt *Router) reloadRoutes(db *mongo.Database, currentMongoServerStatus MongoServerStatus) {
 	defer func() {
 		// increment this metric regardless of whether the route reload succeeded
 		routeReloadCountMetric.Inc()
@@ -233,17 +216,15 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentMongoServerStatus MongoS
 
 			routeReloadErrorCountMetric.Inc()
 		} else {
-			rt.mongoOpcounters[0] = currentMongoServerStatus.Opcounters.Insert
-			rt.mongoOpcounters[1] = currentMongoServerStatus.Opcounters.Update
-			rt.mongoOpcounters[2] = currentMongoServerStatus.Opcounters.Delete
+			rt.mongoOpcounters = currentMongoServerStatus.Opcounters
 		}
 	}()
 
 	logInfo("router: reloading routes")
 	newmux := triemux.NewMux()
 
-	backends := rt.loadBackends(db.C("backends"))
-	loadRoutes(db.C("routes"), newmux, backends)
+	backends := rt.loadBackends(db.Collection("backends"))
+	rt.loadRoutes(db.Collection("routes"), newmux, backends)
 
 	rt.lock.Lock()
 	rt.mux = newmux
@@ -254,74 +235,22 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentMongoServerStatus MongoS
 	routesCountMetric.Set(float64(rt.mux.RouteCount()))
 }
 
-func (rt *Router) getCurrentMongoServerStatus(db mongoDatabase) (MongoServerStatus, error) {
-	serverStatusBson := bson.M{}
-
-	if err := db.Run("serverStatus", &serverStatusBson); err != nil {
+func (rt *Router) getCurrentMongoServerStatus(db *mongo.Database) (MongoServerStatus, error) {
+	command := bson.D{{"serverStatus", 1}}
+	var serverStatus MongoServerStatus
+	if err := db.RunCommand(rt.mongoContext, command).Decode(&serverStatus); err != nil {
 		return MongoServerStatus{}, fmt.Errorf("router: couldn't get server status from MongoDB, skipping update (error: %v)", err)
-	}
-	serverStatusBytes, err := bson.Marshal(serverStatusBson)
-	if err != nil {
-		return MongoServerStatus{}, fmt.Errorf("router: couldn't marshal server status bson, skipping update (error: %v)", err)
-	}
-
-	serverStatus := MongoServerStatus{}
-	err = bson.Unmarshal(serverStatusBytes, &serverStatus)
-	if err != nil {
-		return MongoServerStatus{}, fmt.Errorf("router: couldn't unmarshal server status bytes, skipping update (error: %v)", err)
 	}
 
 	return serverStatus, nil
 }
 
-func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMember, error) {
-	replicaSetStatus := bson.M{}
-
-	if err := db.Run("replSetGetStatus", &replicaSetStatus); err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err)
-	}
-
-
-
-	replicaSetStatusBytes, err := bson.Marshal(replicaSetStatus)
-
-	m := map[string]interface{}{}
-	bson.Unmarshal(replicaSetStatusBytes, &m)
-	fmt.Printf("%+v\n", m)
-
-	if err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err)
-	}
-
-	replicaSet := MongoReplicaSet{}
-	err = bson.Unmarshal(replicaSetStatusBytes, &replicaSet)
-	logInfo(fmt.Sprintf("mongo: HBIM %d", replicaSet.HBIM))
-	if err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err)
-	}
-
-	currentInstance := make([]MongoReplicaSetMember, 0)
-	for _, instance := range replicaSet.Members {
-		if instance.Current {
-			currentInstance = append(currentInstance, instance)
-		}
-	}
-
-	logDebug("router: MongoDB instances", currentInstance)
-
-	if len(currentInstance) != 1 {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: did not find exactly one current MongoDB instance, skipping update (current instances found: %d)", len(currentInstance))
-	}
-
-	return currentInstance[0], nil
-}
-
 func (rt *Router) shouldReload(currentMongoStatus MongoServerStatus) bool {
 	e := false
 
-	if currentMongoStatus.Opcounters.Insert > rt.mongoOpcounters[0] ||
-	   currentMongoStatus.Opcounters.Update > rt.mongoOpcounters[1] ||
-	   currentMongoStatus.Opcounters.Delete > rt.mongoOpcounters[2] {
+	if currentMongoStatus.Opcounters.Insert > rt.mongoOpcounters.Insert ||
+	   currentMongoStatus.Opcounters.Update > rt.mongoOpcounters.Update ||
+	   currentMongoStatus.Opcounters.Delete > rt.mongoOpcounters.Delete {
 			 	e = true
 		 }
 
@@ -331,13 +260,14 @@ func (rt *Router) shouldReload(currentMongoStatus MongoServerStatus) bool {
 // loadBackends is a helper function which loads backends from the
 // passed mongo collection, constructs a Handler for each one, and returns
 // them in map keyed on the backend_id
-func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Handler) {
+func (rt *Router) loadBackends(c *mongo.Collection) (backends map[string]http.Handler) {
 	backend := &Backend{}
 	backends = make(map[string]http.Handler)
 
-	iter := c.Find(nil).Iter()
+	iter, _ := c.Find(rt.mongoContext, bson.D{})
 
-	for iter.Next(&backend) {
+	for iter.Next(rt.mongoContext) {
+		iter.Decode(&backend);
 		backendURL, err := backend.ParseURL()
 		if err != nil {
 			logWarn(fmt.Sprintf("router: couldn't parse URL %s for backend %s "+
@@ -362,10 +292,10 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 
 // loadRoutes is a helper function which loads routes from the passed mongo
 // collection and registers them with the passed proxy mux.
-func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Handler) {
+func (rt *Router) loadRoutes(c *mongo.Collection, mux *triemux.Mux, backends map[string]http.Handler) {
 	route := &Route{}
 
-	iter := c.Find(nil).Iter()
+	iter, _ := c.Find(rt.mongoContext, bson.D{})
 
 	goneHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "410 Gone", http.StatusGone)
@@ -374,7 +304,8 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		http.Error(w, "503 Service Unavailable", http.StatusServiceUnavailable)
 	})
 
-	for iter.Next(&route) {
+	for iter.Next(rt.mongoContext) {
+		iter.Decode(&route);
 		prefix := (route.RouteType == "prefix")
 
 		// the database contains paths with % encoded routes.
