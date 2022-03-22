@@ -13,13 +13,6 @@ github.com/getsentry/sentry-go
 github.com/getsentry/sentry-go/internal/crypto/randutil
 github.com/getsentry/sentry-go/internal/debug
 github.com/getsentry/sentry-go/internal/ratelimit
-# github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
-## explicit
-github.com/globalsign/mgo
-github.com/globalsign/mgo/bson
-github.com/globalsign/mgo/internal/json
-github.com/globalsign/mgo/internal/sasl
-github.com/globalsign/mgo/internal/scram
 # github.com/go-stack/stack v1.8.0
 github.com/go-stack/stack
 # github.com/golang/protobuf v1.5.2
