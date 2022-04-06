@@ -35,12 +35,7 @@ type Router struct {
 	changeStreams         [2]ChangeStreamInfo
 }
 
-type ChangeStreamInfo struct {
-	collectionName  string
-	stream 					*mongo.ChangeStream
-	isValid					bool
-	invalidChan			chan bool
-}
+
 
 type Backend struct {
 	BackendID     string `bson:"backend_id"`
@@ -106,7 +101,13 @@ func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	}
 
 	go rt.pollAndReload()
-	go rt.manageChangeStreams()
+
+	msw = &MongoStreamWatcher{
+		Client:
+		ChangeChan:			reloadChan,
+		ChannelNames: 	[2]string{"routes", "backends"}
+	}
+	msw.startWatcher()
 
 	return rt, nil
 }
@@ -138,6 +139,8 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	mux.ServeHTTP(w, req)
 }
+
+
 
 func (rt *Router) manageChangeStreams() {
 	logInfo("mgo: setting up management of change streams for ", rt.mongoURL)
@@ -194,6 +197,12 @@ func (rt *Router) tryStreamWatch(client *mongo.Client, dbName string, changeStre
 	changeStream.stream = cs
 }
 
+func (rt *Router) createMongoClient() (*mongo.Client, error) {
+	logDebug("mgo: connecting to", rt.mongoURL)
+	uri := "mongodb://" + rt.mongoURL
+	return mongo.Connect(rt.mongoContext, options.Client().ApplyURI(uri))
+}
+
 // pollAndReload blocks until it receives a message on reloadChan,
 // and will immediately reload again if another message was received
 // during reload.
@@ -206,10 +215,7 @@ func (rt *Router) pollAndReload() {
 				}
 			}()
 
-			logDebug("mgo: connecting to", rt.mongoURL)
-
-			uri := "mongodb://" + rt.mongoURL
-			client, err := mongo.Connect(rt.mongoContext, options.Client().ApplyURI(uri))
+			client, err := rt.createMongoClient()
 			if err != nil {
 				logWarn(fmt.Sprintf("mongo: error connecting to MongoDB, skipping update (error: %v)", err))
 				return
