@@ -27,29 +27,25 @@ type Router struct {
 	lock                  sync.RWMutex
 	mongoURL              string
 	mongoDbName           string
-	mongoPollInterval     time.Duration
 	backendConnectTimeout time.Duration
 	backendHeaderTimeout  time.Duration
-	mongoOpcounters       MongoOpcounters
 	mongoContext					context.Context
 	logger                logger.Logger
 	ReloadChan            chan bool
+	changeStreams         [2]ChangeStreamInfo
+}
+
+type ChangeStreamInfo struct {
+	collectionName  string
+	stream 					*mongo.ChangeStream
+	isValid					bool
+	invalidChan			chan bool
 }
 
 type Backend struct {
 	BackendID     string `bson:"backend_id"`
 	BackendURL    string `bson:"backend_url"`
 	SubdomainName string `bson:"subdomain_name"`
-}
-
-type MongoServerStatus struct {
-	Opcounters MongoOpcounters `bson:"opcounters"`
-}
-
-type MongoOpcounters struct {
-	Insert uint `bson:"insert"`
-	Update uint `bson:"update"`
-	Delete uint `bson:"delete"`
 }
 
 type Route struct {
@@ -65,11 +61,7 @@ type Route struct {
 
 // NewRouter returns a new empty router instance. You will need to call
 // SelfUpdateRoutes() to initialise the self-update process for routes.
-func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
-	mgoPollInterval, err := time.ParseDuration(mongoPollInterval)
-	if err != nil {
-		return nil, err
-	}
+func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
 	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
 	if err != nil {
 		return nil, err
@@ -78,7 +70,6 @@ func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, 
 	if err != nil {
 		return nil, err
 	}
-	logInfo("router: using mongo poll interval:", mgoPollInterval)
 	logInfo("router: using backend connect timeout:", beConnTimeout)
 	logInfo("router: using backend header timeout:", beHeaderTimeout)
 
@@ -90,20 +81,32 @@ func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, 
 	logInfo("router: logging errors as JSON to", logFileName)
 
 	reloadChan := make(chan bool, 1)
+	invalidCSChan := make(chan bool, 1)
 	rt = &Router{
 		mux:                   triemux.NewMux(),
 		mongoURL:              mongoURL,
-		mongoPollInterval:     mgoPollInterval,
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,
 		mongoContext:					 context.Background(),
-		mongoOpcounters:  		 MongoOpcounters{0, 0, 0},
 		logger:                l,
 		ReloadChan:            reloadChan,
+		changeStreams:				 [2]ChangeStreamInfo{
+			ChangeStreamInfo {
+				collectionName: "routes",
+				isValid: false,
+				invalidChan: invalidCSChan,
+			},
+			ChangeStreamInfo {
+				collectionName: "backendas",
+				isValid: false,
+				invalidChan: invalidCSChan,
+			},
+		},
 	}
 
 	go rt.pollAndReload()
+	go rt.manageChangeStreams()
 
 	return rt, nil
 }
@@ -136,15 +139,59 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mux.ServeHTTP(w, req)
 }
 
-func (rt *Router) SelfUpdateRoutes() {
-	logInfo(fmt.Sprintf("router: starting self-update process, polling for route changes every %v", rt.mongoPollInterval))
+func (rt *Router) manageChangeStreams() {
+	logInfo("mgo: setting up management of change streams for ", rt.mongoURL)
 
-	tick := time.Tick(rt.mongoPollInterval)
-	for range tick {
-		logDebug("router: polling MongoDB for changes")
-
-		rt.ReloadChan <- true
+	uri := "mongodb://" + rt.mongoURL
+	client, err := mongo.Connect(rt.mongoContext, options.Client().ApplyURI(uri))
+	if err != nil {
+		logWarn(fmt.Sprintf("mongo: error connecting to MongoDB, skipping change stream checking (error: %v)", err))
+		return
 	}
+
+	// defer client.Disconnect(rt.mongoContext)
+
+	// Streams, so simple but so horrific - we need to poll their setup at first because we
+	// can't assume the database is ready for them.
+
+	for (rt.changeStreams[0].isValid == false || rt.changeStreams[1].isValid == false) {
+		for i := range rt.changeStreams {
+			if !rt.changeStreams[i].isValid {
+				rt.tryStreamWatch(client, rt.mongoDbName, &rt.changeStreams[i])
+				if rt.changeStreams[i].isValid {
+					go iterateStreamCursor(rt.mongoContext, rt.changeStreams[i].stream, rt.ReloadChan, rt.changeStreams[i].invalidChan)
+				}
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func iterateStreamCursor(context context.Context, cs *mongo.ChangeStream, reloadChan chan bool, invalidateChan chan bool) {
+	logInfo("Listening on stream!")
+	for cs.Next(context) {
+		logInfo("Detected updates in collection, signalling reload channel")
+		reloadChan <- true;
+	}
+
+	invalidateChan <- true;
+}
+
+func (rt *Router) tryStreamWatch(client *mongo.Client, dbName string, changeStream *ChangeStreamInfo) {
+	db := client.Database(dbName)
+	collection := db.Collection(changeStream.collectionName)
+
+	logInfo(fmt.Sprintf("Connecting to change stream on collection: %s", changeStream.collectionName))
+	cs, err := collection.Watch(rt.mongoContext, mongo.Pipeline{})
+	if err != nil {
+		changeStream.isValid = false
+		logWarn("Unable to listen to change stream")
+		logWarn(err)
+		return
+	}
+
+	changeStream.isValid = true
+	changeStream.stream = cs
 }
 
 // pollAndReload blocks until it receives a message on reloadChan,
@@ -170,29 +217,7 @@ func (rt *Router) pollAndReload() {
 
 			defer client.Disconnect(rt.mongoContext)
 
-			currentMongoServerStatus, err := rt.getCurrentMongoServerStatus(client.Database(rt.mongoDbName))
-			if err != nil {
-				logWarn(err)
-				return
-			}
-
-			logDebug(fmt.Sprintf("router: polled mongo opcounters are I: %d, U: %d, D: %d   ",
-				currentMongoServerStatus.Opcounters.Insert,
-				currentMongoServerStatus.Opcounters.Update,
-				currentMongoServerStatus.Opcounters.Delete))
-
-			logDebug(fmt.Sprintf("router: current read-to mongo opcounters are I: %d, U: %d, D: %d   ",
-				rt.mongoOpcounters.Insert,
-				rt.mongoOpcounters.Update,
-				rt.mongoOpcounters.Delete))
-
-
-			if rt.shouldReload(currentMongoServerStatus) {
-				logDebug("router: updates found")
-				rt.reloadRoutes(client.Database(rt.mongoDbName), currentMongoServerStatus)
-			} else {
-				logDebug("router: no updates found")
-			}
+			rt.reloadRoutes(client.Database(rt.mongoDbName))
 		}()
 	}
 }
@@ -200,7 +225,7 @@ func (rt *Router) pollAndReload() {
 // reloadRoutes reloads the routes for this Router instance on the fly. It will
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
-func (rt *Router) reloadRoutes(db *mongo.Database, currentMongoServerStatus MongoServerStatus) {
+func (rt *Router) reloadRoutes(db *mongo.Database) {
 	defer func() {
 		// increment this metric regardless of whether the route reload succeeded
 		routeReloadCountMetric.Inc()
@@ -213,8 +238,6 @@ func (rt *Router) reloadRoutes(db *mongo.Database, currentMongoServerStatus Mong
 			logger.NotifySentry(logger.ReportableError{Error: err})
 
 			routeReloadErrorCountMetric.Inc()
-		} else {
-			rt.mongoOpcounters = currentMongoServerStatus.Opcounters
 		}
 	}()
 
@@ -231,28 +254,6 @@ func (rt *Router) reloadRoutes(db *mongo.Database, currentMongoServerStatus Mong
 	logInfo(fmt.Sprintf("router: reloaded %d routes", rt.mux.RouteCount()))
 
 	routesCountMetric.Set(float64(rt.mux.RouteCount()))
-}
-
-func (rt *Router) getCurrentMongoServerStatus(db *mongo.Database) (MongoServerStatus, error) {
-	command := bson.D{{"serverStatus", 1}}
-	var serverStatus MongoServerStatus
-	if err := db.RunCommand(rt.mongoContext, command).Decode(&serverStatus); err != nil {
-		return MongoServerStatus{}, fmt.Errorf("router: couldn't get server status from MongoDB, skipping update (error: %v)", err)
-	}
-
-	return serverStatus, nil
-}
-
-func (rt *Router) shouldReload(currentMongoStatus MongoServerStatus) bool {
-	e := false
-
-	if currentMongoStatus.Opcounters.Insert > rt.mongoOpcounters.Insert ||
-	   currentMongoStatus.Opcounters.Update > rt.mongoOpcounters.Update ||
-	   currentMongoStatus.Opcounters.Delete > rt.mongoOpcounters.Delete {
-			 	e = true
-		 }
-
-	return e
 }
 
 // loadBackends is a helper function which loads backends from the

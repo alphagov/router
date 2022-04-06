@@ -109,11 +109,10 @@ func main() {
 		tablecloth.WorkingDir = wd
 	}
 
-	rout, err := NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
+	rout, err := NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	go rout.SelfUpdateRoutes()
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
