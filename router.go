@@ -32,10 +32,7 @@ type Router struct {
 	mongoContext					context.Context
 	logger                logger.Logger
 	ReloadChan            chan bool
-	changeStreams         [2]ChangeStreamInfo
 }
-
-
 
 type Backend struct {
 	BackendID     string `bson:"backend_id"`
@@ -76,7 +73,6 @@ func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 	logInfo("router: logging errors as JSON to", logFileName)
 
 	reloadChan := make(chan bool, 1)
-	invalidCSChan := make(chan bool, 1)
 	rt = &Router{
 		mux:                   triemux.NewMux(),
 		mongoURL:              mongoURL,
@@ -86,26 +82,15 @@ func NewRouter(mongoURL, mongoDbName, backendConnectTimeout, backendHeaderTimeou
 		mongoContext:					 context.Background(),
 		logger:                l,
 		ReloadChan:            reloadChan,
-		changeStreams:				 [2]ChangeStreamInfo{
-			ChangeStreamInfo {
-				collectionName: "routes",
-				isValid: false,
-				invalidChan: invalidCSChan,
-			},
-			ChangeStreamInfo {
-				collectionName: "backendas",
-				isValid: false,
-				invalidChan: invalidCSChan,
-			},
-		},
 	}
 
 	go rt.pollAndReload()
 
-	msw = &MongoStreamWatcher{
-		Client:
-		ChangeChan:			reloadChan,
-		ChannelNames: 	[2]string{"routes", "backends"}
+	msw := &MongoStreamWatcher{
+		MongoURL:       	mongoURL,
+		MongoDbName:    	mongoDbName,
+		ChangeChan:				reloadChan,
+		CollectionNames: 	[]string{"routes", "backends"},
 	}
 	msw.startWatcher()
 
@@ -140,69 +125,6 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mux.ServeHTTP(w, req)
 }
 
-
-
-func (rt *Router) manageChangeStreams() {
-	logInfo("mgo: setting up management of change streams for ", rt.mongoURL)
-
-	uri := "mongodb://" + rt.mongoURL
-	client, err := mongo.Connect(rt.mongoContext, options.Client().ApplyURI(uri))
-	if err != nil {
-		logWarn(fmt.Sprintf("mongo: error connecting to MongoDB, skipping change stream checking (error: %v)", err))
-		return
-	}
-
-	// defer client.Disconnect(rt.mongoContext)
-
-	// Streams, so simple but so horrific - we need to poll their setup at first because we
-	// can't assume the database is ready for them.
-
-	for (rt.changeStreams[0].isValid == false || rt.changeStreams[1].isValid == false) {
-		for i := range rt.changeStreams {
-			if !rt.changeStreams[i].isValid {
-				rt.tryStreamWatch(client, rt.mongoDbName, &rt.changeStreams[i])
-				if rt.changeStreams[i].isValid {
-					go iterateStreamCursor(rt.mongoContext, rt.changeStreams[i].stream, rt.ReloadChan, rt.changeStreams[i].invalidChan)
-				}
-			}
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-}
-
-func iterateStreamCursor(context context.Context, cs *mongo.ChangeStream, reloadChan chan bool, invalidateChan chan bool) {
-	logInfo("Listening on stream!")
-	for cs.Next(context) {
-		logInfo("Detected updates in collection, signalling reload channel")
-		reloadChan <- true;
-	}
-
-	invalidateChan <- true;
-}
-
-func (rt *Router) tryStreamWatch(client *mongo.Client, dbName string, changeStream *ChangeStreamInfo) {
-	db := client.Database(dbName)
-	collection := db.Collection(changeStream.collectionName)
-
-	logInfo(fmt.Sprintf("Connecting to change stream on collection: %s", changeStream.collectionName))
-	cs, err := collection.Watch(rt.mongoContext, mongo.Pipeline{})
-	if err != nil {
-		changeStream.isValid = false
-		logWarn("Unable to listen to change stream")
-		logWarn(err)
-		return
-	}
-
-	changeStream.isValid = true
-	changeStream.stream = cs
-}
-
-func (rt *Router) createMongoClient() (*mongo.Client, error) {
-	logDebug("mgo: connecting to", rt.mongoURL)
-	uri := "mongodb://" + rt.mongoURL
-	return mongo.Connect(rt.mongoContext, options.Client().ApplyURI(uri))
-}
-
 // pollAndReload blocks until it receives a message on reloadChan,
 // and will immediately reload again if another message was received
 // during reload.
@@ -215,7 +137,9 @@ func (rt *Router) pollAndReload() {
 				}
 			}()
 
-			client, err := rt.createMongoClient()
+			logDebug("mgo: connecting to", rt.mongoURL)
+			uri := "mongodb://" + rt.mongoURL
+			client, err := mongo.Connect(rt.mongoContext, options.Client().ApplyURI(uri))
 			if err != nil {
 				logWarn(fmt.Sprintf("mongo: error connecting to MongoDB, skipping update (error: %v)", err))
 				return
