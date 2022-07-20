@@ -7,7 +7,7 @@ github.com/beorn7/perks/quantile
 github.com/cespare/xxhash/v2
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
-# github.com/getsentry/sentry-go v0.12.0
+# github.com/getsentry/sentry-go v0.13.0
 ## explicit
 github.com/getsentry/sentry-go
 github.com/getsentry/sentry-go/internal/crypto/randutil
