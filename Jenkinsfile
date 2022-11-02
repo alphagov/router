@@ -73,7 +73,7 @@ node ('mongodb-2.4') {
       }
 
       stage("Deploy to integration") {
-        govuk.deployIntegration('router', env.BRANCH_NAME, "release_${env.BUILD_NUMBER}", 'deploy')
+        govuk.deployToIntegration('router', "release_${env.BUILD_NUMBER}", 'deploy')
       }
     }
   } catch (e) {
