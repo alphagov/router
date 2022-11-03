@@ -67,34 +67,13 @@ node ('mongodb-2.4') {
       }
     }
 
-    if (govuk.hasDockerfile()) {
-      stage("Build Docker image") {
-        govuk.buildDockerImage(repoName, env.BRANCH_NAME)
-      }
-
-      stage("Push Docker image") {
-        govuk.pushDockerImage(repoName, env.BRANCH_NAME)
-      }
-
-      if (env.BRANCH_NAME == "main") {
-        stage("Tag Docker release image") {
-          govuk.pushDockerImage(repoName, env.BRANCH_NAME, "release")
-        }
-
-        stage("Tag Docker release_${env.BUILD_NUMBER} image") {
-          dockerTag = "release_${env.BUILD_NUMBER}"
-          govuk.pushDockerImage(repoName, env.BRANCH_NAME, dockerTag)
-        }
-      }
-    }
-
     if (env.BRANCH_NAME == "main") {
       stage("Push release tag") {
         govuk.pushTag('router', env.BRANCH_NAME, 'release_' + env.BUILD_NUMBER, 'main')
       }
 
       stage("Deploy to integration") {
-        govuk.deployIntegration('router', env.BRANCH_NAME, "release_${env.BUILD_NUMBER}", 'deploy')
+        govuk.deployToIntegration('router', "release_${env.BUILD_NUMBER}", 'deploy')
       }
     }
   } catch (e) {
