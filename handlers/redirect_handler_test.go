@@ -139,7 +139,7 @@ var _ = Describe("Redirect handlers", func() {
 				"Making a request should increment the redirect handler count metric",
 			)
 		},
-		entries...,
+		entries,
 	)
 
 	Context("when we are not preserving paths", func() {
