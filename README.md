@@ -58,8 +58,21 @@ Dependabot raises PR's to update the dependencies for Router. This includes rais
 
 1. Install the new version of Go on the CI machines (See [Why do we install Go on CI machines rather than Cache machines?](#why-do-we-install-go-on-ci-machines-rather-than-cache-machines)). You do this via puppet. See [here](https://github.com/alphagov/govuk-puppet/pull/11457/files) for an example PR. Once this PR has been approved and merged wait for puppet to run, or trigger a puppet run yourself as per [the developer docs](https://docs.publishing.service.gov.uk/manual/deploy-puppet.html#convergence).
 2. Dependabot's PR will modify the Go version in the Dockerfile, but you also need to update the version number in the file `.go-version` See [here](https://github.com/alphagov/router/pull/241/files) for an example PR.
-3. Before you merge this PR, put the branch onto staging and leave it there for a couple of weekdays. Check for anything unexpected in icinga and sentry.
-4. If you are confident that the version bump is safe for production, you can merge your PR and deploy it to production. It is best to do this at a quiet time of the day (such as 7am) to minimise any potential disruption.
+3. You will also have to update the Go version in `go.mod`. This will necessitate having Go installed on your local machine, changing the version number and running in terminal `go mod tidy` and `go mod vendor` in sequence to update correctly. See [example pr](https://github.com/alphagov/router/pull/307/commits/c0e4d753a48c71e84a3e4734389191e36bae9611). Also see [Upgrading Go Modules](#upgrading-go-modules).
+4. Before you merge this PR, put the branch onto staging and leave it there for a couple of weekdays. Check for anything unexpected in icinga and sentry.
+5. If you are confident that the version bump is safe for production, you can merge your PR and deploy it to production. It is best to do this at a quiet time of the day (such as 7am) to minimise any potential disruption.
+
+#### Upgrading Go Modules
+
+Sometimes modules will need to be manually upgraded after the above steps. This will satisfy dependencies that are old and do not use the `go.mod` file management system. Most likely you will see errors that require this when there is a failure to properly vendor `go.mod` due to an unsupported feature call in a dependency.
+
+To do this, you'll require GoLang installed on your machine.
+
+1. First, follow point 3 of the above [guide for upgrating](#updating-the-version-of-go) the version of Go.
+2. If you determine through test failures that a module will need to be upgraded, in terminal at the root of `router` type in the following: `go get -u [repo-of-module]` - For example: `go get -u github.com/streadway/quantile`
+3. Run `go mod tidy` and `go mod vendor`. Check for any errors and commit.
+
+You may have to push your branch to see if this causes further errors on the Jenkins CI machines.
 
 #### Why do we install Go on CI machines rather than Cache machines?
 
