@@ -5,7 +5,8 @@ import (
 	"net/http/httptest"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -139,7 +140,7 @@ var _ = Describe("Redirect handlers", func() {
 				"Making a request should increment the redirect handler count metric",
 			)
 		},
-		entries,
+		entries...,
 	)
 
 	Context("when we are not preserving paths", func() {
