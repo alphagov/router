@@ -1,8 +1,11 @@
 <p align="center">
-  <a href="https://sentry.io" target="_blank" align="center">
-    <img src="https://sentry-brand.storage.googleapis.com/sentry-logo-black.png" width="280">
+  <a href="https://sentry.io/?utm_source=github&utm_medium=logo" target="_blank">
+    <picture>
+      <source srcset="https://sentry-brand.storage.googleapis.com/sentry-logo-white.png" media="(prefers-color-scheme: dark)" />
+      <source srcset="https://sentry-brand.storage.googleapis.com/sentry-logo-black.png" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" />
+      <img src="https://sentry-brand.storage.googleapis.com/sentry-logo-black.png" alt="Sentry" width="280">
+    </picture>
   </a>
-  <br />
 </p>
 
 # Official Sentry SDK for Go
@@ -14,11 +17,11 @@
 [![go.dev](https://img.shields.io/badge/go.dev-pkg-007d9c.svg?style=flat)](https://pkg.go.dev/github.com/getsentry/sentry-go)
 
 `sentry-go` provides a Sentry client implementation for the Go programming
-language. This is the next line of the Go SDK for [Sentry](https://sentry.io/),
+language. This is the next generation of the Go SDK for [Sentry](https://sentry.io/),
 intended to replace the `raven-go` package.
 
 > Looking for the old `raven-go` SDK documentation? See the Legacy client section [here](https://docs.sentry.io/clients/go/).
-> If you want to start using sentry-go instead, check out the [migration guide](https://docs.sentry.io/platforms/go/migration/).
+> If you want to start using `sentry-go` instead, check out the [migration guide](https://docs.sentry.io/platforms/go/migration/).
 
 ## Requirements
 
@@ -34,14 +37,6 @@ though support for this configuration is best-effort.
 ## Installation
 
 `sentry-go` can be installed like any other Go library through `go get`:
-
-```console
-$ go get github.com/getsentry/sentry-go
-```
-
-Or, if you are already using
-[Go Modules](https://github.com/golang/go/wiki/Modules), you may specify a
-version number as well:
 
 ```console
 $ go get github.com/getsentry/sentry-go@latest
@@ -93,7 +88,7 @@ checkout the official documentation:
 - [![GoDoc](https://godoc.org/github.com/getsentry/sentry-go?status.svg)](https://godoc.org/github.com/getsentry/sentry-go)
 - [![go.dev](https://img.shields.io/badge/go.dev-pkg-007d9c.svg?style=flat)](https://pkg.go.dev/github.com/getsentry/sentry-go)
 - [![Documentation](https://img.shields.io/badge/documentation-sentry.io-green.svg)](https://docs.sentry.io/platforms/go/)
-- [![Forum](https://img.shields.io/badge/forum-sentry-green.svg)](https://forum.sentry.io/c/sdks)
+- [![Discussions](https://img.shields.io/github/discussions/getsentry/sentry-go.svg)](https://github.com/getsentry/sentry-go/discussions)
 - [![Discord](https://img.shields.io/discord/621778831602221064)](https://discord.gg/Ww9hbqr)
 - [![Stack Overflow](https://img.shields.io/badge/stack%20overflow-sentry-green.svg)](http://stackoverflow.com/questions/tagged/sentry)
 - [![Twitter Follow](https://img.shields.io/twitter/follow/getsentry?label=getsentry&style=social)](https://twitter.com/intent/follow?screen_name=getsentry)
