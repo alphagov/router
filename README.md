@@ -87,6 +87,6 @@ The updated version of golang is [only uploaded to Jenkins and CI agents](https:
 - [Example of adding a metric](https://github.com/alphagov/router/commit/b443d3dd9cf776143eed270d01bd98d2233caea6) using the [Go prometheus client library](https://godoc.org/github.com/dnesting/client_golang/prometheus)
 
 
-## License
+## Licence
 
-[MIT Licence](LICENSE)
+[MIT License](LICENCE)
