@@ -1,17 +1,75 @@
 # Changelog
 
+## 0.16.0
+
+The Sentry SDK team is happy to announce the immediate availability of Sentry Go SDK v0.16.0.
+Due to ongoing work towards a stable API for `v1.0.0`, we sadly had to include **two breaking changes** in this release.
+
+### Breaking Changes
+
+- Add `EnableTracing`, a boolean option flag to enable performance monitoring (`false` by default).
+   - If you're using `TracesSampleRate` or `TracesSampler`, this option is **required** to enable performance monitoring.
+
+      ```go
+      sentry.Init(sentry.ClientOptions{
+          EnableTracing: true,
+          TracesSampleRate: 1.0,
+      })
+      ```
+- Unify TracesSampler [#498](https://github.com/getsentry/sentry-go/pull/498)
+    - `TracesSampler` was changed to a callback that must return a `float64` between `0.0` and `1.0`.
+       
+       For example, you can apply a sample rate of `1.0` (100%) to all `/api` transactions, and a sample rate of `0.5` (50%) to all other transactions.
+       You can read more about this in our [SDK docs](https://docs.sentry.io/platforms/go/configuration/filtering/#using-sampling-to-filter-transaction-events).
+       
+       ```go
+       sentry.Init(sentry.ClientOptions{
+           TracesSampler: sentry.TracesSampler(func(ctx sentry.SamplingContext) float64 {
+                hub := sentry.GetHubFromContext(ctx.Span.Context())
+                name := hub.Scope().Transaction()
+
+                if strings.HasPrefix(name, "GET /api") {
+                    return 1.0
+                }
+
+                return 0.5
+            }),
+        }
+        ```
+
+### Features
+
+- Send errors logged with [Logrus](https://github.com/sirupsen/logrus) to Sentry.
+    - Have a look at our [logrus examples](https://github.com/getsentry/sentry-go/blob/master/example/logrus/main.go) on how to use the integration.
+- Add support for Dynamic Sampling [#491](https://github.com/getsentry/sentry-go/pull/491)
+    - You can read more about Dynamic Sampling in our [product docs](https://docs.sentry.io/product/data-management-settings/dynamic-sampling/).
+- Add detailed logging about the reason transactions are being dropped.
+    - You can enable SDK logging via `sentry.ClientOptions.Debug: true`.
+
+### Bug Fixes
+
+- Do not clone the hub when calling `StartTransaction` [#505](https://github.com/getsentry/sentry-go/pull/505)
+    - Fixes [#502](https://github.com/getsentry/sentry-go/issues/502)
+
+## 0.15.0
+
+- fix: Scope values should not override Event values (#446)
+- feat: Make maximum amount of spans configurable (#460)
+- feat: Add a method to start a transaction (#482)
+- feat: Extend User interface by adding Data, Name and Segment (#483)
+- feat: Add ClientOptions.SendDefaultPII (#485)
+
 ## 0.14.0
 
 - feat: Add function to continue from trace string (#434)
 - feat: Add `max-depth` options (#428)
-- ref: Use a `Context` type mapping to a `map[string]interface{}` for all event contexts (#444)
+- *[breaking]* ref: Use a `Context` type mapping to a `map[string]interface{}` for all event contexts (#444)
+- *[breaking]* ref: Replace deprecated `ioutil` pkg with `os` & `io` (#454)
 - ref: Optimize `stacktrace.go` from size and speed (#467)
-- ref: Replace deprecated `ioutil` pkg with `os` & `io` (#454)
 - ci: Test against `go1.19` and `go1.18`, drop `go1.16` and `go1.15` support (#432, #477)
 - deps: Dependency update to fix CVEs (#462, #464, #477)
 
-_NOTE:_
-This version drops support for Go 1.16 and Go 1.15. The currently supported Go versions are the last 3 stable releases: 1.19, 1.18 and 1.17.
+_NOTE:_ This version drops support for Go 1.16 and Go 1.15. The currently supported Go versions are the last 3 stable releases: 1.19, 1.18 and 1.17.
 
 ## v0.13.0
 
