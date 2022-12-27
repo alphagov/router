@@ -1,14 +1,14 @@
-FROM golang:1.19.4 AS builder
-ADD . /go/src/github.com/alphagov/router
-WORKDIR /go/src/github.com/alphagov/router
-RUN CGO_ENABLED=0 go build -o router
+FROM golang:1.19.4-alpine AS builder
+ARG TARGETARCH TARGETOS
+WORKDIR /src
+COPY . ./
+RUN CGO_ENABLED=0 GOARCH=$TARGETARCH GOOS=$TARGETOS go build -trimpath -ldflags="-s -w"
 
-FROM alpine:3.17.0
-COPY --from=builder /go/src/github.com/alphagov/router/router /bin/router
-RUN wget -O /etc/ssl/certs/rds-combined-ca-bundle.pem https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
-ENV GOVUK_APP_NAME router
-ENV ROUTER_PUBADDR :3054
-ENV ROUTER_APIADDR :3055
-ENV ROUTER_MONGO_URL mongo
-ENV ROUTER_MONGO_DB router
+FROM scratch
+COPY --from=builder /src/router /bin/router
+ADD https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \
+    /etc/ssl/certs/rds-combined-ca-bundle.pem
+USER 1001
 CMD ["/bin/router"]
+LABEL org.opencontainers.image.source="https://github.com/alphagov/router"
+LABEL org.opencontainers.image.license=MIT

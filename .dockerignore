@@ -1,3 +1,7 @@
 .git
 .gitignore
+Dockerfile
+Jenkinsfile
 README.md
+docs
+integration_tests
