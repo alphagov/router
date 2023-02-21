@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+const (
+	SentryTraceHeader   = "sentry-trace"
+	SentryBaggageHeader = "baggage"
+)
+
 // A Span is the building block of a Sentry transaction. Spans build up a tree
 // structure of timed operations. The span tree makes up a transaction event
 // that is sent to Sentry when the root span is finished.
@@ -47,6 +52,21 @@ type Span struct { //nolint: maligned // prefer readability over optimal memory 
 	isTransaction bool
 	// recorder stores all spans in a transaction. Guaranteed to be non-nil.
 	recorder *spanRecorder
+}
+
+// TraceParentContext describes the context of a (remote) parent span.
+//
+// The context is normally extracted from a received "sentry-trace" header and
+// used to initialize a new transaction.
+//
+// Note: the name might be not the best one. It was taken mostly to stay aligned
+// with other SDKs, and it alludes to W3C "traceparent" header (https://www.w3.org/TR/trace-context/),
+// which serves a similar purpose to "sentry-trace". We should eventually consider
+// making this type internal-only and give it a better name.
+type TraceParentContext struct {
+	TraceID      TraceID
+	ParentSpanID SpanID
+	Sampled      Sampled
 }
 
 // (*) Note on maligned:
@@ -206,6 +226,41 @@ func (s *Span) SetTag(name, value string) {
 	s.Tags[name] = value
 }
 
+// SetData sets a data on the span. It is recommended to use SetData instead of
+// accessing the data map directly as SetData takes care of initializing the map
+// when necessary.
+func (s *Span) SetData(name, value string) {
+	if s.Data == nil {
+		s.Data = make(map[string]interface{})
+	}
+	s.Data[name] = value
+}
+
+// IsTransaction checks if the given span is a transaction.
+func (s *Span) IsTransaction() bool {
+	return s.isTransaction
+}
+
+// GetTransaction returns the transaction that contains this span.
+//
+// For transaction spans it returns itself. For spans that were created manually
+// the method returns "nil".
+func (s *Span) GetTransaction() *Span {
+	spanRecorder := s.spanRecorder()
+	if spanRecorder == nil {
+		// This probably means that the Span was created manually (not via
+		// StartTransaction/StartSpan or StartChild).
+		// Return "nil" to indicate that it's not a normal situation.
+		return nil
+	}
+	recorderRoot := spanRecorder.root()
+	if recorderRoot == nil {
+		// Same as above: manually created Span.
+		return nil
+	}
+	return recorderRoot
+}
+
 // TODO(tracing): maybe add shortcuts to get/set transaction name. Right now the
 // transaction name is in the Scope, as it has existed there historically, prior
 // to tracing.
@@ -215,8 +270,9 @@ func (s *Span) SetTag(name, value string) {
 // func (s *Span) TransactionName() string
 // func (s *Span) SetTransactionName(name string)
 
-// ToSentryTrace returns the trace propagation value used with the sentry-trace
-// HTTP header.
+// ToSentryTrace returns the seralized TraceParentContext from a transaction/sapn.
+// Use this function to propagate the TraceParentContext to a downstream SDK,
+// either as the value of the "sentry-trace" HTTP header, or as an html "sentry-trace" meta tag.
 func (s *Span) ToSentryTrace() string {
 	// TODO(tracing): add instrumentation for outgoing HTTP requests using
 	// ToSentryTrace.
@@ -231,8 +287,29 @@ func (s *Span) ToSentryTrace() string {
 	return b.String()
 }
 
+// ToBaggage returns the serialized DynamicSamplingContext from a transaction.
+// Use this function to propagate the DynamicSamplingContext to a downstream SDK,
+// either as the value of the "baggage" HTTP header, or as an html "baggage" meta tag.
 func (s *Span) ToBaggage() string {
-	return s.dynamicSamplingContext.String()
+	if containingTransaction := s.GetTransaction(); containingTransaction != nil {
+		// In case there is currently no frozen DynamicSamplingContext attached to the transaction,
+		// create one from the properties of the transaction.
+		if !s.dynamicSamplingContext.IsFrozen() {
+			// This will return a frozen DynamicSamplingContext.
+			s.dynamicSamplingContext = DynamicSamplingContextFromTransaction(containingTransaction)
+		}
+
+		return containingTransaction.dynamicSamplingContext.String()
+	}
+	return ""
+}
+
+// SetDynamicSamplingContext sets the given dynamic sampling context on the
+// current transaction.
+func (s *Span) SetDynamicSamplingContext(dsc DynamicSamplingContext) {
+	if s.isTransaction {
+		s.dynamicSamplingContext = dsc
+	}
 }
 
 // sentryTracePattern matches either
@@ -248,12 +325,13 @@ var sentryTracePattern = regexp.MustCompile(`^([[:xdigit:]]{32})-([[:xdigit:]]{1
 
 // updateFromSentryTrace parses a sentry-trace HTTP header (as returned by
 // ToSentryTrace) and updates fields of the span. If the header cannot be
-// recognized as valid, the span is left unchanged.
-func (s *Span) updateFromSentryTrace(header []byte) {
+// recognized as valid, the span is left unchanged. The returned value indicates
+// whether the span was updated.
+func (s *Span) updateFromSentryTrace(header []byte) (updated bool) {
 	m := sentryTracePattern.FindSubmatch(header)
 	if m == nil {
 		// no match
-		return
+		return false
 	}
 	_, _ = hex.Decode(s.TraceID[:], m[1])
 	_, _ = hex.Decode(s.ParentSpanID[:], m[2])
@@ -265,6 +343,7 @@ func (s *Span) updateFromSentryTrace(header []byte) {
 			s.Sampled = SampledTrue
 		}
 	}
+	return true
 }
 
 func (s *Span) updateFromBaggage(header []byte) {
@@ -438,6 +517,23 @@ func (s *Span) traceContext() *TraceContext {
 
 // spanRecorder stores the span tree. Guaranteed to be non-nil.
 func (s *Span) spanRecorder() *spanRecorder { return s.recorder }
+
+// ParseTraceParentContext parses a sentry-trace header and builds a TraceParentContext from the
+// parsed values. If the header was parsed correctly, the second returned argument
+// ("valid") will be set to true, otherwise (e.g., empty or malformed header) it will
+// be false.
+func ParseTraceParentContext(header []byte) (traceParentContext TraceParentContext, valid bool) {
+	s := Span{}
+	updated := s.updateFromSentryTrace(header)
+	if !updated {
+		return TraceParentContext{}, false
+	}
+	return TraceParentContext{
+		TraceID:      s.TraceID,
+		ParentSpanID: s.ParentSpanID,
+		Sampled:      s.Sampled,
+	}, true
+}
 
 // TraceID identifies a trace.
 type TraceID [16]byte
@@ -672,9 +768,17 @@ func OpName(name string) SpanOption {
 }
 
 // TransctionSource sets the source of the transaction name.
+// TODO(anton): Fix the typo.
 func TransctionSource(source TransactionSource) SpanOption {
 	return func(s *Span) {
 		s.Source = source
+	}
+}
+
+// SpanSampled updates the sampling flag for a given span.
+func SpanSampled(sampled Sampled) SpanOption {
+	return func(s *Span) {
+		s.Sampled = sampled
 	}
 }
 
@@ -684,9 +788,9 @@ func TransctionSource(source TransactionSource) SpanOption {
 //
 // ContinueFromRequest is an alias for:
 //
-// ContinueFromHeaders(r.Header.Get("sentry-trace"), r.Header.Get("baggage")).
+// ContinueFromHeaders(r.Header.Get(SentryTraceHeader), r.Header.Get(SentryBaggageHeader)).
 func ContinueFromRequest(r *http.Request) SpanOption {
-	return ContinueFromHeaders(r.Header.Get("sentry-trace"), r.Header.Get("baggage"))
+	return ContinueFromHeaders(r.Header.Get(SentryTraceHeader), r.Header.Get(SentryBaggageHeader))
 }
 
 // ContinueFromHeaders returns a span option that updates the span to continue
@@ -699,9 +803,10 @@ func ContinueFromHeaders(trace, baggage string) SpanOption {
 		if baggage != "" {
 			s.updateFromBaggage([]byte(baggage))
 		}
-		// In case a sentry-trace header is present but no baggage header,
-		// create an empty, frozen DynamicSamplingContext.
-		if trace != "" && baggage == "" {
+
+		// In case a sentry-trace header is present but there are no sentry-related
+		// values in the baggage, create an empty, frozen DynamicSamplingContext.
+		if trace != "" && !s.dynamicSamplingContext.HasEntries() {
 			s.dynamicSamplingContext = DynamicSamplingContext{
 				Frozen: true,
 			}

@@ -1,5 +1,93 @@
 # Changelog
 
+## 0.18.0
+
+The Sentry SDK team is happy to announce the immediate availability of Sentry Go SDK v0.18.0.
+This release contains initial support for [OpenTelemetry](https://opentelemetry.io/) and various other bug fixes and improvements.
+
+**Note**: This is the last release supporting Go 1.17.
+
+### Features
+
+- Initial support for [OpenTelemetry](https://opentelemetry.io/).
+  You can now send all your OpenTelemetry spans to Sentry.
+
+  Install the `otel` module
+
+  ```bash
+  go get github.com/getsentry/sentry-go \
+         github.com/getsentry/sentry-go/otel
+  ```
+
+  Configure the Sentry and OpenTelemetry SDKs
+
+  ```go
+  import (
+      "go.opentelemetry.io/otel"
+      sdktrace "go.opentelemetry.io/otel/sdk/trace"
+      "github.com/getsentry/sentry-go"
+      "github.com/getsentry/sentry-go/otel"
+      // ...
+  )
+
+  // Initlaize the Sentry SDK
+  sentry.Init(sentry.ClientOptions{
+      Dsn:              "__DSN__",
+      EnableTracing:    true,
+      TracesSampleRate: 1.0,
+  })
+
+  // Set up the Sentry span processor
+  tp := sdktrace.NewTracerProvider(
+      sdktrace.WithSpanProcessor(sentryotel.NewSentrySpanProcessor()),
+      // ...
+  )
+  otel.SetTracerProvider(tp)
+
+  // Set up the Sentry propagator
+  otel.SetTextMapPropagator(sentryotel.NewSentryPropagator())
+  ```
+
+  You can read more about using OpenTelemetry with Sentry in our [docs](https://docs.sentry.io/platforms/go/performance/instrumentation/opentelemetry/).
+
+### Bug Fixes
+
+- Do not freeze the Dynamic Sampling Context when no Sentry values are present in the baggage header ([#532](https://github.com/getsentry/sentry-go/pull/532))
+- Create a frozen Dynamic Sampling Context when calling `span.ToBaggage()` ([#566](https://github.com/getsentry/sentry-go/pull/566))
+- Fix baggage parsing and encoding in vendored otel package ([#568](https://github.com/getsentry/sentry-go/pull/568))
+
+### Misc
+
+- Add `Span.SetDynamicSamplingContext()` ([#539](https://github.com/getsentry/sentry-go/pull/539/))
+- Add various getters for `Dsn` ([#540](https://github.com/getsentry/sentry-go/pull/540))
+- Add `SpanOption::SpanSampled` ([#546](https://github.com/getsentry/sentry-go/pull/546))
+- Add `Span.SetData()` ([#542](https://github.com/getsentry/sentry-go/pull/542))
+- Add `Span.IsTransaction()` ([#543](https://github.com/getsentry/sentry-go/pull/543))
+- Add `Span.GetTransaction()` method ([#558](https://github.com/getsentry/sentry-go/pull/558))
+
+## 0.17.0
+
+The Sentry SDK team is happy to announce the immediate availability of Sentry Go SDK v0.17.0.
+This release contains a new `BeforeSendTransaction` hook option and corrects two regressions introduced in `0.16.0`.
+
+### Features
+
+- Add `BeforeSendTransaction` hook to `ClientOptions` ([#517](https://github.com/getsentry/sentry-go/pull/517))
+  - Here's [an example](https://github.com/getsentry/sentry-go/blob/master/_examples/http/main.go#L56-L66) of how BeforeSendTransaction can be used to modify or drop transaction events.
+
+### Bug Fixes
+
+- Do not crash in Span.Finish() when the Client is empty [#520](https://github.com/getsentry/sentry-go/pull/520)
+  - Fixes [#518](https://github.com/getsentry/sentry-go/issues/518)
+- Attach non-PII/non-sensitive request headers to events when `ClientOptions.SendDefaultPii` is set to `false` ([#524](https://github.com/getsentry/sentry-go/pull/524))
+  - Fixes [#523](https://github.com/getsentry/sentry-go/issues/523)
+
+### Misc
+
+- Clarify how to handle logrus.Fatalf events ([#501](https://github.com/getsentry/sentry-go/pull/501/))
+- Rename the `examples` directory to `_examples` ([#521](https://github.com/getsentry/sentry-go/pull/521))
+  - This removes an indirect dependency to `github.com/golang-jwt/jwt`
+
 ## 0.16.0
 
 The Sentry SDK team is happy to announce the immediate availability of Sentry Go SDK v0.16.0.
@@ -18,10 +106,10 @@ Due to ongoing work towards a stable API for `v1.0.0`, we sadly had to include *
       ```
 - Unify TracesSampler [#498](https://github.com/getsentry/sentry-go/pull/498)
     - `TracesSampler` was changed to a callback that must return a `float64` between `0.0` and `1.0`.
-       
+
        For example, you can apply a sample rate of `1.0` (100%) to all `/api` transactions, and a sample rate of `0.5` (50%) to all other transactions.
        You can read more about this in our [SDK docs](https://docs.sentry.io/platforms/go/configuration/filtering/#using-sampling-to-filter-transaction-events).
-       
+
        ```go
        sentry.Init(sentry.ClientOptions{
            TracesSampler: sentry.TracesSampler(func(ctx sentry.SamplingContext) float64 {
@@ -40,7 +128,7 @@ Due to ongoing work towards a stable API for `v1.0.0`, we sadly had to include *
 ### Features
 
 - Send errors logged with [Logrus](https://github.com/sirupsen/logrus) to Sentry.
-    - Have a look at our [logrus examples](https://github.com/getsentry/sentry-go/blob/master/example/logrus/main.go) on how to use the integration.
+    - Have a look at our [logrus examples](https://github.com/getsentry/sentry-go/blob/master/_examples/logrus/main.go) on how to use the integration.
 - Add support for Dynamic Sampling [#491](https://github.com/getsentry/sentry-go/pull/491)
     - You can read more about Dynamic Sampling in our [product docs](https://docs.sentry.io/product/data-management-settings/dynamic-sampling/).
 - Add detailed logging about the reason transactions are being dropped.
@@ -128,7 +216,7 @@ There are no breaking changes and upgrading should be a smooth experience for al
 _NOTE:_
 This version introduces support for [Sentry's Performance Monitoring](https://docs.sentry.io/platforms/go/performance/).
 The new tracing capabilities are beta, and we plan to expand them on future versions. Feedback is welcome, please open new issues on GitHub.
-The `sentryhttp` package got better API docs, an [updated usage example](https://github.com/getsentry/sentry-go/tree/master/example/http) and support for creating automatic transactions as part of Performance Monitoring.
+The `sentryhttp` package got better API docs, an [updated usage example](https://github.com/getsentry/sentry-go/tree/master/_examples/http) and support for creating automatic transactions as part of Performance Monitoring.
 
 ## v0.8.0
 
