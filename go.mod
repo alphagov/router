@@ -7,7 +7,7 @@ require (
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.27.1
+	github.com/onsi/gomega v1.27.2
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
 	github.com/tsenart/vegeta v0.0.0-20160525192120-dbb7ee1d3e54
