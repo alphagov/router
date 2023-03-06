@@ -124,8 +124,8 @@ var _ = Describe("Performance", func() {
 	})
 })
 
-func assertPerformantRouter(backend1, backend2 *httptest.Server, optionalRate ...uint64) {
-	var rate uint64 = 50
+func assertPerformantRouter(backend1, backend2 *httptest.Server, optionalRate ...int) {
+	var rate int = 50
 	if len(optionalRate) > 0 {
 		rate = optionalRate[0]
 	}
@@ -145,7 +145,7 @@ func assertPerformantRouter(backend1, backend2 *httptest.Server, optionalRate ..
 	Expect(routerResults.Latencies.Max).To(BeNumerically("~", directResults.Latencies.Max, routerLatencyThreshold*2))
 }
 
-func startVegetaAttack(targetURLs []string, rate uint64) chan *vegeta.Metrics {
+func startVegetaAttack(targetURLs []string, rate int) chan *vegeta.Metrics {
 	targets := make([]vegeta.Target, 0, len(targetURLs))
 	for _, url := range targetURLs {
 		targets = append(targets, vegeta.Target{
@@ -159,11 +159,11 @@ func startVegetaAttack(targetURLs []string, rate uint64) chan *vegeta.Metrics {
 	return metricsChan
 }
 
-func vegetaAttack(targeter vegeta.Targeter, rate uint64, metricsChan chan *vegeta.Metrics) {
+func vegetaAttack(targeter vegeta.Targeter, rate int, metricsChan chan *vegeta.Metrics) {
 	attacker := vegeta.NewAttacker()
 
 	var metrics vegeta.Metrics
-	for res := range attacker.Attack(targeter, rate, 10*time.Second) {
+	for res := range attacker.Attack(targeter, vegeta.Pacer(vegeta.ConstantPacer{Freq: rate, Per: 10 * time.Second}), 10*time.Second, "performance-attacker") {
 		metrics.Add(res)
 	}
 	metrics.Close()
@@ -174,7 +174,7 @@ func vegetaAttack(targeter vegeta.Targeter, rate uint64, metricsChan chan *veget
 func startVegetaLoad(targetURL string) *vegeta.Attacker {
 	attacker := vegeta.NewAttacker()
 	targetter := vegeta.NewStaticTargeter(vegeta.Target{Method: "GET", URL: targetURL})
-	resCh := attacker.Attack(targetter, 50, time.Minute)
+	resCh := attacker.Attack(targetter, vegeta.Pacer(vegeta.ConstantPacer{Freq: 50, Per: time.Minute}), time.Minute, "performance-attacker")
 
 	// Consume and discard results.  Without this, all the workers will block sending
 	// to the channel - https://github.com/tsenart/vegeta/blob/v5.4.0/lib/attack.go#L143
