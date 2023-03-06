@@ -1,13 +1,15 @@
 package vegeta
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
-	"strings"
+	"net/url"
 	"sync"
 	"time"
 
@@ -16,11 +18,16 @@ import (
 
 // Attacker is an attack executor which wraps an http.Client
 type Attacker struct {
-	dialer    *net.Dialer
-	client    http.Client
-	stopch    chan struct{}
-	workers   uint64
-	redirects int
+	dialer     *net.Dialer
+	client     http.Client
+	stopch     chan struct{}
+	workers    uint64
+	maxWorkers uint64
+	maxBody    int64
+	redirects  int
+	seqmu      sync.Mutex
+	seq        uint64
+	began      time.Time
 }
 
 const (
@@ -35,6 +42,11 @@ const (
 	DefaultConnections = 10000
 	// DefaultWorkers is the default initial number of workers used to carry an attack.
 	DefaultWorkers = 10
+	// DefaultMaxWorkers is the default maximum number of workers used to carry an attack.
+	DefaultMaxWorkers = math.MaxUint64
+	// DefaultMaxBody is the default max number of bytes to be read from response bodies.
+	// Defaults to no limit.
+	DefaultMaxBody = int64(-1)
 	// NoFollow is the value when redirects are not followed but marked successful
 	NoFollow = -1
 )
@@ -49,20 +61,26 @@ var (
 // NewAttacker returns a new Attacker with default options which are overridden
 // by the optionally provided opts.
 func NewAttacker(opts ...func(*Attacker)) *Attacker {
-	a := &Attacker{stopch: make(chan struct{}), workers: DefaultWorkers}
+	a := &Attacker{
+		stopch:     make(chan struct{}),
+		workers:    DefaultWorkers,
+		maxWorkers: DefaultMaxWorkers,
+		maxBody:    DefaultMaxBody,
+		began:      time.Now(),
+	}
+
 	a.dialer = &net.Dialer{
 		LocalAddr: &net.TCPAddr{IP: DefaultLocalAddr.IP, Zone: DefaultLocalAddr.Zone},
 		KeepAlive: 30 * time.Second,
-		Timeout:   DefaultTimeout,
 	}
+
 	a.client = http.Client{
+		Timeout: DefaultTimeout,
 		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			Dial:  a.dialer.Dial,
-			ResponseHeaderTimeout: DefaultTimeout,
-			TLSClientConfig:       DefaultTLSConfig,
-			TLSHandshakeTimeout:   10 * time.Second,
-			MaxIdleConnsPerHost:   DefaultConnections,
+			Proxy:               http.ProxyFromEnvironment,
+			Dial:                a.dialer.Dial,
+			TLSClientConfig:     DefaultTLSConfig,
+			MaxIdleConnsPerHost: DefaultConnections,
 		},
 	}
 
@@ -80,6 +98,12 @@ func Workers(n uint64) func(*Attacker) {
 	return func(a *Attacker) { a.workers = n }
 }
 
+// MaxWorkers returns a functional option which sets the maximum number of workers
+// an Attacker can use to hit its targets.
+func MaxWorkers(n uint64) func(*Attacker) {
+	return func(a *Attacker) { a.maxWorkers = n }
+}
+
 // Connections returns a functional option which sets the number of maximum idle
 // open connections per target host.
 func Connections(n int) func(*Attacker) {
@@ -95,22 +119,32 @@ func Redirects(n int) func(*Attacker) {
 	return func(a *Attacker) {
 		a.redirects = n
 		a.client.CheckRedirect = func(_ *http.Request, via []*http.Request) error {
-			if len(via) > n {
+			switch {
+			case n == NoFollow:
+				return http.ErrUseLastResponse
+			case n < len(via):
 				return fmt.Errorf("stopped after %d redirects", n)
+			default:
+				return nil
 			}
-			return nil
 		}
 	}
 }
 
-// Timeout returns a functional option which sets the maximum amount of time
-// an Attacker will wait for a request to be responded to.
-func Timeout(d time.Duration) func(*Attacker) {
+// Proxy returns a functional option which sets the `Proxy` field on
+// the http.Client's Transport
+func Proxy(proxy func(*http.Request) (*url.URL, error)) func(*Attacker) {
 	return func(a *Attacker) {
 		tr := a.client.Transport.(*http.Transport)
-		tr.ResponseHeaderTimeout = d
-		a.dialer.Timeout = d
-		tr.Dial = a.dialer.Dial
+		tr.Proxy = proxy
+	}
+}
+
+// Timeout returns a functional option which sets the maximum amount of time
+// an Attacker will wait for a request to be responded to and completely read.
+func Timeout(d time.Duration) func(*Attacker) {
+	return func(a *Attacker) {
+		a.client.Timeout = d
 	}
 }
 
@@ -158,37 +192,101 @@ func HTTP2(enabled bool) func(*Attacker) {
 	}
 }
 
+// H2C returns a functional option which enables H2C support on requests
+// performed by an Attacker
+func H2C(enabled bool) func(*Attacker) {
+	return func(a *Attacker) {
+		if tr := a.client.Transport.(*http.Transport); enabled {
+			a.client.Transport = &http2.Transport{
+				AllowHTTP: true,
+				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+					return tr.Dial(network, addr)
+				},
+			}
+		}
+	}
+}
+
+// MaxBody returns a functional option which limits the max number of bytes
+// read from response bodies. Set to -1 to disable any limits.
+func MaxBody(n int64) func(*Attacker) {
+	return func(a *Attacker) { a.maxBody = n }
+}
+
+// UnixSocket changes the dialer for the attacker to use the specified unix socket file
+func UnixSocket(socket string) func(*Attacker) {
+	return func(a *Attacker) {
+		if tr, ok := a.client.Transport.(*http.Transport); socket != "" && ok {
+			tr.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", socket)
+			}
+		}
+	}
+}
+
+// Client returns a functional option that allows you to bring your own http.Client
+func Client(c *http.Client) func(*Attacker) {
+	return func(a *Attacker) { a.client = *c }
+}
+
 // Attack reads its Targets from the passed Targeter and attacks them at
-// the rate specified for duration time. When the duration is zero the attack
-// runs until Stop is called. Results are put into the returned channel as soon
-// as they arrive.
-func (a *Attacker) Attack(tr Targeter, rate uint64, du time.Duration) <-chan *Result {
-	var workers sync.WaitGroup
+// the rate specified by the Pacer. When the duration is zero the attack
+// runs until Stop is called. Results are sent to the returned channel as soon
+// as they arrive and will have their Attack field set to the given name.
+func (a *Attacker) Attack(tr Targeter, p Pacer, du time.Duration, name string) <-chan *Result {
+	var wg sync.WaitGroup
+
+	workers := a.workers
+	if workers > a.maxWorkers {
+		workers = a.maxWorkers
+	}
+
 	results := make(chan *Result)
-	ticks := make(chan time.Time)
-	for i := uint64(0); i < a.workers; i++ {
-		go a.attack(tr, &workers, ticks, results)
+	ticks := make(chan struct{})
+	for i := uint64(0); i < workers; i++ {
+		wg.Add(1)
+		go a.attack(tr, name, &wg, ticks, results)
 	}
 
 	go func() {
 		defer close(results)
-		defer workers.Wait()
+		defer wg.Wait()
 		defer close(ticks)
-		interval := 1e9 / rate
-		hits := rate * uint64(du.Seconds())
-		began, done := time.Now(), uint64(0)
+
+		began, count := time.Now(), uint64(0)
 		for {
-			now, next := time.Now(), began.Add(time.Duration(done*interval))
-			time.Sleep(next.Sub(now))
-			select {
-			case ticks <- max(next, now):
-				if done++; done == hits {
+			elapsed := time.Since(began)
+			if du > 0 && elapsed > du {
+				return
+			}
+
+			wait, stop := p.Pace(elapsed, count)
+			if stop {
+				return
+			}
+
+			time.Sleep(wait)
+
+			if workers < a.maxWorkers {
+				select {
+				case ticks <- struct{}{}:
+					count++
+					continue
+				case <-a.stopch:
 					return
+				default:
+					// all workers are blocked. start one more and try again
+					workers++
+					wg.Add(1)
+					go a.attack(tr, name, &wg, ticks, results)
 				}
+			}
+
+			select {
+			case ticks <- struct{}{}:
+				count++
 			case <-a.stopch:
 				return
-			default: // all workers are blocked. start one more and try again
-				go a.attack(tr, &workers, ticks, results)
 			}
 		}
 	}()
@@ -206,23 +304,28 @@ func (a *Attacker) Stop() {
 	}
 }
 
-func (a *Attacker) attack(tr Targeter, workers *sync.WaitGroup, ticks <-chan time.Time, results chan<- *Result) {
-	workers.Add(1)
+func (a *Attacker) attack(tr Targeter, name string, workers *sync.WaitGroup, ticks <-chan struct{}, results chan<- *Result) {
 	defer workers.Done()
-	for tm := range ticks {
-		results <- a.hit(tr, tm)
+	for range ticks {
+		results <- a.hit(tr, name)
 	}
 }
 
-func (a *Attacker) hit(tr Targeter, tm time.Time) *Result {
+func (a *Attacker) hit(tr Targeter, name string) *Result {
 	var (
-		res = Result{Timestamp: tm}
+		res = Result{Attack: name}
 		tgt Target
 		err error
 	)
 
+	a.seqmu.Lock()
+	res.Timestamp = a.began.Add(time.Since(a.began))
+	res.Seq = a.seq
+	a.seq++
+	a.seqmu.Unlock()
+
 	defer func() {
-		res.Latency = time.Since(tm)
+		res.Latency = time.Since(res.Timestamp)
 		if err != nil {
 			res.Error = err.Error()
 		}
@@ -240,19 +343,22 @@ func (a *Attacker) hit(tr Targeter, tm time.Time) *Result {
 
 	r, err := a.client.Do(req)
 	if err != nil {
-		// ignore redirect errors when the user set --redirects=NoFollow
-		if a.redirects == NoFollow && strings.Contains(err.Error(), "stopped after") {
-			err = nil
-		}
 		return &res
 	}
 	defer r.Body.Close()
 
-	in, err := io.Copy(ioutil.Discard, r.Body)
-	if err != nil {
+	body := io.Reader(r.Body)
+	if a.maxBody >= 0 {
+		body = io.LimitReader(r.Body, a.maxBody)
+	}
+
+	if res.Body, err = ioutil.ReadAll(body); err != nil {
+		return &res
+	} else if _, err = io.Copy(ioutil.Discard, r.Body); err != nil {
 		return &res
 	}
-	res.BytesIn = uint64(in)
+
+	res.BytesIn = uint64(len(res.Body))
 
 	if req.ContentLength != -1 {
 		res.BytesOut = uint64(req.ContentLength)
@@ -263,11 +369,4 @@ func (a *Attacker) hit(tr Targeter, tm time.Time) *Result {
 	}
 
 	return &res
-}
-
-func max(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
-	}
-	return b
 }
