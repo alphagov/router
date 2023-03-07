@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.19.0
+
+The Sentry SDK team is happy to announce the immediate availability of Sentry Go SDK v0.19.0.
+
+### Features
+
+- Add support for exception mechanism metadata ([#564](https://github.com/getsentry/sentry-go/pull/564/))
+  - More about exception mechanisms [here](https://develop.sentry.dev/sdk/event-payloads/exception/#exception-mechanism).
+
+### Bug Fixes
+- [otel] Use the correct "trace" context when sending a Sentry error ([#580](https://github.com/getsentry/sentry-go/pull/580/))
+
+
+### Misc
+- Drop support for Go 1.17, add support for Go 1.20 ([#563](https://github.com/getsentry/sentry-go/pull/563/))
+  - According to our policy, we're officially supporting the last three minor releases of Go.
+- Switch repository license to MIT ([#583](https://github.com/getsentry/sentry-go/pull/583/))
+  - More about Sentry licensing [here](https://open.sentry.io/licensing/).
+- Bump `golang.org/x/text` minimum required version to 0.3.8 ([#586](https://github.com/getsentry/sentry-go/pull/586))
+  - This fixes [CVE-2022-32149](https://github.com/advisories/GHSA-69ch-w2m2-3vjp) vulnerability.
+
 ## 0.18.0
 
 The Sentry SDK team is happy to announce the immediate availability of Sentry Go SDK v0.18.0.
