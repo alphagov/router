@@ -1,4 +1,4 @@
-# router
+-# router
 
 This is a HTTP reverse proxy router built on top of [`triemux`][tm]. It
 loads a routing table into memory from a MongoDB database and acts as a:
@@ -54,13 +54,14 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 
 ### Updating the version of Go
 
-Dependabot raises PR's to update the dependencies for Router. This includes raising a PR when a new version of Go is available. However to update the version of Go, it's necessary to do more than just merge this dependabot PR. Here are the steps:
+Dependabot raises PR's to update the dependencies for Router. This includes raising a PR when a new version of Go is available. However to update the version of Go, it's necessary to do more than just merge this dependabot PR. Here is an [example PR](https://github.com/alphagov/router/pull/345/files) with all the below changes, and here are the steps:
 
-1. Install the new version of Go on the CI machines (See [Why do we install Go on CI machines rather than Cache machines?](#why-do-we-install-go-on-ci-machines-rather-than-cache-machines)). You do this via puppet. See [here](https://github.com/alphagov/govuk-puppet/pull/11457/files) for an example PR. Once this PR has been approved and merged wait for puppet to run, or trigger a puppet run yourself as per [the developer docs](https://docs.publishing.service.gov.uk/manual/deploy-puppet.html#convergence).
-2. Dependabot's PR will modify the Go version in the Dockerfile, but you also need to update the version number in the file `.go-version` See [here](https://github.com/alphagov/router/pull/241/files) for an example PR.
-3. You will also have to update the Go version in `go.mod`. This will necessitate having Go installed on your local machine, changing the version number and running in terminal `go mod tidy` and `go mod vendor` in sequence to update correctly. See [example pr](https://github.com/alphagov/router/pull/307/commits/c0e4d753a48c71e84a3e4734389191e36bae9611). Also see [Upgrading Go Modules](#upgrading-go-modules).
+1. Dependabot's PR will modify the Go version in the Dockerfile (and thus what is build in the Kubernetes engine), but you also need to update the version number in the file `.go-version`.
+2. You will also have to update the Go version in `go.mod`. This will necessitate having Go installed on your local machine, changing the version number and running in terminal `go mod tidy` and `go mod vendor` in sequence to update correctly. This may have no changes at all, but see [example pr](https://github.com/alphagov/router/pull/307/commits/c0e4d753a48c71e84a3e4734389191e36bae9611) for a larger update. Also see [Upgrading Go Modules](#upgrading-go-modules).
+3. Finally you need to update the go version in `ci.yml`.
 4. Before you merge this PR, put the branch onto staging and leave it there for a couple of weekdays. Check for anything unexpected in icinga and sentry.
 5. If you are confident that the version bump is safe for production, you can merge your PR and deploy it to production. It is best to do this at a quiet time of the day (such as 7am) to minimise any potential disruption.
+6. Make sure govuk-docker is updated to match the new version. See [here](https://github.com/alphagov/govuk-docker/pull/643/files).
 
 #### Upgrading Go Modules
 
