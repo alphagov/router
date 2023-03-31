@@ -11,7 +11,8 @@ on:
   pull_request:
 
 jobs:
-  test:
+  test-go:
+    name: Test Go
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
