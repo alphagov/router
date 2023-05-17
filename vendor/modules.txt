@@ -15,7 +15,7 @@ github.com/davecgh/go-spew/spew
 # github.com/fsnotify/fsnotify v1.4.9
 ## explicit; go 1.13
 github.com/fsnotify/fsnotify
-# github.com/getsentry/sentry-go v0.20.0
+# github.com/getsentry/sentry-go v0.21.0
 ## explicit; go 1.18
 github.com/getsentry/sentry-go
 github.com/getsentry/sentry-go/internal/debug
