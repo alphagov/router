@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/trie"
@@ -66,6 +67,16 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // lookup takes a path and looks up its registered entry in the mux trie,
 // returning the handler for that path, if any matches.
 func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
+	startTime := time.Now()
+	defer func() {
+		TrieMuxLookupCountMetric.Inc()
+		TrieMuxLookupDurationMicrosecondsMetric.With(
+			prometheus.Labels{},
+		).Observe(
+			float64(time.Since(startTime).Microseconds()),
+		)
+	}()
+
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 

@@ -167,33 +167,46 @@ var lookupExamples = []LookupExample{
 }
 
 func TestLookup(t *testing.T) {
-	beforeCount := promtest.ToFloat64(EntryNotFoundCountMetric)
+	beforeEntryNotFoundCount := promtest.ToFloat64(EntryNotFoundCountMetric)
+	beforeTrieMuxLookupCount := promtest.ToFloat64(TrieMuxLookupCountMetric)
 
 	for _, ex := range lookupExamples {
 		testLookup(t, ex)
 	}
 
-	afterCount := promtest.ToFloat64(EntryNotFoundCountMetric)
-	notFoundCount := afterCount - beforeCount
+	afterEntryNotFoundCount := promtest.ToFloat64(EntryNotFoundCountMetric)
+	entryNotFoundCount := afterEntryNotFoundCount - beforeEntryNotFoundCount
 
-	var expectedNotFoundCount int
+	afterTrieMuxLookupCount := promtest.ToFloat64(TrieMuxLookupCountMetric)
+	trieMuxLookupCount := afterTrieMuxLookupCount - beforeTrieMuxLookupCount
+
+	var expectedEntryNotFoundCount int
+	var expectedTrieMuxLookupCount int
 
 	for _, ex := range lookupExamples {
 		for _, c := range ex.checks {
+			expectedTrieMuxLookupCount++
 			if !c.ok {
-				expectedNotFoundCount++
+				expectedEntryNotFoundCount++
 			}
 		}
 	}
 
-	if expectedNotFoundCount == 0 {
-		t.Errorf("expectedNotFoundCount should not be zero")
+	if expectedEntryNotFoundCount == 0 {
+		t.Errorf("expectedEntryNotFoundCount should not be zero")
 	}
 
-	if notFoundCount != float64(expectedNotFoundCount) {
+	if entryNotFoundCount != float64(expectedEntryNotFoundCount) {
 		t.Errorf(
-			"Expected notFoundCount (%f) ok to be %f",
-			notFoundCount, float64(expectedNotFoundCount),
+			"Expected entryNotFoundCount (%f) ok to be %f",
+			entryNotFoundCount, float64(expectedEntryNotFoundCount),
+		)
+	}
+
+	if trieMuxLookupCount != float64(expectedTrieMuxLookupCount) {
+		t.Errorf(
+			"Expected trieMuxLookupCount (%f) to be %f",
+			trieMuxLookupCount, float64(expectedTrieMuxLookupCount),
 		)
 	}
 }
