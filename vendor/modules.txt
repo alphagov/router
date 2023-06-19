@@ -15,13 +15,14 @@ github.com/davecgh/go-spew/spew
 # github.com/fsnotify/fsnotify v1.4.9
 ## explicit; go 1.13
 github.com/fsnotify/fsnotify
-# github.com/getsentry/sentry-go v0.21.0
+# github.com/getsentry/sentry-go v0.22.0
 ## explicit; go 1.18
 github.com/getsentry/sentry-go
 github.com/getsentry/sentry-go/internal/debug
 github.com/getsentry/sentry-go/internal/otel/baggage
 github.com/getsentry/sentry-go/internal/otel/baggage/internal/baggage
 github.com/getsentry/sentry-go/internal/ratelimit
+github.com/getsentry/sentry-go/internal/traceparser
 # github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 ## explicit
 github.com/globalsign/mgo

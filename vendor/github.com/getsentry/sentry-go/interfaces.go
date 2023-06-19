@@ -20,6 +20,8 @@ const transactionType = "transaction"
 // eventType is the type of an error event.
 const eventType = "event"
 
+const profileType = "profile"
+
 // Level marks the severity of the event.
 type Level string
 
@@ -173,7 +175,7 @@ func NewRequest(r *http.Request) *Request {
 	var env map[string]string
 	headers := map[string]string{}
 
-	if client := CurrentHub().Client(); client != nil && client.Options().SendDefaultPII {
+	if client := CurrentHub().Client(); client != nil && client.options.SendDefaultPII {
 		// We read only the first Cookie header because of the specification:
 		// https://tools.ietf.org/html/rfc6265#section-5.4
 		// When the user agent generates an HTTP request, the user agent MUST NOT
@@ -237,7 +239,8 @@ type Exception struct {
 // SDKMetaData is a struct to stash data which is needed at some point in the SDK's event processing pipeline
 // but which shouldn't get send to Sentry.
 type SDKMetaData struct {
-	dsc DynamicSamplingContext
+	dsc                DynamicSamplingContext
+	transactionProfile *profileInfo
 }
 
 // Contains information about how the name of the transaction was determined.
