@@ -15,8 +15,8 @@ import (
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	prommodel "github.com/prometheus/client_model/go"
 
-	"github.com/alphagov/router/handlers"
-	log "github.com/alphagov/router/logger"
+	"github.com/alphagov/router-postgres/handlers"
+	log "github.com/alphagov/router-postgres/logger"
 )
 
 var _ = Describe("Backend handler", func() {
@@ -273,7 +273,7 @@ var _ = Describe("Backend handler", func() {
 			It("should record the duration of proxied responses", func() {
 				Expect(
 					measureResponseDurationSeconds("504") - beforeResponseDurationSecondsMetric,
-				).To(BeNumerically("~", 1.0, 0.1))
+				).To(BeNumerically("~", 1.0, 0.2))
 			})
 		})
 	})

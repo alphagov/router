@@ -20,7 +20,7 @@ var _ = BeforeSuite(func() {
 	if err != nil {
 		Fail(err.Error())
 	}
-	err = startRouter(3169, 3168)
+	err = startRouter(3168, 3168)
 	if err != nil {
 		Fail(err.Error())
 	}
@@ -35,6 +35,6 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterSuite(func() {
-	stopRouter(3169)
+	stopRouter(5432)
 	cleanupTempLogfile()
 })

@@ -27,6 +27,7 @@ var _ = Describe("Route selection", func() {
 			reloadRoutes()
 		})
 		AfterEach(func() {
+			clearRoutes()
 			backend1.Close()
 			backend2.Close()
 		})
@@ -76,6 +77,7 @@ var _ = Describe("Route selection", func() {
 			reloadRoutes()
 		})
 		AfterEach(func() {
+			clearRoutes()
 			backend1.Close()
 			backend2.Close()
 		})
@@ -129,6 +131,7 @@ var _ = Describe("Route selection", func() {
 			reloadRoutes()
 		})
 		AfterEach(func() {
+			clearRoutes()
 			outer.Close()
 			inner.Close()
 		})
@@ -197,6 +200,7 @@ var _ = Describe("Route selection", func() {
 				reloadRoutes()
 			})
 			AfterEach(func() {
+				clearRoutes()
 				innerer.Close()
 			})
 
@@ -252,6 +256,7 @@ var _ = Describe("Route selection", func() {
 			reloadRoutes()
 		})
 		AfterEach(func() {
+			clearRoutes()
 			backend1.Close()
 			backend2.Close()
 		})
@@ -281,6 +286,7 @@ var _ = Describe("Route selection", func() {
 			addRoute("/foo", NewBackendRoute("other"))
 		})
 		AfterEach(func() {
+			clearRoutes()
 			root.Close()
 			other.Close()
 		})
@@ -330,6 +336,7 @@ var _ = Describe("Route selection", func() {
 			reloadRoutes()
 		})
 		AfterEach(func() {
+			clearRoutes()
 			root.Close()
 			recorder.Close()
 		})
@@ -362,6 +369,7 @@ var _ = Describe("Route selection", func() {
 			addBackend("backend", recorder.URL())
 		})
 		AfterEach(func() {
+			clearRoutes()
 			recorder.Close()
 		})
 

@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 
-	"github.com/alphagov/router/handlers"
+	"github.com/alphagov/router-postgres/handlers"
 )
 
 type redirectTableEntry struct {

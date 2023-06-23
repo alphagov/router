@@ -21,6 +21,7 @@ var _ = Describe("loading routes from the db", func() {
 		addBackend("backend-2", backend2.URL)
 	})
 	AfterEach(func() {
+		clearRoutes()
 		backend1.Close()
 		backend2.Close()
 	})
@@ -89,6 +90,7 @@ var _ = Describe("loading routes from the db", func() {
 		})
 
 		AfterEach(func() {
+			clearRoutes()
 			stopRouter(3169)
 			startRouter(3169, 3168)
 			backend3.Close()

@@ -96,6 +96,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			AfterEach(func() {
+				clearRoutes()
 				tarpit1.Close()
 				tarpit2.Close()
 				stopRouter(3167)
@@ -143,6 +144,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		AfterEach(func() {
+			clearRoutes()
 			recorder.Close()
 		})
 
@@ -268,6 +270,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		AfterEach(func() {
+			clearRoutes()
 			recorder.Close()
 		})
 
@@ -328,6 +331,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		AfterEach(func() {
+			clearRoutes()
 			recorder.Close()
 		})
 
@@ -363,6 +367,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		AfterEach(func() {
+			clearRoutes()
 			recorder.Close()
 		})
 
@@ -399,6 +404,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		AfterEach(func() {
+			clearRoutes()
 			recorder.Close()
 			stopRouter(3167)
 		})
