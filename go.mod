@@ -1,4 +1,4 @@
-module github.com/alphagov/router
+module github.com/alphagov/router-postgres
 
 go 1.20
 

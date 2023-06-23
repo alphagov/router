@@ -11,15 +11,15 @@ import (
 	"time"
 
 	"github.com/alext/tablecloth"
-	"github.com/alphagov/router/handlers"
+	"github.com/alphagov/router-postgres/handlers"
 )
 
 var (
 	pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
 	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
-	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "127.0.0.1")
-	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
-	mongoPollInterval     = getenvDefault("ROUTER_MONGO_POLL_INTERVAL", "2s")
+	postgresURL           = getenvDefault("DATABASE_URL", "postgresql://postgres@127.0.0.1:27017/router?sslmode=disable")
+	postgresDbName        = getenvDefault("DATABASE_NAME", "router")
+	dbPollInterval        = getenvDefault("ROUTER_POLL_INTERVAL", "2s")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
 	tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
 	enableDebugOutput     = os.Getenv("DEBUG") != ""
@@ -109,7 +109,7 @@ func main() {
 		tablecloth.WorkingDir = wd
 	}
 
-	rout, err := NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
+	rout, err := NewRouter(postgresURL, postgresDbName, dbPollInterval, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}

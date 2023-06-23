@@ -1,6 +1,6 @@
-.PHONY: build run test clean set_local_env start_mongo cleanup_mongo show_metrics
+.PHONY: build run test clean set_local_env start_postgres cleanup_postgres show_metrics
 
-BINARY ?= $(PWD)/router
+BINARY ?= $(PWD)/router-postgres
 
 ifdef RELEASE_VERSION
 VERSION := $(RELEASE_VERSION)
@@ -28,29 +28,33 @@ set_local_env:
 	$(eval export ROUTER_PUBADDR ?= 127.0.0.1:8080)
 	$(eval export DEBUG ?= true)
 
-start_mongo:
-	docker network create router-mongo-cluster || true
+start_postgres:
+	docker network create router-postgres-test-db || true
 	docker run -dit \
-		         --name router-mongo \
+		         --name router-postgres-test-db \
+				 		 -e POSTGRES_HOST_AUTH_METHOD=trust \
 						 -d \
-						 -p 27017:27017 \
-						 --health-cmd 'curl localhost:27017' \
-						 --health-start-period 15s \
-						 --network router-mongo-cluster \
-						 mongo:2.4.11 --replSet router-mongo-replica-set 
-	@echo Waiting for mongo to be up
-	@until [ "`docker inspect -f '{{.State.Health.Status}}' router-mongo`" = "healthy" ]; do \
+						 -p 5432:5432 \
+						 --user 'postgres' \
+						 --health-cmd 'pg_isready' \
+						 --health-start-period 5s \
+						 --network router-postgres-test-db \
+						 postgres:14
+	@echo Waiting for postgres to be up
+	@until [ "`docker inspect -f '{{.State.Health.Status}}' router-postgres-test-db`" = "healthy" ]; do \
 		echo '.\c'  ; \
 	  sleep 1     ; \
-	done          ; \
-	echo
+	done          ;
 
-	docker exec -dit router-mongo mongo --eval "rs.initiate()"
+CONTAINER_NAME ?= govuk-docker_postgres-14_1
+setup_local_db:
+	docker exec -i $(CONTAINER_NAME) psql -c "CREATE DATABASE router;" && \
+	docker exec -i $(CONTAINER_NAME) psql -d router < localdb_init.sql
 
-cleanup_mongo:
-	@docker rm -f router-mongo || true
+cleanup_postgres:
+	@docker rm -f router-postgres-test-db || true
 
-test_with_docker: cleanup_mongo start_mongo set_local_env test
+test_with_docker: $(eval CONTAINER_NAME := router-postgres-test-db) cleanup_postgres start_postgres setup_local_db set_local_env test
 
 show_metrics:
 	@git grep 'Name\|Help' `# this generate awful output when there is no Help defined for a metric` \

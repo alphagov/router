@@ -1,13 +1,12 @@
 package integration
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
-
+	_ "github.com/lib/pq"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -17,7 +16,7 @@ var _ = AfterEach(func() {
 })
 
 var (
-	routerDB *mgo.Database
+	routerDB *sql.DB
 )
 
 type Route struct {
@@ -78,36 +77,48 @@ func NewGoneRoute(extraParams ...string) Route {
 }
 
 func initRouteHelper() error {
-	databaseUrl := os.Getenv("ROUTER_MONGO_URL")
+	databaseUrl := os.Getenv("DATABASE_URL")
 
 	if databaseUrl == "" {
-		databaseUrl = "127.0.0.1"
+		databaseUrl = "postgresql://postgres@127.0.0.1:5432/router?sslmode=disable"
 	}
 
-	sess, err := mgo.Dial(databaseUrl)
+	db, err := sql.Open("postgres", databaseUrl)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to mongo: " + err.Error())
+		return fmt.Errorf("Failed to connect to Postgres: " + err.Error())
 	}
-	sess.SetSyncTimeout(10 * time.Minute)
-	sess.SetSocketTimeout(10 * time.Minute)
 
-	routerDB = sess.DB("router_test")
+	db.SetConnMaxLifetime(10 * time.Minute)
+	db.SetMaxIdleConns(0)
+	db.SetMaxOpenConns(10)
+
+	routerDB = db
 	return nil
 }
 
 func addBackend(id, url string) {
-	err := routerDB.C("backends").Insert(bson.M{"backend_id": id, "backend_url": url})
+	query := `
+		INSERT INTO backends (backend_id, backend_url, created_at, updated_at)
+		VALUES ($1, $2, $3, $4)
+	`
+
+	_, err := routerDB.Exec(query, id, url, time.Now(), time.Now())
 	Expect(err).To(BeNil())
 }
 
 func addRoute(path string, route Route) {
 	route.IncomingPath = path
 
-	err := routerDB.C("routes").Insert(route)
+	query := `
+		INSERT INTO routes (incoming_path, created_at, updated_at)
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := routerDB.Exec(query, route.IncomingPath, time.Now(), time.Now())
 	Expect(err).To(BeNil())
 }
 
 func clearRoutes() {
-	routerDB.C("routes").DropCollection()
-	routerDB.C("backends").DropCollection()
+	_, err := routerDB.Exec("DELETE FROM routes; DELETE FROM backends")
+	Expect(err).To(BeNil())
 }

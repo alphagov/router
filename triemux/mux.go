@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/alphagov/router/logger"
-	"github.com/alphagov/router/trie"
+	"github.com/alphagov/router-postgres/logger"
+	"github.com/alphagov/router-postgres/trie"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

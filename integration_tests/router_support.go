@@ -45,15 +45,15 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 
 	bin := os.Getenv("BINARY")
 	if bin == "" {
-		bin = "../router"
+		bin = "../router-postgres"
 	}
 	cmd := exec.Command(bin)
 
 	env := newEnvMap(os.Environ())
 	env["ROUTER_PUBADDR"] = pubaddr
 	env["ROUTER_APIADDR"] = apiaddr
-	env["ROUTER_MONGO_DB"] = "router_test"
-	env["ROUTER_MONGO_POLL_INTERVAL"] = "2s"
+	env["DATABASE_NAME"] = "router"
+	env["ROUTER_POLL_INTERVAL"] = "2s"
 	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
 	if len(optionalExtraEnv) > 0 {
 		for k, v := range optionalExtraEnv[0] {
