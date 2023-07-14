@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -42,41 +41,35 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
 
-		if os.Getenv("RUN_FIREWALL_DEPENDENT_TESTS") != "" {
-			// This test requires a firewall block rule for connections to localhost:3170
-			// This is necessary to simulate a connection timeout
-			It("should log and return a 504 if the connection times out in the configured time", func() {
-				startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
-				defer stopRouter(3167)
-				addBackend("firewall-blocked", "http://127.0.0.1:3170/")
-				addRoute("/blocked", NewBackendRoute("firewall-blocked"))
-				reloadRoutes(3166)
+		It("should log and return a 504 if the connection times out in the configured time", func() {
+			startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
+			defer stopRouter(3167)
+			addBackend("black-hole", "http://240.0.0.0:1234/")
+			addRoute("/should-time-out", NewBackendRoute("black-hole"))
+			reloadRoutes(3166)
 
-				req, err := http.NewRequest("GET", routerURL("/blocked", 3167), nil)
-				Expect(err).To(BeNil())
-				req.Header.Set("X-Varnish", "12341111")
+			req, err := http.NewRequest("GET", routerURL("/should-time-out", 3167), nil)
+			Expect(err).To(BeNil())
+			req.Header.Set("X-Varnish", "12345678")
 
-				start := time.Now()
-				resp := doRequest(req)
-				duration := time.Now().Sub(start)
+			start := time.Now()
+			resp := doRequest(req)
+			duration := time.Now().Sub(start)
 
-				Expect(resp.StatusCode).To(Equal(504))
-				Expect(duration).To(BeNumerically("~", 320*time.Millisecond, 20*time.Millisecond)) // 300 - 340 ms
+			Expect(resp.StatusCode).To(Equal(504))
+			Expect(duration).To(BeNumerically("~", 320*time.Millisecond, 20*time.Millisecond)) // 300 - 340 ms
 
-				logDetails := lastRouterErrorLogEntry()
-				Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-					"error":          "dial tcp 127.0.0.1:3170: i/o timeout",
-					"request":        "GET /blocked HTTP/1.1",
-					"request_method": "GET",
-					"status":         float64(504), // All numbers in JSON are floating point
-					"upstream_addr":  "127.0.0.1:3170",
-					"varnish_id":     "12341111",
-				}))
-				Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
-			})
-		} else {
-			PIt("connect timeout requires firewall block rule")
-		}
+			logDetails := lastRouterErrorLogEntry()
+			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
+				"error":          "dial tcp 240.0.0.0:1234: i/o timeout",
+				"request":        "GET /should-time-out HTTP/1.1",
+				"request_method": "GET",
+				"status":         float64(504), // All numbers in JSON are floating point
+				"upstream_addr":  "240.0.0.0:1234",
+				"varnish_id":     "12345678",
+			}))
+			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
+		})
 
 		Describe("response header timeout", func() {
 			var (
