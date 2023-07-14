@@ -90,7 +90,6 @@ func (l *jsonLogger) Log(fields map[string]interface{}) {
 func (l *jsonLogger) LogFromClientRequest(fields map[string]interface{}, req *http.Request) {
 	fields["request_method"] = req.Method
 	fields["request"] = fmt.Sprintf("%s %s %s", req.Method, req.RequestURI, req.Proto)
-	fields["varnish_id"] = req.Header.Get("X-Varnish")
 
 	l.Log(fields)
 }
