@@ -73,14 +73,6 @@ To do this, you'll require GoLang installed on your machine.
 2. If you determine through test failures that a module will need to be upgraded, in terminal at the root of `router` type in the following: `go get -u [repo-of-module]` - For example: `go get -u github.com/streadway/quantile`
 3. Run `go mod tidy` and `go mod vendor`. Check for any errors and commit.
 
-You may have to push your branch to see if this causes further errors on the Jenkins CI machines.
-
-#### Why do we install Go on CI machines rather than Cache machines?
-
-Router is built on CI machines; the artefact is then [uploaded to S3](https://github.com/alphagov/router/blob/main/Jenkinsfile#L68) for use in deployment. In  deployment, the artefact is [retrieved from S3](https://github.com/alphagov/govuk-app-deployment/blob/master/router%2Fconfig%2Fdeploy.rb#L30) and uploaded to the cache machines prior to a restart.
-
-The updated version of golang is [only uploaded to Jenkins and CI agents](https://github.com/alphagov/govuk-puppet/search?q=golang).
-
 ### Further documentation
 
 - [Data structure](docs/data-structure.md)
