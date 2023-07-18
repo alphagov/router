@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths-ignore:
       - ".git**"
+      - README.md
+      - docs
   workflow_dispatch:
 
 jobs:
