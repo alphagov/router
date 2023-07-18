@@ -19,17 +19,16 @@ interface to the underlying database and route reloading.
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
 
-You can use the [GOV.UK Docker environment](https://github.com/alphagov/govuk-docker) to run the application and its tests with all the necessary dependencies. Follow [the usage instructions](https://github.com/alphagov/govuk-docker#usage) to get started.
-
-**Use GOV.UK Docker to run any commands that follow.**
-
 ### Running the test suite
 
-You can run all tests by running:
+You can run all tests (some of which need Docker installed) by running:
 
 ```
 make test
 ```
+
+You can also run just the unit tests or just the integration tests, using the
+`unit_tests` and `integration_tests` targets. The unit tests don't need Docker.
 
 The `trie` and `triemux` sub-packages have unit tests and benchmarks written
 in Go's own testing framework. To run them individually:
@@ -44,6 +43,21 @@ tests to exercise it's HTTP handling, error reporting, and performance.
 
 ```
 go test ./integration_tests
+```
+
+### Debug output
+
+To see debug messages when running tests, set both the `DEBUG` and
+`DEBUG_ROUTER` environment variables.
+
+```sh
+export DEBUG=1 DEBUG_ROUTER=1
+```
+
+or equivalently for a single run:
+
+```sh
+DEBUG=1 DEBUG_ROUTER=1 make test
 ```
 
 ### Updating dependencies
