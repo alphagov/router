@@ -1,4 +1,4 @@
-.PHONY: build test unit_tests integration_tests clean start_mongo clean_mongo clean_mongo_again
+.PHONY: all build test unit_tests integration_tests clean start_mongo clean_mongo clean_mongo_again
 
 BINARY ?= router
 SHELL := /bin/bash
