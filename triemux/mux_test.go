@@ -6,14 +6,9 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 )
-
-func init() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
 
 type SplitExample struct {
 	in  string
