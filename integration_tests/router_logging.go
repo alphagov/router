@@ -3,7 +3,6 @@ package integration
 import (
 	"bufio"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -15,7 +14,7 @@ var (
 )
 
 func setupTempLogfile() error {
-	file, err := ioutil.TempFile("", "router_error_log")
+	file, err := os.CreateTemp("", "router_error_log")
 	if err != nil {
 		return err
 	}

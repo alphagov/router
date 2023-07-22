@@ -1,7 +1,7 @@
 package handlers_test
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -103,7 +103,7 @@ var _ = Describe("Backend handler", func() {
 			})
 
 			It("should return the body", func() {
-				body, err := ioutil.ReadAll(rw.Result().Body)
+				body, err := io.ReadAll(rw.Result().Body)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("Hello World"))
 			})
@@ -128,7 +128,7 @@ var _ = Describe("Backend handler", func() {
 			})
 
 			It("should return the body", func() {
-				body, err := ioutil.ReadAll(rw.Result().Body)
+				body, err := io.ReadAll(rw.Result().Body)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("Forbidden"))
 			})

@@ -1,7 +1,7 @@
 package integration
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
@@ -293,14 +293,14 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 		It("should pass through the body unmodified", func() {
 			recorder.AppendHandlers(func(w http.ResponseWriter, req *http.Request) {
-				body, err := ioutil.ReadAll(req.Body)
+				body, err := io.ReadAll(req.Body)
 				req.Body.Close()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("I am the request body.  Woohoo!"))
 			})
 
 			req := newRequest("POST", routerURL("/foo"))
-			req.Body = ioutil.NopCloser(strings.NewReader("I am the request body.  Woohoo!"))
+			req.Body = io.NopCloser(strings.NewReader("I am the request body.  Woohoo!"))
 			resp := doRequest(req)
 			Expect(resp.StatusCode).To(Equal(200))
 

@@ -3,7 +3,7 @@ package handlers
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -182,6 +182,6 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 
 func newErrorResponse(status int) (resp *http.Response) {
 	resp = &http.Response{StatusCode: status}
-	resp.Body = ioutil.NopCloser(strings.NewReader(""))
+	resp.Body = io.NopCloser(strings.NewReader(""))
 	return
 }

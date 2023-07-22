@@ -1,9 +1,9 @@
 package triemux
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -233,7 +233,7 @@ func TestRouteCount(t *testing.T) {
 }
 
 func loadStrings(filename string) []string {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
