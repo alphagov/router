@@ -54,7 +54,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			start := time.Now()
 			resp := doRequest(req)
-			duration := time.Now().Sub(start)
+			duration := time.Since(start)
 
 			Expect(resp.StatusCode).To(Equal(504))
 			Expect(duration).To(BeNumerically("~", 320*time.Millisecond, 20*time.Millisecond)) // 300 - 340 ms
