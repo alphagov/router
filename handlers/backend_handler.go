@@ -114,6 +114,7 @@ func newBackendTransport(
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.ExpectContinueTimeout = 1 * time.Second
 
+	// #nosec G402 -- TODO: fix tests to use TLS properly.
 	if TLSSkipVerify {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
