@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ func routerRequestWithHeaders(path string, headers map[string]string, optionalPo
 }
 
 func newRequest(method, url string) *http.Request {
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), method, url, nil)
 	Expect(err).NotTo(HaveOccurred())
 	return req
 }

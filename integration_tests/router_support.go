@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -31,7 +32,16 @@ func reloadRoutes(optionalPort ...int) {
 	if len(optionalPort) > 0 {
 		port = optionalPort[0]
 	}
-	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:%d/reload", port), "", nil)
+
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		fmt.Sprintf("http://127.0.0.1:%d/reload", port),
+		http.NoBody,
+	)
+	Expect(err).NotTo(HaveOccurred())
+
+	resp, err := http.DefaultClient.Do(req)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(resp.StatusCode).To(Equal(202))
 	resp.Body.Close()
