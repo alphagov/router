@@ -77,9 +77,9 @@ var _ = Describe("loading routes from the db", func() {
 		BeforeEach(func() {
 			// This tests the behaviour of backend.ParseURL overriding the backend_url
 			// provided in the DB with the value of an env var
-			black_hole := "192.0.2.0/24"
+			blackHole := "240.0.0.0/foo"
 			backend3 = startSimpleBackend("backend 3")
-			addBackend("backend-3", black_hole)
+			addBackend("backend-3", blackHole)
 
 			stopRouter(3169)
 			err := startRouter(3169, 3168, envMap{"BACKEND_URL_backend-3": backend3.URL})
