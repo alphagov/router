@@ -23,7 +23,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			reloadRoutes()
 
 			req, err := http.NewRequest("GET", routerURL("/not-running"), nil)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
 			resp := doRequest(req)
@@ -51,7 +51,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			reloadRoutes(3166)
 
 			req, err := http.NewRequest("GET", routerURL("/should-time-out", 3167), nil)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
 			start := time.Now()

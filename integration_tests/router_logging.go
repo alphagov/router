@@ -62,6 +62,6 @@ func lastRouterErrorLogEntry() *routerLogEntry {
 	line := lastRouterErrorLogLine()
 	var entry *routerLogEntry
 	err := json.Unmarshal(line, &entry)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	return entry
 }

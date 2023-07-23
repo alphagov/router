@@ -30,7 +30,7 @@ func reloadRoutes(optionalPort ...int) {
 		port = optionalPort[0]
 	}
 	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:%d/reload", port), "", nil)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	Expect(resp.StatusCode).To(Equal(202))
 	// Now that reloading is done asynchronously, we need a small sleep to ensure
 	// it has actually been performed.

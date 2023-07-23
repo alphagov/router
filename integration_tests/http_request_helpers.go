@@ -22,7 +22,7 @@ func routerRequestWithHeaders(path string, headers map[string]string, optionalPo
 
 func newRequest(method, url string) *http.Request {
 	req, err := http.NewRequest(method, url, nil)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	return req
 }
 
@@ -42,13 +42,13 @@ func doRequest(req *http.Request) *http.Response {
 		req.Header.Set("User-Agent", "")
 	}
 	resp, err := http.DefaultTransport.RoundTrip(req)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	return resp
 }
 
 func doHTTP10Request(req *http.Request) *http.Response {
 	conn, err := net.Dial("tcp", req.URL.Host)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	defer conn.Close()
 
 	if req.Method == "" {
@@ -58,23 +58,23 @@ func doHTTP10Request(req *http.Request) *http.Response {
 	req.ProtoMinor = 0
 	fmt.Fprintf(conn, "%s %s %s\r\n", req.Method, req.URL.RequestURI(), req.Proto)
 	err = req.Header.Write(conn)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	fmt.Fprintf(conn, "\r\n")
 
 	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	return resp
 }
 
 func readBody(resp *http.Response) string {
 	bytes, err := io.ReadAll(resp.Body)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	return string(bytes)
 }
 
 func readJSONBody(resp *http.Response, data interface{}) {
 	bytes, err := io.ReadAll(resp.Body)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	err = json.Unmarshal(bytes, data)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 }

@@ -52,7 +52,7 @@ var _ = Describe("Router", func() {
 				mongoInstance.Optime = currentOptime
 
 				Expect(rt.shouldReload(mongoInstance)).To(
-					Equal(false),
+					BeFalse(),
 					"Router should determine no reload is necessary when Mongo optime hasn't changed",
 				)
 			})
@@ -69,7 +69,7 @@ var _ = Describe("Router", func() {
 				mongoInstance.Optime = currentOptime
 
 				Expect(rt.shouldReload(mongoInstance)).To(
-					Equal(true),
+					BeTrue(),
 					"Router should determine reload is necessary when Mongo optime has changed by timestamp",
 				)
 			})
@@ -84,7 +84,7 @@ var _ = Describe("Router", func() {
 				mongoInstance.Optime = currentOptime
 
 				Expect(rt.shouldReload(mongoInstance)).To(
-					Equal(true),
+					BeTrue(),
 					"Router should determine reload is necessary when Mongo optime has changed by operand",
 				)
 			})
@@ -100,8 +100,8 @@ var _ = Describe("Router", func() {
 			rt := Router{}
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
-			Expect(err).NotTo(
-				BeNil(),
+			Expect(err).To(
+				HaveOccurred(),
 				"Router should raise an error when it can't get replica set status from Mongo")
 		})
 
@@ -114,8 +114,8 @@ var _ = Describe("Router", func() {
 			rt := Router{}
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
-			Expect(err).NotTo(
-				BeNil(),
+			Expect(err).To(
+				HaveOccurred(),
 				"Router should raise an error when the current Mongo instance can't be found in the replica set status response")
 		})
 
@@ -128,8 +128,8 @@ var _ = Describe("Router", func() {
 			rt := Router{}
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
-			Expect(err).NotTo(
-				BeNil(),
+			Expect(err).To(
+				HaveOccurred(),
 				"Router should raise an error when the current Mongo instance can't be found in the replica set status response")
 		})
 
@@ -142,8 +142,8 @@ var _ = Describe("Router", func() {
 			rt := Router{}
 			_, err := rt.getCurrentMongoInstance(mockMongoObj)
 
-			Expect(err).NotTo(
-				BeNil(),
+			Expect(err).To(
+				HaveOccurred(),
 				"Router should raise an error when the replica set status response contains multiple current Mongo instances")
 		})
 

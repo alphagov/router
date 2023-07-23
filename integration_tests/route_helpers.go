@@ -97,14 +97,14 @@ func initRouteHelper() error {
 
 func addBackend(id, url string) {
 	err := routerDB.C("backends").Insert(bson.M{"backend_id": id, "backend_url": url})
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func addRoute(path string, route Route) {
 	route.IncomingPath = path
 
 	err := routerDB.C("routes").Insert(route)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func clearRoutes() {
