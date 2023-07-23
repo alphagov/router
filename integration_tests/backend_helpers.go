@@ -6,7 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	// revive:disable:dot-imports
 	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 	"github.com/onsi/gomega/ghttp"
 )
 

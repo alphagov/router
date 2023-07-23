@@ -176,12 +176,15 @@ func startVegetaLoad(targetURL string) *vegeta.Attacker {
 	targetter := vegeta.NewStaticTargeter(vegeta.Target{Method: "GET", URL: targetURL})
 	resCh := attacker.Attack(targetter, vegeta.Pacer(vegeta.ConstantPacer{Freq: 50, Per: time.Minute}), time.Minute, "performance-attacker")
 
-	// Consume and discard results.  Without this, all the workers will block sending
-	// to the channel - https://github.com/tsenart/vegeta/blob/v5.4.0/lib/attack.go#L143
+	// Consume and discard results. Without this, all the workers will block sending to the channel.
+	// TODO: record metrics and use them in tests, rather than discarding them. See
+	// https://github.com/tsenart/vegeta#usage-library
 	go func() {
+		// revive:disable:empty-block
 		for range resCh {
-			//discard
+			// discard
 		}
+		// revive:enable:empty-block
 	}()
 	return attacker
 }

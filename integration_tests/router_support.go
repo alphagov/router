@@ -9,7 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	// revive:disable:dot-imports
 	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 )
 
 func routerURL(path string, optionalPort ...int) string {

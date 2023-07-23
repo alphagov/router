@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/textproto"
 
+	// revive:disable:dot-imports
 	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 )
 
 func routerRequest(path string, optionalPort ...int) *http.Response {

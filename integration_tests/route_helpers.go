@@ -8,8 +8,10 @@ import (
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 
+	// revive:disable:dot-imports
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 )
 
 var _ = AfterEach(func() {
