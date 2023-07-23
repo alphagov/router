@@ -125,7 +125,7 @@ var _ = Describe("Performance", func() {
 })
 
 func assertPerformantRouter(backend1, backend2 *httptest.Server, optionalRate ...int) {
-	var rate int = 50
+	var rate = 50
 	if len(optionalRate) > 0 {
 		rate = optionalRate[0]
 	}

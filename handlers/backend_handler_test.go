@@ -193,7 +193,7 @@ var _ = Describe("Backend handler", func() {
 		}
 
 		measureResponseDurationSeconds := func(responseCode string) float64 {
-			return float64(measureResponseHistogram(responseCode).GetSampleSum())
+			return measureResponseHistogram(responseCode).GetSampleSum()
 		}
 
 		BeforeEach(func() {
