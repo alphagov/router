@@ -108,6 +108,6 @@ func addRoute(path string, route Route) {
 }
 
 func clearRoutes() {
-	routerDB.C("routes").DropCollection()
-	routerDB.C("backends").DropCollection()
+	_ = routerDB.C("routes").DropCollection()
+	_ = routerDB.C("backends").DropCollection()
 }

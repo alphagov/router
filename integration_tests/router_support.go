@@ -81,8 +81,10 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 func stopRouter(port int) {
 	cmd := runningRouters[port]
 	if cmd != nil && cmd.Process != nil {
-		cmd.Process.Signal(syscall.SIGINT)
-		cmd.Process.Wait()
+		err := cmd.Process.Signal(syscall.SIGINT)
+		Expect(err).NotTo(HaveOccurred())
+		_, err = cmd.Process.Wait()
+		Expect(err).NotTo(HaveOccurred())
 	}
 	delete(runningRouters, port)
 }

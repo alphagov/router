@@ -23,8 +23,10 @@ func setupTempLogfile() error {
 }
 
 func resetTempLogfile() {
-	tempLogfile.Seek(0, 0)
-	tempLogfile.Truncate(0)
+	_, err := tempLogfile.Seek(0, 0)
+	Expect(err).NotTo(HaveOccurred())
+	err = tempLogfile.Truncate(0)
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func cleanupTempLogfile() {

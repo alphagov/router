@@ -82,7 +82,8 @@ var _ = Describe("loading routes from the db", func() {
 			addBackend("backend-3", black_hole)
 
 			stopRouter(3169)
-			startRouter(3169, 3168, envMap{"BACKEND_URL_backend-3": backend3.URL})
+			err := startRouter(3169, 3168, envMap{"BACKEND_URL_backend-3": backend3.URL})
+			Expect(err).NotTo(HaveOccurred())
 
 			addRoute("/oof", NewBackendRoute("backend-3"))
 			reloadRoutes()
@@ -90,7 +91,8 @@ var _ = Describe("loading routes from the db", func() {
 
 		AfterEach(func() {
 			stopRouter(3169)
-			startRouter(3169, 3168)
+			err := startRouter(3169, 3168)
+			Expect(err).NotTo(HaveOccurred())
 			backend3.Close()
 		})
 
