@@ -20,7 +20,7 @@ func routerURL(path string, optionalPort ...int) string {
 	return fmt.Sprintf("http://127.0.0.1:%d%s", port, path)
 }
 
-func routerAPIURL(path string, optionalPort ...int) string {
+func routerAPIURL(path string) string {
 	return routerURL(path, 3168)
 }
 
