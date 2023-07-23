@@ -22,7 +22,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			addRoute("/not-running", NewBackendRoute("not-running"))
 			reloadRoutes()
 
-			req, err := http.NewRequest("GET", routerURL("/not-running"), nil)
+			req, err := http.NewRequest(http.MethodGet, routerURL("/not-running"), nil)
 			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
@@ -50,7 +50,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			addRoute("/should-time-out", NewBackendRoute("black-hole"))
 			reloadRoutes(3166)
 
-			req, err := http.NewRequest("GET", routerURL("/should-time-out", 3167), nil)
+			req, err := http.NewRequest(http.MethodGet, routerURL("/should-time-out", 3167), nil)
 			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
@@ -98,7 +98,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should log and return a 504 if a backend takes longer than the configured response timeout to start returning a response", func() {
-				req := newRequest("GET", routerURL("/tarpit1", 3167))
+				req := newRequest(http.MethodGet, routerURL("/tarpit1", 3167))
 				req.Header.Set("X-Varnish", "12341112")
 				resp := doRequest(req)
 				Expect(resp.StatusCode).To(Equal(504))
@@ -217,7 +217,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should add itself to the Via request header for an HTTP/1.0 request", func() {
-				req := newRequest("GET", routerURL("/foo"))
+				req := newRequest(http.MethodGet, routerURL("/foo"))
 				resp := doHTTP10Request(req)
 				Expect(resp.StatusCode).To(Equal(200))
 

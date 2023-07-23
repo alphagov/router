@@ -13,8 +13,8 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			w.Header().Set("Allow", "POST")
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -35,8 +35,8 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 	})
 
 	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.Header().Set("Allow", "GET")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -48,8 +48,8 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 	})
 
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.Header().Set("Allow", "GET")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -72,8 +72,8 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 	})
 
 	mux.HandleFunc("/memory-stats", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.Header().Set("Allow", "GET")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}

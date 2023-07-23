@@ -65,7 +65,7 @@ var _ = Describe("Backend handler", func() {
 
 			router.ServeHTTP(
 				rw,
-				httptest.NewRequest("GET", backendURL.String(), nil),
+				httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 			)
 		})
 
@@ -94,7 +94,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 
@@ -119,7 +119,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 
@@ -151,7 +151,7 @@ var _ = Describe("Backend handler", func() {
 			return promtest.ToFloat64(
 				handlers.BackendHandlerRequestCountMetric.With(prometheus.Labels{
 					"backend_id":     "backend-metrics",
-					"request_method": "GET",
+					"request_method": http.MethodGet,
 				}),
 			)
 		}
@@ -172,7 +172,7 @@ var _ = Describe("Backend handler", func() {
 					if *label.Name == "backend_id" && *label.Value == "backend-metrics" {
 						foundCount++
 					}
-					if *label.Name == "request_method" && *label.Value == "GET" {
+					if *label.Name == "request_method" && *label.Value == http.MethodGet {
 						foundCount++
 					}
 					if *label.Name == "response_code" && *label.Value == responseCode {
@@ -219,7 +219,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 
@@ -254,7 +254,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 

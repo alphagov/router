@@ -79,7 +79,7 @@ var _ = Describe("Redirect handlers", func() {
 			handler.ServeHTTP(
 				rw,
 				httptest.NewRequest(
-					"GET",
+					http.MethodGet,
 					"https://source.gov.uk/source-prefix/path/subpath?query1=a&query2=b",
 					nil,
 				),
@@ -164,7 +164,7 @@ var _ = Describe("Redirect handlers", func() {
 				handler.ServeHTTP(
 					rw,
 					httptest.NewRequest(
-						"GET",
+						http.MethodGet,
 						"https://source.gov.uk/source-prefix?_ga=dontbeevil",
 						nil,
 					),
@@ -182,7 +182,7 @@ var _ = Describe("Redirect handlers", func() {
 				handler.ServeHTTP(
 					rw,
 					httptest.NewRequest(
-						"GET",
+						http.MethodGet,
 						"https://source.gov.uk/source-prefix?param=begood",
 						nil,
 					),
@@ -209,7 +209,7 @@ var _ = Describe("Redirect handlers", func() {
 				handler.ServeHTTP(
 					rw,
 					httptest.NewRequest(
-						"GET",
+						http.MethodGet,
 						"https://source.gov.uk/source-prefix",
 						nil,
 					),
