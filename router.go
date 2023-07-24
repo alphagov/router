@@ -236,18 +236,18 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 	replicaSetStatus := bson.M{}
 
 	if err := db.Run("replSetGetStatus", &replicaSetStatus); err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err)
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %w)", err)
 	}
 
 	replicaSetStatusBytes, err := bson.Marshal(replicaSetStatus)
 	if err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err)
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %w)", err)
 	}
 
 	replicaSet := MongoReplicaSet{}
 	err = bson.Unmarshal(replicaSetStatusBytes, &replicaSet)
 	if err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err)
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %w)", err)
 	}
 
 	currentInstance := make([]MongoReplicaSetMember, 0)
@@ -282,8 +282,8 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 	for iter.Next(&backend) {
 		backendURL, err := backend.ParseURL()
 		if err != nil {
-			logWarn(fmt.Sprintf("router: couldn't parse URL %s for backend %s "+
-				"(error: %v), skipping!", backend.BackendURL, backend.BackendID, err))
+			logWarn(fmt.Errorf("router: couldn't parse URL %s for backend %s "+
+				"(error: %w), skipping", backend.BackendURL, backend.BackendID, err))
 			continue
 		}
 
