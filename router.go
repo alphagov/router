@@ -17,6 +17,16 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
+const (
+	RouteTypePrefix = "prefix"
+	RouteTypeExact  = "exact"
+)
+
+const (
+	SegmentsModePreserve = "preserve"
+	SegmentsModeIgnore   = "ignore"
+)
+
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
 // routes from a passed mongo database.
 type Router struct {
@@ -317,7 +327,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	})
 
 	for iter.Next(&route) {
-		prefix := (route.RouteType == "prefix")
+		prefix := (route.RouteType == RouteTypePrefix)
 
 		// the database contains paths with % encoded routes.
 		// Unescape them here because the http.Request objects we match against contain the unescaped variants.
@@ -390,15 +400,12 @@ func (rt *Router) RouteStats() (stats map[string]interface{}) {
 }
 
 func shouldPreserveSegments(route *Route) bool {
-	switch {
-	case route.RouteType == "exact" && route.SegmentsMode == "preserve":
-		return true
-	case route.RouteType == "exact":
+	switch route.RouteType {
+	case RouteTypeExact:
+		return route.SegmentsMode == SegmentsModePreserve
+	case RouteTypePrefix:
+		return route.SegmentsMode != SegmentsModeIgnore
+	default:
 		return false
-	case route.RouteType == "prefix" && route.SegmentsMode == "ignore":
-		return false
-	case route.RouteType == "prefix":
-		return true
 	}
-	return false
 }
