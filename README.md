@@ -19,17 +19,16 @@ interface to the underlying database and route reloading.
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
 
-You can use the [GOV.UK Docker environment](https://github.com/alphagov/govuk-docker) to run the application and its tests with all the necessary dependencies. Follow [the usage instructions](https://github.com/alphagov/govuk-docker#usage) to get started.
-
-**Use GOV.UK Docker to run any commands that follow.**
-
 ### Running the test suite
 
-You can run all tests by running:
+You can run all tests (some of which need Docker installed) by running:
 
 ```
 make test
 ```
+
+You can also run just the unit tests or just the integration tests, using the
+`unit_tests` and `integration_tests` targets. The unit tests don't need Docker.
 
 The `trie` and `triemux` sub-packages have unit tests and benchmarks written
 in Go's own testing framework. To run them individually:
@@ -44,6 +43,21 @@ tests to exercise it's HTTP handling, error reporting, and performance.
 
 ```
 go test ./integration_tests
+```
+
+### Debug output
+
+To see debug messages when running tests, set both the `DEBUG` and
+`DEBUG_ROUTER` environment variables.
+
+```sh
+export DEBUG=1 DEBUG_ROUTER=1
+```
+
+or equivalently for a single run:
+
+```sh
+DEBUG=1 DEBUG_ROUTER=1 make test
 ```
 
 ### Updating dependencies
@@ -72,14 +86,6 @@ To do this, you'll require GoLang installed on your machine.
 1. First, follow point 3 of the above [guide for upgrating](#updating-the-version-of-go) the version of Go.
 2. If you determine through test failures that a module will need to be upgraded, in terminal at the root of `router` type in the following: `go get -u [repo-of-module]` - For example: `go get -u github.com/streadway/quantile`
 3. Run `go mod tidy` and `go mod vendor`. Check for any errors and commit.
-
-You may have to push your branch to see if this causes further errors on the Jenkins CI machines.
-
-#### Why do we install Go on CI machines rather than Cache machines?
-
-Router is built on CI machines; the artefact is then [uploaded to S3](https://github.com/alphagov/router/blob/main/Jenkinsfile#L68) for use in deployment. In  deployment, the artefact is [retrieved from S3](https://github.com/alphagov/govuk-app-deployment/blob/master/router%2Fconfig%2Fdeploy.rb#L30) and uploaded to the cache machines prior to a restart.
-
-The updated version of golang is [only uploaded to Jenkins and CI agents](https://github.com/alphagov/govuk-puppet/search?q=golang).
 
 ### Further documentation
 
