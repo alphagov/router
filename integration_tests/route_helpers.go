@@ -80,13 +80,13 @@ func NewGoneRoute(extraParams ...string) Route {
 }
 
 func initRouteHelper() error {
-	databaseUrl := os.Getenv("ROUTER_MONGO_URL")
+	databaseURL := os.Getenv("ROUTER_MONGO_URL")
 
-	if databaseUrl == "" {
-		databaseUrl = "127.0.0.1"
+	if databaseURL == "" {
+		databaseURL = "127.0.0.1"
 	}
 
-	sess, err := mgo.Dial(databaseUrl)
+	sess, err := mgo.Dial(databaseURL)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to mongo: " + err.Error())
 	}

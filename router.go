@@ -372,11 +372,11 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 }
 
 func (be *Backend) ParseURL() (*url.URL, error) {
-	backend_url := os.Getenv(fmt.Sprintf("BACKEND_URL_%s", be.BackendID))
-	if backend_url == "" {
-		return url.Parse(be.BackendURL)
+	backendURL := os.Getenv(fmt.Sprintf("BACKEND_URL_%s", be.BackendID))
+	if backendURL == "" {
+		backendURL = be.BackendURL
 	}
-	return url.Parse(backend_url)
+	return url.Parse(backendURL)
 }
 
 func (rt *Router) RouteStats() (stats map[string]interface{}) {
