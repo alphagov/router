@@ -24,7 +24,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			req, err := http.NewRequest("GET", routerURL("/not-running"), nil)
 			Expect(err).To(BeNil())
-			req.Header.Set("X-Varnish", "12345678")
 
 			resp := doRequest(req)
 			Expect(resp.StatusCode).To(Equal(502))
@@ -36,7 +35,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				"request_method": "GET",
 				"status":         float64(502), // All numbers in JSON are floating point
 				"upstream_addr":  "127.0.0.1:3164",
-				"varnish_id":     "12345678",
 			}))
 			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
@@ -50,7 +48,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			req, err := http.NewRequest("GET", routerURL("/should-time-out", 3167), nil)
 			Expect(err).To(BeNil())
-			req.Header.Set("X-Varnish", "12345678")
 
 			start := time.Now()
 			resp := doRequest(req)
@@ -66,7 +63,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				"request_method": "GET",
 				"status":         float64(504), // All numbers in JSON are floating point
 				"upstream_addr":  "240.0.0.0:1234",
-				"varnish_id":     "12345678",
 			}))
 			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
@@ -96,7 +92,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			It("should log and return a 504 if a backend takes longer than the configured response timeout to start returning a response", func() {
 				req := newRequest("GET", routerURL("/tarpit1", 3167))
-				req.Header.Set("X-Varnish", "12341112")
 				resp := doRequest(req)
 				Expect(resp.StatusCode).To(Equal(504))
 
@@ -108,7 +103,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 					"request_method": "GET",
 					"status":         float64(504), // All numbers in JSON are floating point
 					"upstream_addr":  tarpitURL.Host,
-					"varnish_id":     "12341112",
 				}))
 				Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 			})
