@@ -52,7 +52,7 @@ type DummyHandler struct {
 	id string
 }
 
-func (dh *DummyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
+func (dh *DummyHandler) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {}
 
 var a, b, c *DummyHandler = &DummyHandler{"a"}, &DummyHandler{"b"}, &DummyHandler{"c"}
 

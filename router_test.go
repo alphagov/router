@@ -16,7 +16,7 @@ type mockMongoDB struct {
 	err    error
 }
 
-func (m *mockMongoDB) Run(cmd interface{}, res interface{}) error {
+func (m *mockMongoDB) Run(_ interface{}, res interface{}) error {
 	if m.err != nil {
 		return m.err
 	} else {
