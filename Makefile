@@ -17,6 +17,9 @@ clean:
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY)
 
+lint:
+	golangci-lint run
+
 test: start_mongo unit_tests integration_tests clean_mongo_again
 
 unit_tests: build
