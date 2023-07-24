@@ -75,12 +75,12 @@ func logDebug(msg ...interface{}) {
 }
 
 func catchListenAndServe(addr string, handler http.Handler, ident string, wg *sync.WaitGroup) {
-	defer wg.Done()
 	tablecloth.StartupDelay = 60 * time.Second
 	err := tablecloth.ListenAndServe(addr, handler, ident)
 	if err != nil {
 		log.Fatal(err)
 	}
+	wg.Done()
 }
 
 func main() {
