@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -47,8 +48,11 @@ func (re ReportableError) scope() *sentry.Scope {
 }
 
 func (re ReportableError) timeoutError() bool {
-	opErr, ok := re.Error.(*net.OpError)
-	return ok && opErr.Timeout()
+	var oerr *net.OpError
+	if errors.As(re.Error, &oerr) {
+		return oerr.Timeout()
+	}
+	return false
 }
 
 func (re ReportableError) ignorableError() bool {
