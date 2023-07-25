@@ -75,9 +75,8 @@ type pathPreservingRedirectHandler struct {
 
 func (handler *pathPreservingRedirectHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	target := handler.targetPrefix + strings.TrimPrefix(request.URL.Path, handler.sourcePrefix)
-
 	if request.URL.RawQuery != "" {
-		target = target + "?" + request.URL.RawQuery
+		target += "?" + request.URL.RawQuery
 	}
 
 	addCacheHeaders(writer)
