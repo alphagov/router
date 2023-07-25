@@ -19,16 +19,16 @@ type mockMongoDB struct {
 func (m *mockMongoDB) Run(_ interface{}, res interface{}) error {
 	if m.err != nil {
 		return m.err
-	} else {
-		bytes, err := bson.Marshal(m.result)
-		if err != nil {
-			return err
-		}
+	}
 
-		err = bson.Unmarshal(bytes, res)
-		if err != nil {
-			return err
-		}
+	bytes, err := bson.Marshal(m.result)
+	if err != nil {
+		return err
+	}
+
+	err = bson.Unmarshal(bytes, res)
+	if err != nil {
+		return err
 	}
 
 	return nil
