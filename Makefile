@@ -27,6 +27,7 @@ unit_tests: build
 
 integration_tests: start_mongo build
 	ROUTER_PUBADDR=localhost:8080 \
+	ROUTER_APIADDR=localhost:8081 \
 		go test -race -v ./integration_tests
 
 start_mongo: clean_mongo
