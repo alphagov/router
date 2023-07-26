@@ -71,20 +71,8 @@ type Route struct {
 
 // NewRouter returns a new empty router instance. You will need to call
 // SelfUpdateRoutes() to initialise the self-update process for routes.
-func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, logFileName string) (rt *Router, err error) {
-	mgoPollInterval, err := time.ParseDuration(mongoPollInterval)
-	if err != nil {
-		return nil, err
-	}
-	beConnTimeout, err := time.ParseDuration(backendConnectTimeout)
-	if err != nil {
-		return nil, err
-	}
-	beHeaderTimeout, err := time.ParseDuration(backendHeaderTimeout)
-	if err != nil {
-		return nil, err
-	}
-	logInfo("router: using mongo poll interval:", mgoPollInterval)
+func NewRouter(mongoURL, mongoDbName string, mongoPollInterval, beConnTimeout, beHeaderTimeout time.Duration, logFileName string) (rt *Router, err error) {
+	logInfo("router: using mongo poll interval:", mongoPollInterval)
 	logInfo("router: using backend connect timeout:", beConnTimeout)
 	logInfo("router: using backend header timeout:", beHeaderTimeout)
 
@@ -104,7 +92,7 @@ func NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, 
 	rt = &Router{
 		mux:                   triemux.NewMux(),
 		mongoURL:              mongoURL,
-		mongoPollInterval:     mgoPollInterval,
+		mongoPollInterval:     mongoPollInterval,
 		mongoDbName:           mongoDbName,
 		backendConnectTimeout: beConnTimeout,
 		backendHeaderTimeout:  beHeaderTimeout,

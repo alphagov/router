@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/alphagov/router/handlers"
 )
@@ -22,6 +23,8 @@ var (
 	enableDebugOutput     = os.Getenv("DEBUG") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
+	frontendReadTimeout   = getenvDefault("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
+	frontendWriteTimeout  = getenvDefault("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
 )
 
 func usage() {
@@ -39,10 +42,12 @@ ROUTER_MONGO_POLL_INTERVAL=2s    Interval to poll mongo for route changes
 ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
 DEBUG=                           Whether to enable debug output - set to anything to enable
 
-Timeouts: (values must be parseable by http://golang.org/pkg/time/#ParseDuration)
+Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration
 
 ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
 ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
+ROUTER_FRONTEND_READ_TIMEOUT=60s   See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:ReadTimeout
+ROUTER_FRONTEND_WRITE_TIMEOUT=60s  See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:WriteTimeout
 `
 	fmt.Fprintf(os.Stderr, helpstring, versionInfo(), os.Args[0])
 	os.Exit(2)
@@ -71,11 +76,24 @@ func logDebug(msg ...interface{}) {
 	}
 }
 
-func catchListenAndServe(addr string, handler http.Handler) {
-	err := http.ListenAndServe(addr, handler)
+func listenAndServeOrFatal(addr string, handler http.Handler, rTimeout time.Duration, wTimeout time.Duration) {
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      handler,
+		ReadTimeout:  rTimeout,
+		WriteTimeout: wTimeout,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func parseDurationOrFatal(s string) (d time.Duration) {
+	d, err := time.ParseDuration(s)
 	if err != nil {
 		log.Fatal(err)
 	}
+	return
 }
 
 func main() {
@@ -87,8 +105,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	feReadTimeout := parseDurationOrFatal(frontendReadTimeout)
+	feWriteTimeout := parseDurationOrFatal(frontendWriteTimeout)
+	beConnectTimeout := parseDurationOrFatal(backendConnectTimeout)
+	beHeaderTimeout := parseDurationOrFatal(backendHeaderTimeout)
+	mgoPollInterval := parseDurationOrFatal(mongoPollInterval)
+
 	initMetrics()
 
+	logInfo("router: using frontend read timeout:", feReadTimeout)
+	logInfo("router: using frontend write timeout:", feWriteTimeout)
 	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
 
 	if tlsSkipVerify {
@@ -97,13 +123,13 @@ func main() {
 			"Do not use this option in a production environment.")
 	}
 
-	rout, err := NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
+	rout, err := NewRouter(mongoURL, mongoDbName, mgoPollInterval, beConnectTimeout, beHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go rout.SelfUpdateRoutes()
 
-	go catchListenAndServe(pubAddr, rout)
+	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
 	logInfo(fmt.Sprintf("router: listening for requests on %v", pubAddr))
 
 	api, err := newAPIHandler(rout)
@@ -111,5 +137,5 @@ func main() {
 		log.Fatal(err)
 	}
 	logInfo(fmt.Sprintf("router: listening for API requests on %v", apiAddr))
-	catchListenAndServe(apiAddr, api)
+	listenAndServeOrFatal(apiAddr, api, feReadTimeout, feWriteTimeout)
 }
