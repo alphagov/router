@@ -3,7 +3,6 @@ module github.com/alphagov/router
 go 1.20
 
 require (
-	github.com/alext/tablecloth v0.0.0-20190323112514-9a28c0f651e7
 	github.com/getsentry/sentry-go v0.22.0
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/onsi/ginkgo v1.16.5

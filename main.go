@@ -7,10 +7,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"sync"
-	"time"
 
-	"github.com/alext/tablecloth"
 	"github.com/alphagov/router/handlers"
 )
 
@@ -74,13 +71,11 @@ func logDebug(msg ...interface{}) {
 	}
 }
 
-func catchListenAndServe(addr string, handler http.Handler, ident string, wg *sync.WaitGroup) {
-	tablecloth.StartupDelay = 60 * time.Second
-	err := tablecloth.ListenAndServe(addr, handler, ident)
+func catchListenAndServe(addr string, handler http.Handler) {
+	err := http.ListenAndServe(addr, handler)
 	if err != nil {
 		log.Fatal(err)
 	}
-	wg.Done()
 }
 
 func main() {
@@ -102,30 +97,19 @@ func main() {
 			"Do not use this option in a production environment.")
 	}
 
-	// Set working dir for tablecloth if available This is to allow restarts to
-	// pick up new versions.
-	// See http://godoc.org/github.com/alext/tablecloth#pkg-variables for details
-	if wd := os.Getenv("GOVUK_APP_ROOT"); wd != "" {
-		tablecloth.WorkingDir = wd
-	}
-
 	rout, err := NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go rout.SelfUpdateRoutes()
 
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-	go catchListenAndServe(pubAddr, rout, "proxy", wg)
+	go catchListenAndServe(pubAddr, rout)
 	logInfo(fmt.Sprintf("router: listening for requests on %v", pubAddr))
 
 	api, err := newAPIHandler(rout)
 	if err != nil {
 		log.Fatal(err)
 	}
-	go catchListenAndServe(apiAddr, api, "api", wg)
 	logInfo(fmt.Sprintf("router: listening for API requests on %v", apiAddr))
-
-	wg.Wait()
+	catchListenAndServe(apiAddr, api)
 }
