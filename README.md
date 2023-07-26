@@ -44,6 +44,20 @@ to cover Router's overall request handling, error reporting and performance.
 go test ./integration_tests
 ```
 
+### Lint
+
+Checks run automatically on GitHub on PR and push. For faster feedback, you can
+install and run the [linter](https://golangci-lint.run/) yourself, or configure
+your editor/IDE to do so. For example:
+
+```sh
+brew install golangci-lint
+```
+
+```sh
+make lint
+```
+
 ### Debug output
 
 To see debug messages when running tests, set both the `DEBUG` and
