@@ -9,7 +9,7 @@ require (
 	github.com/onsi/gomega v1.27.8
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.4.0
-	github.com/tsenart/vegeta v12.7.0+incompatible
+	github.com/tsenart/vegeta/v12 v12.11.0
 )
 
 require (

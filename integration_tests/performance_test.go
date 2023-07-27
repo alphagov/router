@@ -7,7 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	vegeta "github.com/tsenart/vegeta/lib"
+	vegeta "github.com/tsenart/vegeta/v12/lib"
 )
 
 const routerLatencyThreshold = 20 * time.Millisecond
