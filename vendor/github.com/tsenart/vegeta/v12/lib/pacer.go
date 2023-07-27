@@ -6,12 +6,17 @@ import (
 	"time"
 )
 
-// A Pacer defines the rate of hits during an Attack by
-// returning the duration an Attacker should wait until
-// hitting the next Target. If the second return value
-// is true, the attack will terminate.
+// A Pacer defines the rate of hits during an Attack.
 type Pacer interface {
+	// Pace returns the duration an Attacker should wait until
+	// hitting the next Target, given an already elapsed duration and
+	// completed hits. If the second return value is true, an attacker
+	// should stop sending hits.
 	Pace(elapsed time.Duration, hits uint64) (wait time.Duration, stop bool)
+
+	// Rate returns a Pacer's instantaneous hit rate (per seconds)
+	// at the given elapsed duration of an attack.
+	Rate(elapsed time.Duration) float64
 }
 
 // A PacerFunc is a function adapter type that implements
@@ -36,7 +41,8 @@ type Rate = ConstantPacer
 var _ Pacer = ConstantPacer{}
 
 // String returns a pretty-printed description of the ConstantPacer's behaviour:
-//   ConstantPacer{Freq: 1, Per: time.Second} => Constant{1 hits/1s}
+//
+//	ConstantPacer{Freq: 1, Per: time.Second} => Constant{1 hits/1s}
 func (cp ConstantPacer) String() string {
 	return fmt.Sprintf("Constant{%d hits/%s}", cp.Freq, cp.Per)
 }
@@ -65,6 +71,13 @@ func (cp ConstantPacer) Pace(elapsed time.Duration, hits uint64) (time.Duration,
 	return delta - elapsed, false
 }
 
+// Rate returns a ConstantPacer's instantaneous hit rate (i.e. requests per second)
+// at the given elapsed duration of an attack. Since it's constant, the return
+// value is independent of the given elapsed duration.
+func (cp ConstantPacer) Rate(elapsed time.Duration) float64 {
+	return cp.hitsPerNs() * 1e9
+}
+
 // hitsPerNs returns the attack rate this ConstantPacer represents, in
 // fractional hits per nanosecond.
 func (cp ConstantPacer) hitsPerNs() float64 {
@@ -87,37 +100,43 @@ const (
 )
 
 // SinePacer is a Pacer that describes attack request rates with the equation:
-//   R = MA sin(O+(2𝛑/P)t)
+//
+//	R = MA sin(O+(2𝛑/P)t)
+//
 // Where:
-//   R = Instantaneous attack rate at elapsed time t, hits per nanosecond
-//   M = Mean attack rate over period P, sp.Mean, hits per nanosecond
-//   A = Amplitude of sine wave, sp.Amp, hits per nanosecond
-//   O = Offset of sine wave, sp.StartAt, radians
-//   P = Period of sine wave, sp.Period, nanoseconds
-//   t = Elapsed time since attack start, nanoseconds
+//
+//	R = Instantaneous attack rate at elapsed time t, hits per nanosecond
+//	M = Mean attack rate over period P, sp.Mean, hits per nanosecond
+//	A = Amplitude of sine wave, sp.Amp, hits per nanosecond
+//	O = Offset of sine wave, sp.StartAt, radians
+//	P = Period of sine wave, sp.Period, nanoseconds
+//	t = Elapsed time since attack start, nanoseconds
 //
 // Many thanks to http://ascii.co.uk/art/sine and "sps" for the ascii here :-)
 //
-//  Mean -|         ,-'''-.
-//  +Amp  |      ,-'   |   `-.
-//        |    ,'      |      `.       O=𝛑
-//        |  ,'      O=𝛑/2      `.     MeanDown
-//        | /        Peak         \   /
-//        |/                       \ /
-//  Mean -+-------------------------\--------------------------> t
-//        |\                         \                       /
-//        | \                         \       O=3𝛑/2        /
-//        |  O=0                       `.     Trough      ,'
-//        |  MeanUp                      `.      |      ,'
-//  Mean  |                                `-.   |   ,-'
-//  -Amp -|                                   `-,,,-'
-//        |<-------------------- Period --------------------->|
+//	Mean -|         ,-'''-.
+//	+Amp  |      ,-'   |   `-.
+//	      |    ,'      |      `.       O=𝛑
+//	      |  ,'      O=𝛑/2      `.     MeanDown
+//	      | /        Peak         \   /
+//	      |/                       \ /
+//	Mean -+-------------------------\--------------------------> t
+//	      |\                         \                       /
+//	      | \                         \       O=3𝛑/2        /
+//	      |  O=0                       `.     Trough      ,'
+//	      |  MeanUp                      `.      |      ,'
+//	Mean  |                                `-.   |   ,-'
+//	-Amp -|                                   `-,,,-'
+//	      |<-------------------- Period --------------------->|
 //
 // This equation is integrated with respect to time to derive the expected
 // number of hits served at time t after the attack began:
-//   H = Mt - (AP/2𝛑)cos(O+(2𝛑/P)t) + (AP/2𝛑)cos(O)
+//
+//	H = Mt - (AP/2𝛑)cos(O+(2𝛑/P)t) + (AP/2𝛑)cos(O)
+//
 // Where:
-//   H = Total number of hits triggered during t
+//
+//	H = Total number of hits triggered during t
 type SinePacer struct {
 	// The period of the sine wave, e.g. 20*time.Minute
 	// MUST BE > 0
@@ -136,13 +155,14 @@ type SinePacer struct {
 var _ Pacer = SinePacer{}
 
 // String returns a pretty-printed description of the SinePacer's behaviour:
-//   SinePacer{
-//       Period:  time.Hour,
-//       Mean:    Rate{100, time.Second},
-//       Amp:     Rate{50, time.Second},
-//       StartAt: MeanDown,
-//   } =>
-//   Sine{Constant{100 hits/1s} ± Constant{50 hits/1s} / 1h, offset 1𝛑}
+//
+//	SinePacer{
+//	    Period:  time.Hour,
+//	    Mean:    Rate{100, time.Second},
+//	    Amp:     Rate{50, time.Second},
+//	    StartAt: MeanDown,
+//	} =>
+//	Sine{Constant{100 hits/1s} ± Constant{50 hits/1s} / 1h, offset 1𝛑}
 func (sp SinePacer) String() string {
 	return fmt.Sprintf("Sine{%s ± %s / %s, offset %g𝛑}", sp.Mean, sp.Amp, sp.Period, sp.StartAt/math.Pi)
 }
@@ -184,6 +204,12 @@ func (sp SinePacer) Pace(elapsedTime time.Duration, elapsedHits uint64) (time.Du
 	return nextHitIn, false
 }
 
+// Rate returns a SinePacer's instantaneous hit rate (i.e. requests per second)
+// at the given elapsed duration of an attack.
+func (sp SinePacer) Rate(elapsed time.Duration) float64 {
+	return sp.hitsPerNs(elapsed) * 1e9
+}
+
 // ampHits returns AP/2𝛑, which is the number of hits added or subtracted
 // from the Mean due to the Amplitude over a quarter of the Period,
 // i.e. from 0 → 𝛑/2 radians
@@ -200,7 +226,8 @@ func (sp SinePacer) radians(t time.Duration) float64 {
 
 // hitsPerNs calculates the instantaneous rate of attack at
 // t nanoseconds after the attack began.
-//     R = MA sin(O+(2𝛑/P)t)
+//
+//	R = MA sin(O+(2𝛑/P)t)
 func (sp SinePacer) hitsPerNs(t time.Duration) float64 {
 	return sp.Mean.hitsPerNs() + sp.Amp.hitsPerNs()*math.Sin(sp.radians(t))
 }
@@ -208,12 +235,75 @@ func (sp SinePacer) hitsPerNs(t time.Duration) float64 {
 // hits returns the number of hits that have been sent during an attack
 // lasting t nanoseconds. It returns a float so we can tell exactly how
 // much we've missed our target by when solving numerically in Pace.
-//     H = Mt - (AP/2𝛑)cos(O+(2𝛑/P)t) + (AP/2𝛑)cos(O)
+//
+//	H = Mt - (AP/2𝛑)cos(O+(2𝛑/P)t) + (AP/2𝛑)cos(O)
+//
 // This re-arranges to:
-//     H = Mt + (AP/2𝛑)(cos(O) - cos(O+(2𝛑/P)t))
+//
+//	H = Mt + (AP/2𝛑)(cos(O) - cos(O+(2𝛑/P)t))
 func (sp SinePacer) hits(t time.Duration) float64 {
 	if t <= 0 || sp.invalid() {
 		return 0
 	}
 	return sp.Mean.hitsPerNs()*float64(t) + sp.ampHits()*(math.Cos(sp.StartAt)-math.Cos(sp.radians(t)))
+}
+
+// LinearPacer paces an attack by starting at a given request rate
+// and increasing linearly with the given slope.
+type LinearPacer struct {
+	StartAt Rate
+	Slope   float64
+}
+
+// Pace determines the length of time to sleep until the next hit is sent.
+func (p LinearPacer) Pace(elapsed time.Duration, hits uint64) (time.Duration, bool) {
+	switch {
+	case p.StartAt.Per == 0 || p.StartAt.Freq == 0:
+		return 0, false // Zero value = infinite rate
+	case p.StartAt.Per < 0 || p.StartAt.Freq < 0:
+		return 0, true
+	}
+
+	expectedHits := p.hits(elapsed)
+	if hits == 0 || hits < uint64(expectedHits) {
+		// Running behind, send next hit immediately.
+		return 0, false
+	}
+
+	rate := p.Rate(elapsed)
+	interval := math.Round(1e9 / rate)
+
+	if n := uint64(interval); n != 0 && math.MaxInt64/n < hits {
+		// We would overflow wait if we continued, so stop the attack.
+		return 0, true
+	}
+
+	delta := float64(hits+1) - expectedHits
+	wait := time.Duration(interval * delta)
+
+	return wait, false
+}
+
+// Rate returns a LinearPacer's instantaneous hit rate (i.e. requests per second)
+// at the given elapsed duration of an attack.
+func (p LinearPacer) Rate(elapsed time.Duration) float64 {
+	a := p.Slope
+	x := elapsed.Seconds()
+	b := p.StartAt.hitsPerNs() * 1e9
+	return a*x + b
+}
+
+// hits returns the number of hits that have been sent during an attack
+// lasting t nanoseconds. It returns a float so we can tell exactly how
+// much we've missed our target by when solving numerically in Pace.
+func (p LinearPacer) hits(t time.Duration) float64 {
+	if t < 0 {
+		return 0
+	}
+
+	a := p.Slope
+	b := p.StartAt.hitsPerNs() * 1e9
+	x := t.Seconds()
+
+	return (a*math.Pow(x, 2))/2 + b*x
 }
