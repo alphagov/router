@@ -7,10 +7,8 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"sync"
 	"time"
 
-	"github.com/alext/tablecloth"
 	"github.com/alphagov/router/handlers"
 )
 
@@ -25,6 +23,8 @@ var (
 	enableDebugOutput     = os.Getenv("DEBUG") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
+	frontendReadTimeout   = getenvDefault("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
+	frontendWriteTimeout  = getenvDefault("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
 )
 
 func usage() {
@@ -42,10 +42,12 @@ ROUTER_MONGO_POLL_INTERVAL=2s    Interval to poll mongo for route changes
 ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
 DEBUG=                           Whether to enable debug output - set to anything to enable
 
-Timeouts: (values must be parseable by http://golang.org/pkg/time/#ParseDuration)
+Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration
 
 ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
 ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
+ROUTER_FRONTEND_READ_TIMEOUT=60s   See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:ReadTimeout
+ROUTER_FRONTEND_WRITE_TIMEOUT=60s  See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:WriteTimeout
 `
 	fmt.Fprintf(os.Stderr, helpstring, versionInfo(), os.Args[0])
 	os.Exit(2)
@@ -74,13 +76,24 @@ func logDebug(msg ...interface{}) {
 	}
 }
 
-func catchListenAndServe(addr string, handler http.Handler, ident string, wg *sync.WaitGroup) {
-	tablecloth.StartupDelay = 60 * time.Second
-	err := tablecloth.ListenAndServe(addr, handler, ident)
+func listenAndServeOrFatal(addr string, handler http.Handler, rTimeout time.Duration, wTimeout time.Duration) {
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      handler,
+		ReadTimeout:  rTimeout,
+		WriteTimeout: wTimeout,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func parseDurationOrFatal(s string) (d time.Duration) {
+	d, err := time.ParseDuration(s)
 	if err != nil {
 		log.Fatal(err)
 	}
-	wg.Done()
+	return
 }
 
 func main() {
@@ -92,8 +105,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	feReadTimeout := parseDurationOrFatal(frontendReadTimeout)
+	feWriteTimeout := parseDurationOrFatal(frontendWriteTimeout)
+	beConnectTimeout := parseDurationOrFatal(backendConnectTimeout)
+	beHeaderTimeout := parseDurationOrFatal(backendHeaderTimeout)
+	mgoPollInterval := parseDurationOrFatal(mongoPollInterval)
+
 	initMetrics()
 
+	logInfo("router: using frontend read timeout:", feReadTimeout)
+	logInfo("router: using frontend write timeout:", feWriteTimeout)
 	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
 
 	if tlsSkipVerify {
@@ -102,30 +123,19 @@ func main() {
 			"Do not use this option in a production environment.")
 	}
 
-	// Set working dir for tablecloth if available This is to allow restarts to
-	// pick up new versions.
-	// See http://godoc.org/github.com/alext/tablecloth#pkg-variables for details
-	if wd := os.Getenv("GOVUK_APP_ROOT"); wd != "" {
-		tablecloth.WorkingDir = wd
-	}
-
-	rout, err := NewRouter(mongoURL, mongoDbName, mongoPollInterval, backendConnectTimeout, backendHeaderTimeout, errorLogFile)
+	rout, err := NewRouter(mongoURL, mongoDbName, mgoPollInterval, beConnectTimeout, beHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go rout.SelfUpdateRoutes()
 
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-	go catchListenAndServe(pubAddr, rout, "proxy", wg)
+	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
 	logInfo(fmt.Sprintf("router: listening for requests on %v", pubAddr))
 
 	api, err := newAPIHandler(rout)
 	if err != nil {
 		log.Fatal(err)
 	}
-	go catchListenAndServe(apiAddr, api, "api", wg)
 	logInfo(fmt.Sprintf("router: listening for API requests on %v", apiAddr))
-
-	wg.Wait()
+	listenAndServeOrFatal(apiAddr, api, feReadTimeout, feWriteTimeout)
 }

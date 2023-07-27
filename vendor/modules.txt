@@ -1,9 +1,8 @@
-# github.com/alext/tablecloth v0.0.0-20190323112514-9a28c0f651e7
-## explicit
-github.com/alext/tablecloth
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
+# github.com/bmizerany/perks v0.0.0-20230307044200-03f9df79da1e
+## explicit
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
