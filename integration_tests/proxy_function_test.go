@@ -1,7 +1,7 @@
 package integration
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
@@ -22,8 +22,8 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			addRoute("/not-running", NewBackendRoute("not-running"))
 			reloadRoutes()
 
-			req, err := http.NewRequest("GET", routerURL("/not-running"), nil)
-			Expect(err).To(BeNil())
+			req, err := http.NewRequest(http.MethodGet, routerURL("/not-running"), nil)
+			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
 			resp := doRequest(req)
@@ -42,19 +42,21 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should log and return a 504 if the connection times out in the configured time", func() {
-			startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
+			err := startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
+			Expect(err).NotTo(HaveOccurred())
 			defer stopRouter(3167)
+
 			addBackend("black-hole", "http://240.0.0.0:1234/")
 			addRoute("/should-time-out", NewBackendRoute("black-hole"))
 			reloadRoutes(3166)
 
-			req, err := http.NewRequest("GET", routerURL("/should-time-out", 3167), nil)
-			Expect(err).To(BeNil())
+			req, err := http.NewRequest(http.MethodGet, routerURL("/should-time-out", 3167), nil)
+			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
 			start := time.Now()
 			resp := doRequest(req)
-			duration := time.Now().Sub(start)
+			duration := time.Since(start)
 
 			Expect(resp.StatusCode).To(Equal(504))
 			Expect(duration).To(BeNumerically("~", 320*time.Millisecond, 20*time.Millisecond)) // 300 - 340 ms
@@ -78,7 +80,8 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			)
 
 			BeforeEach(func() {
-				startRouter(3167, 3166, envMap{"ROUTER_BACKEND_HEADER_TIMEOUT": "0.3s"})
+				err := startRouter(3167, 3166, envMap{"ROUTER_BACKEND_HEADER_TIMEOUT": "0.3s"})
+				Expect(err).NotTo(HaveOccurred())
 				tarpit1 = startTarpitBackend(time.Second)
 				tarpit2 = startTarpitBackend(100*time.Millisecond, 500*time.Millisecond)
 				addBackend("tarpit1", tarpit1.URL)
@@ -95,7 +98,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should log and return a 504 if a backend takes longer than the configured response timeout to start returning a response", func() {
-				req := newRequest("GET", routerURL("/tarpit1", 3167))
+				req := newRequest(http.MethodGet, routerURL("/tarpit1", 3167))
 				req.Header.Set("X-Varnish", "12341112")
 				resp := doRequest(req)
 				Expect(resp.StatusCode).To(Equal(504))
@@ -214,7 +217,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should add itself to the Via request header for an HTTP/1.0 request", func() {
-				req := newRequest("GET", routerURL("/foo"))
+				req := newRequest(http.MethodGet, routerURL("/foo"))
 				resp := doHTTP10Request(req)
 				Expect(resp.StatusCode).To(Equal(200))
 
@@ -293,14 +296,14 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 		It("should pass through the body unmodified", func() {
 			recorder.AppendHandlers(func(w http.ResponseWriter, req *http.Request) {
-				body, err := ioutil.ReadAll(req.Body)
+				body, err := io.ReadAll(req.Body)
 				req.Body.Close()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("I am the request body.  Woohoo!"))
 			})
 
 			req := newRequest("POST", routerURL("/foo"))
-			req.Body = ioutil.NopCloser(strings.NewReader("I am the request body.  Woohoo!"))
+			req.Body = io.NopCloser(strings.NewReader("I am the request body.  Woohoo!"))
 			resp := doRequest(req)
 			Expect(resp.StatusCode).To(Equal(200))
 
@@ -384,7 +387,8 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		var recorder *ghttp.Server
 
 		BeforeEach(func() {
-			startRouter(3167, 3166, envMap{"ROUTER_TLS_SKIP_VERIFY": "1"})
+			err := startRouter(3167, 3166, envMap{"ROUTER_TLS_SKIP_VERIFY": "1"})
+			Expect(err).NotTo(HaveOccurred())
 			recorder = startRecordingTLSBackend()
 			addBackend("backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"runtime"
 
@@ -9,15 +10,11 @@ import (
 )
 
 func newAPIHandler(rout *Router) (api http.Handler, err error) {
-	if err != nil {
-		return nil, err
-	}
-
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			w.Header().Set("Allow", "POST")
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -31,20 +28,28 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 		}
 		logInfo("router: reload queued")
 		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte("Reload queued"))
+		_, err := w.Write([]byte("Reload queued"))
+		if err != nil {
+			logWarn(err)
+		}
 	})
+
 	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.Header().Set("Allow", "GET")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
-		w.Write([]byte("OK"))
+		_, err := w.Write([]byte("OK"))
+		if err != nil {
+			logWarn(err)
+		}
 	})
+
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.Header().Set("Allow", "GET")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -58,12 +63,17 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 			return
 		}
 
-		w.Write(jsonData)
-		w.Write([]byte("\n"))
+		_, err = fmt.Fprintln(w, string(jsonData))
+		if err != nil {
+			logWarn(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
+
 	mux.HandleFunc("/memory-stats", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.Header().Set("Allow", "GET")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -76,9 +86,13 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 			return
 		}
 
-		w.Write(jsonData)
-		w.Write([]byte("\n"))
+		_, err = w.Write(jsonData)
+		if err != nil {
+			logWarn(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	})
+
 	mux.Handle("/metrics", promhttp.Handler())
 
 	return mux, nil

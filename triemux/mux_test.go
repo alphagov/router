@@ -1,19 +1,14 @@
 package triemux
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
-	"time"
 
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 )
-
-func init() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
 
 type SplitExample struct {
 	in  string
@@ -57,7 +52,7 @@ type DummyHandler struct {
 	id string
 }
 
-func (dh *DummyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
+func (dh *DummyHandler) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {}
 
 var a, b, c *DummyHandler = &DummyHandler{"a"}, &DummyHandler{"b"}, &DummyHandler{"c"}
 
@@ -233,7 +228,7 @@ func TestRouteCount(t *testing.T) {
 }
 
 func loadStrings(filename string) []string {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}

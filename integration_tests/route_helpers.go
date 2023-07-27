@@ -8,8 +8,10 @@ import (
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 
+	// revive:disable:dot-imports
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 )
 
 var _ = AfterEach(func() {
@@ -78,15 +80,15 @@ func NewGoneRoute(extraParams ...string) Route {
 }
 
 func initRouteHelper() error {
-	databaseUrl := os.Getenv("ROUTER_MONGO_URL")
+	databaseURL := os.Getenv("ROUTER_MONGO_URL")
 
-	if databaseUrl == "" {
-		databaseUrl = "127.0.0.1"
+	if databaseURL == "" {
+		databaseURL = "127.0.0.1"
 	}
 
-	sess, err := mgo.Dial(databaseUrl)
+	sess, err := mgo.Dial(databaseURL)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to mongo: " + err.Error())
+		return fmt.Errorf("failed to connect to mongo: %w", err)
 	}
 	sess.SetSyncTimeout(10 * time.Minute)
 	sess.SetSocketTimeout(10 * time.Minute)
@@ -97,17 +99,17 @@ func initRouteHelper() error {
 
 func addBackend(id, url string) {
 	err := routerDB.C("backends").Insert(bson.M{"backend_id": id, "backend_url": url})
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func addRoute(path string, route Route) {
 	route.IncomingPath = path
 
 	err := routerDB.C("routes").Insert(route)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func clearRoutes() {
-	routerDB.C("routes").DropCollection()
-	routerDB.C("backends").DropCollection()
+	_ = routerDB.C("routes").DropCollection()
+	_ = routerDB.C("backends").DropCollection()
 }

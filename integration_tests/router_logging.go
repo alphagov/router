@@ -3,11 +3,12 @@ package integration
 import (
 	"bufio"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"time"
 
+	// revive:disable:dot-imports
 	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 )
 
 var (
@@ -15,7 +16,7 @@ var (
 )
 
 func setupTempLogfile() error {
-	file, err := ioutil.TempFile("", "router_error_log")
+	file, err := os.CreateTemp("", "router_error_log")
 	if err != nil {
 		return err
 	}
@@ -24,8 +25,10 @@ func setupTempLogfile() error {
 }
 
 func resetTempLogfile() {
-	tempLogfile.Seek(0, 0)
-	tempLogfile.Truncate(0)
+	_, err := tempLogfile.Seek(0, 0)
+	Expect(err).NotTo(HaveOccurred())
+	err = tempLogfile.Truncate(0)
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func cleanupTempLogfile() {
@@ -61,6 +64,6 @@ func lastRouterErrorLogEntry() *routerLogEntry {
 	line := lastRouterErrorLogLine()
 	var entry *routerLogEntry
 	err := json.Unmarshal(line, &entry)
-	Expect(err).To(BeNil())
+	Expect(err).NotTo(HaveOccurred())
 	return entry
 }

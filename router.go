@@ -17,6 +17,16 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
+const (
+	RouteTypePrefix = "prefix"
+	RouteTypeExact  = "exact"
+)
+
+const (
+	SegmentsModePreserve = "preserve"
+	SegmentsModeIgnore   = "ignore"
+)
+
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
 // routes from a passed mongo database.
 type Router struct {
@@ -236,18 +246,18 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 	replicaSetStatus := bson.M{}
 
 	if err := db.Run("replSetGetStatus", &replicaSetStatus); err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %v)", err)
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't get replica set status from MongoDB, skipping update (error: %w)", err)
 	}
 
 	replicaSetStatusBytes, err := bson.Marshal(replicaSetStatus)
 	if err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %v)", err)
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't marshal replica set status from MongoDB, skipping update (error: %w)", err)
 	}
 
 	replicaSet := MongoReplicaSet{}
 	err = bson.Unmarshal(replicaSetStatusBytes, &replicaSet)
 	if err != nil {
-		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %v)", err)
+		return MongoReplicaSetMember{}, fmt.Errorf("router: couldn't unmarshal replica set status from MongoDB, skipping update (error: %w)", err)
 	}
 
 	currentInstance := make([]MongoReplicaSetMember, 0)
@@ -282,8 +292,8 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 	for iter.Next(&backend) {
 		backendURL, err := backend.ParseURL()
 		if err != nil {
-			logWarn(fmt.Sprintf("router: couldn't parse URL %s for backend %s "+
-				"(error: %v), skipping!", backend.BackendURL, backend.BackendID, err))
+			logWarn(fmt.Errorf("router: couldn't parse URL %s for backend %s "+
+				"(error: %w), skipping", backend.BackendURL, backend.BackendID, err))
 			continue
 		}
 
@@ -317,7 +327,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	})
 
 	for iter.Next(&route) {
-		prefix := (route.RouteType == "prefix")
+		prefix := (route.RouteType == RouteTypePrefix)
 
 		// the database contains paths with % encoded routes.
 		// Unescape them here because the http.Request objects we match against contain the unescaped variants.
@@ -372,11 +382,11 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 }
 
 func (be *Backend) ParseURL() (*url.URL, error) {
-	backend_url := os.Getenv(fmt.Sprintf("BACKEND_URL_%s", be.BackendID))
-	if backend_url == "" {
-		return url.Parse(be.BackendURL)
+	backendURL := os.Getenv(fmt.Sprintf("BACKEND_URL_%s", be.BackendID))
+	if backendURL == "" {
+		backendURL = be.BackendURL
 	}
-	return url.Parse(backend_url)
+	return url.Parse(backendURL)
 }
 
 func (rt *Router) RouteStats() (stats map[string]interface{}) {
@@ -390,15 +400,12 @@ func (rt *Router) RouteStats() (stats map[string]interface{}) {
 }
 
 func shouldPreserveSegments(route *Route) bool {
-	switch {
-	case route.RouteType == "exact" && route.SegmentsMode == "preserve":
-		return true
-	case route.RouteType == "exact":
+	switch route.RouteType {
+	case RouteTypeExact:
+		return route.SegmentsMode == SegmentsModePreserve
+	case RouteTypePrefix:
+		return route.SegmentsMode != SegmentsModeIgnore
+	default:
 		return false
-	case route.RouteType == "prefix" && route.SegmentsMode == "ignore":
-		return false
-	case route.RouteType == "prefix":
-		return true
 	}
-	return false
 }

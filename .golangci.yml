@@ -1,0 +1,28 @@
+---
+linters:
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - errname
+    - errorlint
+    - ginkgolinter
+    - goconst
+    - gocritic
+    - gocyclo
+    - gosec
+    - nilerr
+    - nilnil
+    - noctx
+    - nosprintfhostport
+    - predeclared
+    - promlinter
+    - reassign
+    - revive
+    - tenv
+    - tparallel
+    - unconvert
+    - usestdlibvars
+    - wastedassign
+    - zerologlint

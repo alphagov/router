@@ -2,13 +2,15 @@ package handlers
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -114,6 +116,7 @@ func newBackendTransport(
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.ExpectContinueTimeout = 1 * time.Second
 
+	// #nosec G402 -- TODO: fix tests to use TLS properly.
 	if TLSSkipVerify {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
@@ -128,10 +131,8 @@ func closeBody(resp *http.Response) {
 }
 
 func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	var (
-		responseCode int
-		startTime    = time.Now()
-	)
+	var responseCode int
+	var startTime = time.Now()
 
 	BackendHandlerRequestCountMetric.With(prometheus.Labels{
 		"backend_id":     bt.backendID,
@@ -149,39 +150,31 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 	}()
 
 	resp, err = bt.wrapped.RoundTrip(req)
-	if err == nil {
-		responseCode = resp.StatusCode
-		populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
-	} else {
-		// Log the error (deferred to allow special case error handling to add/change details)
-		logDetails := map[string]interface{}{"error": err.Error(), "status": 500}
-		defer bt.logger.LogFromBackendRequest(logDetails, req)
-		defer logger.NotifySentry(logger.ReportableError{Error: err, Request: req, Response: resp})
-		defer closeBody(resp)
-
-		// Intercept some specific errors and generate an appropriate HTTP error response
-		if netErr, ok := err.(net.Error); ok {
-			if netErr.Timeout() {
-				responseCode = http.StatusGatewayTimeout
-				logDetails["status"] = responseCode
-				return newErrorResponse(responseCode), nil
-			}
-		}
-		if strings.Contains(err.Error(), "connection refused") {
+	if err != nil {
+		var nerr net.Error
+		switch {
+		case errors.Is(err, syscall.ECONNREFUSED):
 			responseCode = http.StatusBadGateway
-			logDetails["status"] = responseCode
-			return newErrorResponse(responseCode), nil
+		case errors.As(err, &nerr) && nerr.Timeout():
+			responseCode = http.StatusGatewayTimeout
+		default:
+			responseCode = http.StatusInternalServerError
 		}
-
-		// 500 for all other errors
-		responseCode = http.StatusInternalServerError
+		closeBody(resp)
+		logger.NotifySentry(logger.ReportableError{Error: err, Request: req, Response: resp})
+		bt.logger.LogFromBackendRequest(
+			map[string]interface{}{"error": err.Error(), "status": responseCode},
+			req,
+		)
 		return newErrorResponse(responseCode), nil
 	}
+	responseCode = resp.StatusCode
+	populateViaHeader(resp.Header, fmt.Sprintf("%d.%d", resp.ProtoMajor, resp.ProtoMinor))
 	return
 }
 
 func newErrorResponse(status int) (resp *http.Response) {
 	resp = &http.Response{StatusCode: status}
-	resp.Body = ioutil.NopCloser(strings.NewReader(""))
+	resp.Body = io.NopCloser(strings.NewReader(""))
 	return
 }

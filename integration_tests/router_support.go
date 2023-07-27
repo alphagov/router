@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,7 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	// revive:disable:dot-imports
 	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 )
 
 func routerURL(path string, optionalPort ...int) string {
@@ -20,7 +23,7 @@ func routerURL(path string, optionalPort ...int) string {
 	return fmt.Sprintf("http://127.0.0.1:%d%s", port, path)
 }
 
-func routerAPIURL(path string, optionalPort ...int) string {
+func routerAPIURL(path string) string {
 	return routerURL(path, 3168)
 }
 
@@ -29,9 +32,19 @@ func reloadRoutes(optionalPort ...int) {
 	if len(optionalPort) > 0 {
 		port = optionalPort[0]
 	}
-	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:%d/reload", port), "", nil)
-	Expect(err).To(BeNil())
+
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		fmt.Sprintf("http://127.0.0.1:%d/reload", port),
+		http.NoBody,
+	)
+	Expect(err).NotTo(HaveOccurred())
+
+	resp, err := http.DefaultClient.Do(req)
+	Expect(err).NotTo(HaveOccurred())
 	Expect(resp.StatusCode).To(Equal(202))
+	resp.Body.Close()
 	// Now that reloading is done asynchronously, we need a small sleep to ensure
 	// it has actually been performed.
 	time.Sleep(time.Millisecond * 50)
@@ -81,8 +94,10 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 func stopRouter(port int) {
 	cmd := runningRouters[port]
 	if cmd != nil && cmd.Process != nil {
-		cmd.Process.Signal(syscall.SIGINT)
-		cmd.Process.Wait()
+		err := cmd.Process.Signal(syscall.SIGINT)
+		Expect(err).NotTo(HaveOccurred())
+		_, err = cmd.Process.Wait()
+		Expect(err).NotTo(HaveOccurred())
 	}
 	delete(runningRouters, port)
 }

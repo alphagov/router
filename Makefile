@@ -1,4 +1,4 @@
-.PHONY: build test unit_tests integration_tests clean start_mongo clean_mongo clean_mongo_again
+.PHONY: all build test unit_tests integration_tests clean start_mongo clean_mongo clean_mongo_again
 
 BINARY ?= router
 SHELL := /bin/bash
@@ -16,6 +16,9 @@ clean:
 
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY)
+
+lint:
+	golangci-lint run
 
 test: start_mongo unit_tests integration_tests clean_mongo_again
 

@@ -75,12 +75,12 @@ func logDebug(msg ...interface{}) {
 }
 
 func catchListenAndServe(addr string, handler http.Handler, ident string, wg *sync.WaitGroup) {
-	defer wg.Done()
 	tablecloth.StartupDelay = 60 * time.Second
 	err := tablecloth.ListenAndServe(addr, handler, ident)
 	if err != nil {
 		log.Fatal(err)
 	}
+	wg.Done()
 }
 
 func main() {
@@ -118,14 +118,14 @@ func main() {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	go catchListenAndServe(pubAddr, rout, "proxy", wg)
-	logInfo("router: listening for requests on " + pubAddr)
+	logInfo(fmt.Sprintf("router: listening for requests on %v", pubAddr))
 
 	api, err := newAPIHandler(rout)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go catchListenAndServe(apiAddr, api, "api", wg)
-	logInfo("router: listening for refresh on " + apiAddr)
+	logInfo(fmt.Sprintf("router: listening for API requests on %v", apiAddr))
 
 	wg.Wait()
 }

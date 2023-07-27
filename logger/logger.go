@@ -46,11 +46,12 @@ func openWriter(output interface{}) (w io.Writer, err error) {
 	case io.Writer:
 		w = out
 	case string:
-		if out == "STDERR" {
+		switch out {
+		case "STDERR":
 			w = os.Stderr
-		} else if out == "STDOUT" {
+		case "STDOUT":
 			w = os.Stdout
-		} else {
+		default:
 			w, err = os.OpenFile(out, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 			if err != nil {
 				return nil, err

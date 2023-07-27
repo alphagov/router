@@ -10,7 +10,7 @@ loads a routing table into memory from a MongoDB database and acts as a:
   but no longer exist.
 
 The sister project [`router-api`][router-api] provides a read/write
-interface to the underlying database and route reloading.
+interface to the underlying database.
 
 [tm]: https://github.com/alphagov/router/tree/master/triemux
 [router-api]: https://github.com/alphagov/router-api
@@ -37,12 +37,25 @@ in Go's own testing framework. To run them individually:
 go test -bench=. ./trie ./triemux
 ```
 
-The `router` itself doesn't really benefit from having unit tests around
-individual functions. Instead it has a comprehensive set of integration
-tests to exercise it's HTTP handling, error reporting, and performance.
+The integration tests require Docker in order to run MongoDB. They are intended
+to cover Router's overall request handling, error reporting and performance.
 
 ```
 go test ./integration_tests
+```
+
+### Lint
+
+Checks run automatically on GitHub on PR and push. For faster feedback, you can
+install and run the [linter](https://golangci-lint.run/) yourself, or configure
+your editor/IDE to do so. For example:
+
+```sh
+brew install golangci-lint
+```
+
+```sh
+make lint
 ```
 
 ### Debug output

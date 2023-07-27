@@ -1,7 +1,7 @@
 package handlers_test
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -65,7 +65,7 @@ var _ = Describe("Backend handler", func() {
 
 			router.ServeHTTP(
 				rw,
-				httptest.NewRequest("GET", backendURL.String(), nil),
+				httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 			)
 		})
 
@@ -94,7 +94,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 
@@ -103,7 +103,7 @@ var _ = Describe("Backend handler", func() {
 			})
 
 			It("should return the body", func() {
-				body, err := ioutil.ReadAll(rw.Result().Body)
+				body, err := io.ReadAll(rw.Result().Body)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("Hello World"))
 			})
@@ -119,7 +119,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 
@@ -128,7 +128,7 @@ var _ = Describe("Backend handler", func() {
 			})
 
 			It("should return the body", func() {
-				body, err := ioutil.ReadAll(rw.Result().Body)
+				body, err := io.ReadAll(rw.Result().Body)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("Forbidden"))
 			})
@@ -151,7 +151,7 @@ var _ = Describe("Backend handler", func() {
 			return promtest.ToFloat64(
 				handlers.BackendHandlerRequestCountMetric.With(prometheus.Labels{
 					"backend_id":     "backend-metrics",
-					"request_method": "GET",
+					"request_method": http.MethodGet,
 				}),
 			)
 		}
@@ -172,7 +172,7 @@ var _ = Describe("Backend handler", func() {
 					if *label.Name == "backend_id" && *label.Value == "backend-metrics" {
 						foundCount++
 					}
-					if *label.Name == "request_method" && *label.Value == "GET" {
+					if *label.Name == "request_method" && *label.Value == http.MethodGet {
 						foundCount++
 					}
 					if *label.Name == "response_code" && *label.Value == responseCode {
@@ -193,7 +193,7 @@ var _ = Describe("Backend handler", func() {
 		}
 
 		measureResponseDurationSeconds := func(responseCode string) float64 {
-			return float64(measureResponseHistogram(responseCode).GetSampleSum())
+			return measureResponseHistogram(responseCode).GetSampleSum()
 		}
 
 		BeforeEach(func() {
@@ -219,7 +219,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 
@@ -254,7 +254,7 @@ var _ = Describe("Backend handler", func() {
 
 				router.ServeHTTP(
 					rw,
-					httptest.NewRequest("GET", backendURL.String(), nil),
+					httptest.NewRequest(http.MethodGet, backendURL.String(), nil),
 				)
 			})
 

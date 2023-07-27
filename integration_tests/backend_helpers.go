@@ -6,12 +6,16 @@ import (
 	"strconv"
 	"time"
 
+	// revive:disable:dot-imports
+	. "github.com/onsi/gomega"
+	// revive:enable:dot-imports
 	"github.com/onsi/gomega/ghttp"
 )
 
 func startSimpleBackend(identifier string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(identifier))
+		_, err := w.Write([]byte(identifier))
+		Expect(err).NotTo(HaveOccurred())
 	}))
 }
 
@@ -37,7 +41,8 @@ func startTarpitBackend(delays ...time.Duration) *httptest.Server {
 		if bodyDelay > 0 {
 			time.Sleep(bodyDelay)
 		}
-		w.Write([]byte(body))
+		_, err := w.Write([]byte(body))
+		Expect(err).NotTo(HaveOccurred())
 	}))
 }
 
