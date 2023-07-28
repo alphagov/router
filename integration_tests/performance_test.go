@@ -13,7 +13,7 @@ const routerLatencyThreshold = 20 * time.Millisecond
 
 var _ = Describe("Performance", func() {
 
-	Context("two healthy backends", func() {
+	Context("with two healthy backends", func() {
 		var (
 			backend1 *httptest.Server
 			backend2 *httptest.Server
@@ -33,12 +33,12 @@ var _ = Describe("Performance", func() {
 			backend2.Close()
 		})
 
-		It("should not significantly increase latency", func() {
-			assertPerformantRouter(backend1, backend2)
+		It("Router should not cause errors or much latency", func() {
+			assertPerformantRouter(backend1, backend2, 100)
 		})
 
 		Describe("when the routes are being reloaded repeatedly", func() {
-			It("should not significantly increase latency", func() {
+			It("Router should not cause errors or much latency", func() {
 				stopCh := make(chan struct{})
 				defer close(stopCh)
 				go func() {
@@ -52,41 +52,41 @@ var _ = Describe("Performance", func() {
 					}
 				}()
 
-				assertPerformantRouter(backend1, backend2)
+				assertPerformantRouter(backend1, backend2, 100)
 			})
 		})
 
-		Describe("one slow backend hit separately", func() {
-			It("should not significantly increase latency", func() {
+		Describe("with one slow backend hit separately", func() {
+			It("Router should not cause errors or much latency", func() {
 				slowBackend := startTarpitBackend(time.Second)
 				defer slowBackend.Close()
 				addBackend("backend-slow", slowBackend.URL)
 				addRoute("/slow", NewBackendRoute("backend-slow"))
 				reloadRoutes()
 
-				attacker := startVegetaLoad(routerURL("/slow"))
-				defer attacker.Stop()
+				_, gen := generateLoad([]string{routerURL("/slow")}, 50)
+				defer gen.Stop()
 
-				assertPerformantRouter(backend1, backend2)
+				assertPerformantRouter(backend1, backend2, 50)
 			})
 		})
 
-		Describe("one downed backend hit separately", func() {
-			It("should not significantly increase latency", func() {
+		Describe("with one downed backend hit separately", func() {
+			It("Router should not cause errors or much latency", func() {
 				addBackend("backend-down", "http://127.0.0.1:3162/")
 				addRoute("/down", NewBackendRoute("backend-down"))
 				reloadRoutes()
 
-				attacker := startVegetaLoad(routerURL("/down"))
-				defer attacker.Stop()
+				_, gen := generateLoad([]string{routerURL("/down")}, 50)
+				defer gen.Stop()
 
-				assertPerformantRouter(backend1, backend2)
+				assertPerformantRouter(backend1, backend2, 50)
 			})
 		})
 
-		Describe("high request throughput", func() {
-			It("should not significantly increase latency", func() {
-				assertPerformantRouter(backend1, backend2, 3000)
+		Describe("with high request throughput", func() {
+			It("Router should not cause errors or much latency", func() {
+				assertPerformantRouter(backend1, backend2, 500)
 			})
 		})
 	})
@@ -109,26 +109,22 @@ var _ = Describe("Performance", func() {
 			backend2.Close()
 		})
 
-		It("should not significantly increase latency", func() {
-			assertPerformantRouter(backend1, backend2, 1000)
+		It("Router should not cause errors or much latency", func() {
+			assertPerformantRouter(backend1, backend2, 500)
 		})
 	})
 })
 
-func assertPerformantRouter(backend1, backend2 *httptest.Server, optionalRate ...int) {
-	var rate = 50
-	if len(optionalRate) > 0 {
-		rate = optionalRate[0]
-	}
-	directResultsCh := startVegetaAttack([]string{backend1.URL + "/one", backend2.URL + "/two"}, rate)
-	routerResultsCh := startVegetaAttack([]string{routerURL("/one"), routerURL("/two")}, rate)
+func assertPerformantRouter(backend1, backend2 *httptest.Server, rps int) {
+	directResultsCh, _ := generateLoad([]string{backend1.URL + "/one", backend2.URL + "/two"}, rps)
+	routerResultsCh, _ := generateLoad([]string{routerURL("/one"), routerURL("/two")}, rps)
 
 	directResults := <-directResultsCh
 	routerResults := <-routerResultsCh
 
 	Expect(routerResults.Requests).To(Equal(directResults.Requests))
-	Expect(routerResults.Success).To(Equal(1.0)) // 100% success rate
-	Expect(directResults.Success).To(Equal(1.0)) // 100% success rate
+	Expect(routerResults.Success).To(BeNumerically("~", 1.0))
+	Expect(directResults.Success).To(BeNumerically("~", 1.0))
 
 	Expect(routerResults.Latencies.Mean).To(BeNumerically("~", directResults.Latencies.Mean, routerLatencyThreshold))
 	Expect(routerResults.Latencies.P95).To(BeNumerically("~", directResults.Latencies.P95, routerLatencyThreshold))
@@ -136,7 +132,7 @@ func assertPerformantRouter(backend1, backend2 *httptest.Server, optionalRate ..
 	Expect(routerResults.Latencies.Max).To(BeNumerically("~", directResults.Latencies.Max, routerLatencyThreshold*2))
 }
 
-func startVegetaAttack(targetURLs []string, rate int) chan *vegeta.Metrics {
+func generateLoad(targetURLs []string, rps int) (chan *vegeta.Metrics, *vegeta.Attacker) {
 	targets := make([]vegeta.Target, 0, len(targetURLs))
 	for _, url := range targetURLs {
 		targets = append(targets, vegeta.Target{
@@ -145,37 +141,20 @@ func startVegetaAttack(targetURLs []string, rate int) chan *vegeta.Metrics {
 		})
 	}
 	targeter := vegeta.NewStaticTargeter(targets...)
-	metricsChan := make(chan *vegeta.Metrics, 1)
-	go vegetaAttack(targeter, rate, metricsChan)
-	return metricsChan
+	metrics := make(chan *vegeta.Metrics, 1)
+	veg := vegeta.NewAttacker()
+	go vegetaAttack(veg, targeter, rps, metrics)
+	return metrics, veg
 }
 
-func vegetaAttack(targeter vegeta.Targeter, rate int, metricsChan chan *vegeta.Metrics) {
-	attacker := vegeta.NewAttacker()
+func vegetaAttack(veg *vegeta.Attacker, targets vegeta.Targeter, rps int, metrics chan *vegeta.Metrics) {
+	pace := vegeta.Pacer(vegeta.ConstantPacer{Freq: rps, Per: time.Second})
 
-	var metrics vegeta.Metrics
-	for res := range attacker.Attack(targeter, vegeta.Pacer(vegeta.ConstantPacer{Freq: rate, Per: 10 * time.Second}), 10*time.Second, "performance-attacker") {
-		metrics.Add(res)
+	var m vegeta.Metrics
+	for res := range veg.Attack(targets, pace, 10*time.Second, "load") {
+		m.Add(res)
 	}
-	metrics.Close()
+	m.Close()
 
-	metricsChan <- &metrics
-}
-
-func startVegetaLoad(targetURL string) *vegeta.Attacker {
-	attacker := vegeta.NewAttacker()
-	targetter := vegeta.NewStaticTargeter(vegeta.Target{Method: "GET", URL: targetURL})
-	resCh := attacker.Attack(targetter, vegeta.Pacer(vegeta.ConstantPacer{Freq: 50, Per: time.Minute}), time.Minute, "performance-attacker")
-
-	// Consume and discard results. Without this, all the workers will block sending to the channel.
-	// TODO: record metrics and use them in tests, rather than discarding them. See
-	// https://github.com/tsenart/vegeta#usage-library
-	go func() {
-		// revive:disable:empty-block
-		for range resCh {
-			// discard
-		}
-		// revive:enable:empty-block
-	}()
-	return attacker
+	metrics <- &m
 }
