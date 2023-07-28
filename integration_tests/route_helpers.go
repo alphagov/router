@@ -9,7 +9,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	// revive:disable:dot-imports
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	// revive:enable:dot-imports
 )
