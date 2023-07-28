@@ -16,14 +16,14 @@ var (
 	routeReloadCountMetric = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "router_route_reload_total",
-			Help: "Number of times routing table has been reloaded",
+			Help: "Total number of attempts to reload the routing table",
 		},
 	)
 
 	routeReloadErrorCountMetric = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "router_route_reload_error_total",
-			Help: "Number of errors encountered by reloading routing table",
+			Help: "Number of failed attempts to reload the routing table",
 		},
 	)
 
