@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/alphagov/router/handlers"
+	router "github.com/alphagov/router/lib"
 )
 
 var (
@@ -20,7 +21,6 @@ var (
 	mongoPollInterval     = getenvDefault("ROUTER_MONGO_POLL_INTERVAL", "2s")
 	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
 	tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
-	enableDebugOutput     = os.Getenv("DEBUG") != ""
 	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
 	frontendReadTimeout   = getenvDefault("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
@@ -62,20 +62,6 @@ func getenvDefault(key string, defaultVal string) string {
 	return val
 }
 
-func logWarn(msg ...interface{}) {
-	log.Println(msg...)
-}
-
-func logInfo(msg ...interface{}) {
-	log.Println(msg...)
-}
-
-func logDebug(msg ...interface{}) {
-	if enableDebugOutput {
-		log.Println(msg...)
-	}
-}
-
 func listenAndServeOrFatal(addr string, handler http.Handler, rTimeout time.Duration, wTimeout time.Duration) {
 	srv := &http.Server{
 		Addr:         addr,
@@ -111,31 +97,32 @@ func main() {
 	beHeaderTimeout := parseDurationOrFatal(backendHeaderTimeout)
 	mgoPollInterval := parseDurationOrFatal(mongoPollInterval)
 
-	initMetrics()
+	router.EnableDebugOutput = os.Getenv("DEBUG") != ""
+	router.InitMetrics()
 
-	logInfo("router: using frontend read timeout:", feReadTimeout)
-	logInfo("router: using frontend write timeout:", feWriteTimeout)
-	logInfo(fmt.Sprintf("router: using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0)))
+	log.Printf("using frontend read timeout: %v", feReadTimeout)
+	log.Printf("using frontend write timeout: %v", feWriteTimeout)
+	log.Printf("using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0))
 
 	if tlsSkipVerify {
 		handlers.TLSSkipVerify = true
-		logWarn("router: Skipping verification of TLS certificates. " +
+		log.Printf("skipping verification of TLS certificates; " +
 			"Do not use this option in a production environment.")
 	}
 
-	rout, err := NewRouter(mongoURL, mongoDbName, mgoPollInterval, beConnectTimeout, beHeaderTimeout, errorLogFile)
+	rout, err := router.NewRouter(mongoURL, mongoDbName, mgoPollInterval, beConnectTimeout, beHeaderTimeout, errorLogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go rout.SelfUpdateRoutes()
 
 	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
-	logInfo(fmt.Sprintf("router: listening for requests on %v", pubAddr))
+	log.Printf("router: listening for requests on %v", pubAddr)
 
-	api, err := newAPIHandler(rout)
+	api, err := router.NewAPIHandler(rout)
 	if err != nil {
 		log.Fatal(err)
 	}
-	logInfo(fmt.Sprintf("router: listening for API requests on %v", apiAddr))
+	log.Printf("router: listening for API requests on %v", apiAddr)
 	listenAndServeOrFatal(apiAddr, api, feReadTimeout, feWriteTimeout)
 }
