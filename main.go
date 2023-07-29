@@ -13,20 +13,6 @@ import (
 	router "github.com/alphagov/router/lib"
 )
 
-var (
-	pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
-	apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
-	mongoURL              = getenvDefault("ROUTER_MONGO_URL", "127.0.0.1")
-	mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
-	mongoPollInterval     = getenvDefault("ROUTER_MONGO_POLL_INTERVAL", "2s")
-	errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
-	tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
-	backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
-	backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
-	frontendReadTimeout   = getenvDefault("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
-	frontendWriteTimeout  = getenvDefault("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
-)
-
 func usage() {
 	helpstring := `
 GOV.UK Router %s
@@ -42,7 +28,7 @@ ROUTER_MONGO_POLL_INTERVAL=2s    Interval to poll mongo for route changes
 ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
 DEBUG=                           Whether to enable debug output - set to anything to enable
 
-Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration
+Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration)
 
 ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
 ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
@@ -50,7 +36,8 @@ ROUTER_FRONTEND_READ_TIMEOUT=60s   See https://cs.opensource.google/go/go/+/mast
 ROUTER_FRONTEND_WRITE_TIMEOUT=60s  See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:WriteTimeout
 `
 	fmt.Fprintf(os.Stderr, helpstring, versionInfo(), os.Args[0])
-	os.Exit(2)
+	const ErrUsage = 64
+	os.Exit(ErrUsage)
 }
 
 func getenvDefault(key string, defaultVal string) string {
@@ -83,6 +70,21 @@ func parseDurationOrFatal(s string) (d time.Duration) {
 }
 
 func main() {
+	router.EnableDebugOutput = os.Getenv("DEBUG") != ""
+	var (
+		pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
+		apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
+		mongoURL              = getenvDefault("ROUTER_MONGO_URL", "127.0.0.1")
+		mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
+		mongoPollInterval     = getenvDefault("ROUTER_MONGO_POLL_INTERVAL", "2s")
+		errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
+		tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
+		backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
+		backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
+		frontendReadTimeout   = getenvDefault("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
+		frontendWriteTimeout  = getenvDefault("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
+	)
+
 	returnVersion := flag.Bool("version", false, "")
 	flag.Usage = usage
 	flag.Parse()
@@ -97,7 +99,6 @@ func main() {
 	beHeaderTimeout := parseDurationOrFatal(backendHeaderTimeout)
 	mgoPollInterval := parseDurationOrFatal(mongoPollInterval)
 
-	router.EnableDebugOutput = os.Getenv("DEBUG") != ""
 	router.InitMetrics()
 
 	log.Printf("using frontend read timeout: %v", feReadTimeout)
