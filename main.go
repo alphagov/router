@@ -26,7 +26,7 @@ ROUTER_MONGO_URL=127.0.0.1       Address of mongo cluster (e.g. 'mongo1,mongo2,m
 ROUTER_MONGO_DB=router           Name of mongo database to use
 ROUTER_MONGO_POLL_INTERVAL=2s    Interval to poll mongo for route changes
 ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
-DEBUG=                           Whether to enable debug output - set to anything to enable
+ROUTER_DEBUG=                    Enable debug output if non-empty
 
 Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration)
 
@@ -70,7 +70,7 @@ func parseDurationOrFatal(s string) (d time.Duration) {
 }
 
 func main() {
-	router.EnableDebugOutput = os.Getenv("DEBUG") != ""
+	router.EnableDebugOutput = os.Getenv("ROUTER_DEBUG") != ""
 	var (
 		pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
 		apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
