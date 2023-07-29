@@ -1,6 +1,8 @@
-.git
-.gitignore
-Dockerfile
-README.md
-docs
-integration_tests
+#
+# Only files that are untracked by Git should be added here.
+#
+# The builder container needs to see a pristine checkout, otherwise
+# vcs.modified in the BuildInfo will always be true, i.e. the build will always
+# be marked as "dirty".
+#
+/router

@@ -35,7 +35,7 @@ ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be re
 ROUTER_FRONTEND_READ_TIMEOUT=60s   See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:ReadTimeout
 ROUTER_FRONTEND_WRITE_TIMEOUT=60s  See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:WriteTimeout
 `
-	fmt.Fprintf(os.Stderr, helpstring, versionInfo(), os.Args[0])
+	fmt.Fprintf(os.Stderr, helpstring, router.VersionInfo(), os.Args[0])
 	const ErrUsage = 64
 	os.Exit(ErrUsage)
 }
@@ -89,7 +89,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 	if *returnVersion {
-		fmt.Printf("GOV.UK Router %s\n", versionInfo())
+		fmt.Printf("GOV.UK Router %s\n", router.VersionInfo())
 		os.Exit(0)
 	}
 
