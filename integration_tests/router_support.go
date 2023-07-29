@@ -75,7 +75,7 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	}
 	cmd.Env = env.ToEnv()
 
-	if os.Getenv("DEBUG_ROUTER") != "" {
+	if os.Getenv("ROUTER_DEBUG_TESTS") != "" {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
