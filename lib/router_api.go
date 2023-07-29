@@ -1,4 +1,4 @@
-package main
+package router
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func newAPIHandler(rout *Router) (api http.Handler, err error) {
+func NewAPIHandler(rout *Router) (api http.Handler, err error) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
