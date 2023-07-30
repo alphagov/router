@@ -79,7 +79,7 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 1. Update all the dependencies, including test dependencies, in your working copy:
 
     ```sh
-    go get -t -u ./... && go mod tidy && go mod vendor
+    make update_deps
     ```
 
 1. Check for any errors and commit.
