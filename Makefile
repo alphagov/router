@@ -1,4 +1,4 @@
-.PHONY: all clean build test lint unit_tests integration_tests start_mongo stop_mongo
+.PHONY: all clean build test lint unit_tests integration_tests start_mongo stop_mongo update_deps
 .NOTPARALLEL:
 
 TARGET_MODULE := router
@@ -30,3 +30,6 @@ start_mongo:
 
 stop_mongo:
 	./mongo.sh stop
+
+update_deps:
+	go get -t -u ./... && go mod tidy && go mod vendor
