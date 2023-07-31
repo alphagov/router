@@ -88,8 +88,9 @@ func main() {
 	returnVersion := flag.Bool("version", false, "")
 	flag.Usage = usage
 	flag.Parse()
+
+	fmt.Printf("GOV.UK Router %s\n", router.VersionInfo())
 	if *returnVersion {
-		fmt.Printf("GOV.UK Router %s\n", router.VersionInfo())
 		os.Exit(0)
 	}
 
