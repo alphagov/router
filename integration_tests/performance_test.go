@@ -2,7 +2,6 @@ package integration
 
 import (
 	"net/http/httptest"
-	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -85,42 +84,34 @@ var _ = Describe("Performance", func() {
 			})
 		})
 
-		if os.Getenv("RUN_ULIMIT_DEPENDENT_TESTS") != "" {
-			Describe("high request throughput", func() {
-				It("should not significantly increase latency", func() {
-					assertPerformantRouter(backend1, backend2, 3000)
-				})
+		Describe("high request throughput", func() {
+			It("should not significantly increase latency", func() {
+				assertPerformantRouter(backend1, backend2, 3000)
 			})
-		}
+		})
 	})
 
-	Describe("many concurrent (slow) connections", func() {
-		if os.Getenv("RUN_ULIMIT_DEPENDENT_TESTS") != "" {
-			var (
-				backend1 *httptest.Server
-				backend2 *httptest.Server
-			)
+	Describe("many concurrent slow connections", func() {
+		var backend1 *httptest.Server
+		var backend2 *httptest.Server
 
-			BeforeEach(func() {
-				backend1 = startTarpitBackend(time.Second)
-				backend2 = startTarpitBackend(time.Second)
-				addBackend("backend-1", backend1.URL)
-				addBackend("backend-2", backend2.URL)
-				addRoute("/one", NewBackendRoute("backend-1"))
-				addRoute("/two", NewBackendRoute("backend-2"))
-				reloadRoutes()
-			})
-			AfterEach(func() {
-				backend1.Close()
-				backend2.Close()
-			})
+		BeforeEach(func() {
+			backend1 = startTarpitBackend(time.Second)
+			backend2 = startTarpitBackend(time.Second)
+			addBackend("backend-1", backend1.URL)
+			addBackend("backend-2", backend2.URL)
+			addRoute("/one", NewBackendRoute("backend-1"))
+			addRoute("/two", NewBackendRoute("backend-2"))
+			reloadRoutes()
+		})
+		AfterEach(func() {
+			backend1.Close()
+			backend2.Close()
+		})
 
-			It("should not significantly increase latency", func() {
-				assertPerformantRouter(backend1, backend2, 1000)
-			})
-		} else {
-			PIt("high throughput requires elevated ulimit")
-		}
+		It("should not significantly increase latency", func() {
+			assertPerformantRouter(backend1, backend2, 1000)
+		})
 	})
 })
 
