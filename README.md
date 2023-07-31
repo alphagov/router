@@ -18,7 +18,7 @@ interface to the underlying database.
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
 
-### Running the test suite
+### Run the test suite
 
 You can run all tests (some of which need Docker installed) by running:
 
@@ -72,16 +72,39 @@ or equivalently for a single run:
 DEBUG=1 DEBUG_ROUTER=1 make test
 ```
 
-### Updating dependencies
+### Update the dependencies
 
 This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to vendor its dependencies. To update the dependencies:
 
-1. Run `go mod tidy && go mod vendor`.
+1. Update all the dependencies, including test dependencies, in your working copy:
+
+    ```sh
+    go get -t -u ./... && go mod tidy && go mod vendor
+    ```
+
 1. Check for any errors and commit.
 
-Occasionally an old module may need updating explicitly via `go get -u
-<repo-of-module>`, for example `go get -u github.com/streadway/quantile`
+    ```sh
+    git commit -- go.{mod,sum} vendor
+    ```
 
+1. [Run the Router test suite](#run-the-test-suite). If you need to fix a
+   failing test, keep your changes in separate commits to the `go get` /
+   `go mod` commit.
+
+1. Run the tests for all dependencies:
+
+    ```sh
+    go test all
+    ```
+
+    - If there are failures, look into each one and determine whether it needs
+      fixing.
+    - If anything under `vendor/` needs changing then either raise a PR with
+      the upstream project or revert to a set of versions that work together.
+      Only `go get` and `go mod` should touch files in `vendor/`.
+
+1. Raise a PR.
 
 ### Further documentation
 
