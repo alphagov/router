@@ -5,8 +5,7 @@ import (
 	"net/http/httptest"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,40 +19,13 @@ type redirectTableEntry struct {
 	temporary bool
 }
 
+// TODO: refactor this abomination.
 var _ = Describe("Redirect handlers", func() {
-	entries := []TableEntry{
-		Entry(
-			"when redirects are temporary and paths are preserved",
-			redirectTableEntry{preserve: true, temporary: true},
-		),
-		Entry(
-			"when redirects are temporary and paths are not preserved",
-			redirectTableEntry{preserve: false, temporary: true},
-		),
-		Entry(
-			"when redirects are not temporary and paths are preserved",
-			redirectTableEntry{preserve: true, temporary: false},
-		),
-		Entry(
-			"when redirects are not temporary and paths are not preserved",
-			redirectTableEntry{preserve: false, temporary: false},
-		),
-	}
-
-	DescribeTable(
-		"handlers",
+	DescribeTable("handlers",
 		func(t redirectTableEntry) {
+			var redirectCode, redirectType string
 			rw := httptest.NewRecorder()
-
-			handler := handlers.NewRedirectHandler(
-				"/source-prefix", "/target-prefix",
-				t.preserve, t.temporary,
-			)
-
-			var (
-				redirectCode string
-				redirectType string
-			)
+			handler := handlers.NewRedirectHandler("/source-prefix", "/target-prefix", t.preserve, t.temporary)
 
 			if t.temporary {
 				redirectCode = "302"
@@ -67,17 +39,10 @@ var _ = Describe("Redirect handlers", func() {
 				redirectType = "redirect-handler"
 			}
 
-			labels := prometheus.Labels{
-				"redirect_code": redirectCode,
-				"redirect_type": redirectType,
-			}
+			labels := prometheus.Labels{"redirect_code": redirectCode, "redirect_type": redirectType}
+			beforeCount := promtest.ToFloat64(handlers.RedirectHandlerRedirectCountMetric.With(labels))
 
-			beforeCount := promtest.ToFloat64(
-				handlers.RedirectHandlerRedirectCountMetric.With(labels),
-			)
-
-			handler.ServeHTTP(
-				rw,
+			handler.ServeHTTP(rw,
 				httptest.NewRequest(
 					http.MethodGet,
 					"https://source.gov.uk/source-prefix/path/subpath?query1=a&query2=b",
@@ -86,9 +51,6 @@ var _ = Describe("Redirect handlers", func() {
 			)
 
 			if t.temporary {
-				// HTTP 302 is returned instead of 307
-				// because we want the route to be cached temporarily
-				// and not rerequested immediately
 				Expect(rw.Result().StatusCode).To(
 					Equal(http.StatusFound),
 					"when the redirect is temporary we should return HTTP 302",
@@ -126,7 +88,7 @@ var _ = Describe("Redirect handlers", func() {
 						Expect(err).NotTo(HaveOccurred(), "Not RFC1123 compliant")
 						return t
 					},
-					BeTemporally("~", time.Now().Add(30*time.Minute), 1*time.Second),
+					BeTemporally("~", time.Now().Add(30*time.Minute), time.Second),
 				),
 				"Be RFC1123 compliant and expire around 30 minutes in the future",
 			)
@@ -136,11 +98,26 @@ var _ = Describe("Redirect handlers", func() {
 			)
 
 			Expect(afterCount-beforeCount).To(
-				Equal(1.0),
+				BeNumerically("~", 1.0),
 				"Making a request should increment the redirect handler count metric",
 			)
 		},
-		entries...,
+		Entry(
+			"when redirects are temporary and paths are preserved",
+			redirectTableEntry{preserve: true, temporary: true},
+		),
+		Entry(
+			"when redirects are temporary and paths are not preserved",
+			redirectTableEntry{preserve: false, temporary: true},
+		),
+		Entry(
+			"when redirects are not temporary and paths are preserved",
+			redirectTableEntry{preserve: true, temporary: false},
+		),
+		Entry(
+			"when redirects are not temporary and paths are not preserved",
+			redirectTableEntry{preserve: false, temporary: false},
+		),
 	)
 
 	Context("when we are not preserving paths", func() {

@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	vegeta "github.com/tsenart/vegeta/v12/lib"
 )
