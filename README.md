@@ -1,13 +1,12 @@
--# router
+# Router
 
-This is a HTTP reverse proxy router built on top of [`triemux`][tm]. It
-loads a routing table into memory from a MongoDB database and acts as a:
+GOV.UK Router is an HTTP reverse proxy built on top of [`triemux`][tm]. It
+loads a routing table into memory from a MongoDB database and:
 
-- Reverse proxy, forwarding requests to and serving responses from multiple
-  backend servers on a single domain.
-- Redirector, serving HTTP `301` and `302` redirects to new URLs.
-- Gone responder, serving HTTP `410` responses for resources that used to
-  but no longer exist.
+- forwards requests to backend application servers according to the path in the
+  request URL
+- serves HTTP `301` and `302` redirects for moved content and short URLs
+- serves `410 Gone` responses for resources that no longer exist
 
 The sister project [`router-api`][router-api] provides a read/write
 interface to the underlying database.
