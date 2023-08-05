@@ -162,13 +162,13 @@ var lookupExamples = []LookupExample{
 }
 
 func TestLookup(t *testing.T) {
-	beforeCount := promtest.ToFloat64(EntryNotFoundCountMetric)
+	beforeCount := promtest.ToFloat64(entryNotFoundCountMetric)
 
 	for _, ex := range lookupExamples {
 		testLookup(t, ex)
 	}
 
-	afterCount := promtest.ToFloat64(EntryNotFoundCountMetric)
+	afterCount := promtest.ToFloat64(entryNotFoundCountMetric)
 	notFoundCount := afterCount - beforeCount
 
 	var expectedNotFoundCount int

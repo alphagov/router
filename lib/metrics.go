@@ -35,11 +35,11 @@ var (
 	)
 )
 
-func InitMetrics() {
-	prometheus.MustRegister(internalServerErrorCountMetric)
-
-	prometheus.MustRegister(routeReloadCountMetric)
-	prometheus.MustRegister(routeReloadErrorCountMetric)
-
-	prometheus.MustRegister(routesCountMetric)
+func registerMetrics(r prometheus.Registerer) {
+	r.MustRegister(
+		internalServerErrorCountMetric,
+		routeReloadCountMetric,
+		routeReloadErrorCountMetric,
+		routesCountMetric,
+	)
 }

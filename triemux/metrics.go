@@ -5,14 +5,14 @@ import (
 )
 
 var (
-	EntryNotFoundCountMetric = prometheus.NewCounter(
+	entryNotFoundCountMetric = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "router_triemux_entry_not_found_total",
 			Help: "Number of triemux lookups for which an entry was not found",
 		},
 	)
 
-	InternalServiceUnavailableCountMetric = prometheus.NewCounterVec(
+	internalServiceUnavailableCountMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "router_service_unavailable_error_total",
 			Help: "Number of 503 Service Unavailable errors served by router",
@@ -21,7 +21,9 @@ var (
 	)
 )
 
-func initMetrics() {
-	prometheus.MustRegister(EntryNotFoundCountMetric)
-	prometheus.MustRegister(InternalServiceUnavailableCountMetric)
+func registerMetrics(r prometheus.Registerer) {
+	r.MustRegister(
+		entryNotFoundCountMetric,
+		internalServiceUnavailableCountMetric,
+	)
 }

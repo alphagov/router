@@ -100,8 +100,6 @@ func main() {
 	beHeaderTimeout := parseDurationOrFatal(backendHeaderTimeout)
 	mgoPollInterval := parseDurationOrFatal(mongoPollInterval)
 
-	router.InitMetrics()
-
 	log.Printf("using frontend read timeout: %v", feReadTimeout)
 	log.Printf("using frontend write timeout: %v", feWriteTimeout)
 	log.Printf("using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0))

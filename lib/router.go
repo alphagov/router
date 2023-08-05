@@ -80,13 +80,15 @@ func NewRouter(mongoURL, mongoDbName string, mongoPollInterval, beConnTimeout, b
 	if err != nil {
 		return nil, err
 	}
+	logInfo("router: logging errors as JSON to", logFileName)
+
+	// TODO: avoid using the global registry.
+	registerMetrics(prometheus.DefaultRegisterer)
 
 	mongoReadToOptime, err := bson.NewMongoTimestamp(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), 1)
 	if err != nil {
 		return nil, err
 	}
-
-	logInfo("router: logging errors as JSON to", logFileName)
 
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
