@@ -40,13 +40,24 @@ ROUTER_FRONTEND_WRITE_TIMEOUT=60s  See https://cs.opensource.google/go/go/+/mast
 	os.Exit(ErrUsage)
 }
 
-func getenvDefault(key string, defaultVal string) string {
-	val := os.Getenv(key)
-	if val == "" {
-		val = defaultVal
+func getenv(key string, defaultVal string) string {
+	if s := os.Getenv(key); s != "" {
+		return s
 	}
+	return defaultVal
+}
 
-	return val
+func getenvDuration(key string, defaultVal string) time.Duration {
+	s := getenv(key, defaultVal)
+	return mustParseDuration(s)
+}
+
+func mustParseDuration(s string) (d time.Duration) {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return
 }
 
 func listenAndServeOrFatal(addr string, handler http.Handler, rTimeout time.Duration, wTimeout time.Duration) {
@@ -61,30 +72,7 @@ func listenAndServeOrFatal(addr string, handler http.Handler, rTimeout time.Dura
 	}
 }
 
-func parseDurationOrFatal(s string) (d time.Duration) {
-	d, err := time.ParseDuration(s)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return
-}
-
 func main() {
-	router.EnableDebugOutput = os.Getenv("ROUTER_DEBUG") != ""
-	var (
-		pubAddr               = getenvDefault("ROUTER_PUBADDR", ":8080")
-		apiAddr               = getenvDefault("ROUTER_APIADDR", ":8081")
-		mongoURL              = getenvDefault("ROUTER_MONGO_URL", "127.0.0.1")
-		mongoDbName           = getenvDefault("ROUTER_MONGO_DB", "router")
-		mongoPollInterval     = getenvDefault("ROUTER_MONGO_POLL_INTERVAL", "2s")
-		errorLogFile          = getenvDefault("ROUTER_ERROR_LOG", "STDERR")
-		tlsSkipVerify         = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
-		backendConnectTimeout = getenvDefault("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
-		backendHeaderTimeout  = getenvDefault("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
-		frontendReadTimeout   = getenvDefault("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
-		frontendWriteTimeout  = getenvDefault("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
-	)
-
 	returnVersion := flag.Bool("version", false, "")
 	flag.Usage = usage
 	flag.Parse()
@@ -94,11 +82,20 @@ func main() {
 		os.Exit(0)
 	}
 
-	feReadTimeout := parseDurationOrFatal(frontendReadTimeout)
-	feWriteTimeout := parseDurationOrFatal(frontendWriteTimeout)
-	beConnectTimeout := parseDurationOrFatal(backendConnectTimeout)
-	beHeaderTimeout := parseDurationOrFatal(backendHeaderTimeout)
-	mgoPollInterval := parseDurationOrFatal(mongoPollInterval)
+	router.EnableDebugOutput = os.Getenv("ROUTER_DEBUG") != ""
+	var (
+		pubAddr           = getenv("ROUTER_PUBADDR", ":8080")
+		apiAddr           = getenv("ROUTER_APIADDR", ":8081")
+		mongoURL          = getenv("ROUTER_MONGO_URL", "127.0.0.1")
+		mongoDbName       = getenv("ROUTER_MONGO_DB", "router")
+		mongoPollInterval = getenvDuration("ROUTER_MONGO_POLL_INTERVAL", "2s")
+		errorLogFile      = getenv("ROUTER_ERROR_LOG", "STDERR")
+		tlsSkipVerify     = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
+		beConnTimeout     = getenvDuration("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
+		beHeaderTimeout   = getenvDuration("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
+		feReadTimeout     = getenvDuration("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
+		feWriteTimeout    = getenvDuration("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
+	)
 
 	log.Printf("using frontend read timeout: %v", feReadTimeout)
 	log.Printf("using frontend write timeout: %v", feWriteTimeout)
@@ -110,7 +107,14 @@ func main() {
 			"Do not use this option in a production environment.")
 	}
 
-	rout, err := router.NewRouter(mongoURL, mongoDbName, mgoPollInterval, beConnectTimeout, beHeaderTimeout, errorLogFile)
+	rout, err := router.NewRouter(router.Options{
+		MongoURL:             mongoURL,
+		MongoDbName:          mongoDbName,
+		MongoPollInterval:    mongoPollInterval,
+		BackendConnTimeout:   beConnTimeout,
+		BackendHeaderTimeout: beHeaderTimeout,
+		LogFileName:          errorLogFile,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
