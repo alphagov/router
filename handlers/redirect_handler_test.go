@@ -97,12 +97,12 @@ var _ = Describe("A redirect handler", func() {
 		Entry(nil, true, true, "302", "path-preserving-redirect-handler"),
 		func(preserve, temporary bool, codeLabel, typeLabel string) {
 			lbls := prometheus.Labels{"redirect_code": codeLabel, "redirect_type": typeLabel}
-			before := promtest.ToFloat64(redirectHandlerRedirectCountMetric.With(lbls))
+			before := promtest.ToFloat64(redirectCountMetric.With(lbls))
 
 			handler = NewRedirectHandler("/source", "/target", preserve, temporary)
 			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 
-			after := promtest.ToFloat64(redirectHandlerRedirectCountMetric.With(lbls))
+			after := promtest.ToFloat64(redirectCountMetric.With(lbls))
 			Expect(after - before).To(BeNumerically("~", 1.0))
 		},
 	)

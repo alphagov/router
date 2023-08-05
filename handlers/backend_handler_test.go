@@ -147,7 +147,7 @@ var _ = Describe("Backend handler", func() {
 
 		measureRequestCount := func() float64 {
 			return promtest.ToFloat64(
-				backendHandlerRequestCountMetric.With(prometheus.Labels{
+				backendRequestCountMetric.With(prometheus.Labels{
 					"backend_id":     "backend-metrics",
 					"request_method": http.MethodGet,
 				}),
@@ -158,7 +158,7 @@ var _ = Describe("Backend handler", func() {
 			var err error
 			metricChan := make(chan prometheus.Metric, 1024)
 
-			backendHandlerResponseDurationSecondsMetric.Collect(metricChan)
+			backendResponseDurationSecondsMetric.Collect(metricChan)
 			close(metricChan)
 			for m := range metricChan {
 				metric := new(prommodel.Metric)
