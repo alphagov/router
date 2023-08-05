@@ -61,7 +61,7 @@ func (handler *redirectHandler) ServeHTTP(writer http.ResponseWriter, request *h
 	target := addGAQueryParam(handler.url, request)
 	http.Redirect(writer, request, target, handler.code)
 
-	redirectHandlerRedirectCountMetric.With(prometheus.Labels{
+	redirectCountMetric.With(prometheus.Labels{
 		"redirect_code": fmt.Sprintf("%d", handler.code),
 		"redirect_type": redirectHandlerType,
 	}).Inc()
@@ -82,7 +82,7 @@ func (handler *pathPreservingRedirectHandler) ServeHTTP(writer http.ResponseWrit
 	addCacheHeaders(writer)
 	http.Redirect(writer, request, target, handler.code)
 
-	redirectHandlerRedirectCountMetric.With(prometheus.Labels{
+	redirectCountMetric.With(prometheus.Labels{
 		"redirect_code": fmt.Sprintf("%d", handler.code),
 		"redirect_type": pathPreservingRedirectHandlerType,
 	}).Inc()
