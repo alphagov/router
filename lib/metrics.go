@@ -8,7 +8,7 @@ var (
 	internalServerErrorCountMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "router_internal_server_error_total",
-			Help: "Number of internal server errors encountered by router",
+			Help: "Number of 500 Internal Server Error responses originating from Router",
 		},
 		[]string{"host"},
 	)
