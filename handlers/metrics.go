@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	RedirectHandlerRedirectCountMetric = prometheus.NewCounterVec(
+	redirectHandlerRedirectCountMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "router_redirect_handler_redirect_total",
 			Help: "Number of redirects handled by router redirect handlers",
@@ -16,7 +16,7 @@ var (
 		},
 	)
 
-	BackendHandlerRequestCountMetric = prometheus.NewCounterVec(
+	backendHandlerRequestCountMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "router_backend_handler_request_total",
 			Help: "Number of requests handled by router backend handlers",
@@ -27,7 +27,7 @@ var (
 		},
 	)
 
-	BackendHandlerResponseDurationSecondsMetric = prometheus.NewHistogramVec(
+	backendHandlerResponseDurationSecondsMetric = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "router_backend_handler_response_duration_seconds",
 			Help: "Histogram of response durations by router backend handlers",
@@ -40,9 +40,10 @@ var (
 	)
 )
 
-func initMetrics() {
-	prometheus.MustRegister(RedirectHandlerRedirectCountMetric)
-
-	prometheus.MustRegister(BackendHandlerRequestCountMetric)
-	prometheus.MustRegister(BackendHandlerResponseDurationSecondsMetric)
+func registerMetrics(r prometheus.Registerer) {
+	r.MustRegister(
+		backendHandlerRequestCountMetric,
+		backendHandlerResponseDurationSecondsMetric,
+		redirectHandlerRedirectCountMetric,
+	)
 }
