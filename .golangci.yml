@@ -20,9 +20,15 @@ linters:
     - promlinter
     - reassign
     - revive
+    - stylecheck
     - tenv
     - tparallel
     - unconvert
     - usestdlibvars
     - wastedassign
     - zerologlint
+linters-settings:
+  stylecheck:
+    dot-import-whitelist:
+      - github.com/onsi/ginkgo/v2
+      - github.com/onsi/gomega

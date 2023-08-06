@@ -48,7 +48,7 @@ type Router struct {
 
 type Options struct {
 	MongoURL             string
-	MongoDbName          string
+	MongoDBName          string
 	MongoPollInterval    time.Duration
 	BackendConnTimeout   time.Duration
 	BackendHeaderTimeout time.Duration
@@ -193,7 +193,7 @@ func (rt *Router) pollAndReload() {
 
 			if rt.shouldReload(currentMongoInstance) {
 				logDebug("router: updates found")
-				rt.reloadRoutes(sess.DB(rt.opts.MongoDbName), currentMongoInstance.Optime)
+				rt.reloadRoutes(sess.DB(rt.opts.MongoDBName), currentMongoInstance.Optime)
 			} else {
 				logDebug("router: no updates found")
 			}

@@ -87,7 +87,7 @@ func main() {
 		pubAddr           = getenv("ROUTER_PUBADDR", ":8080")
 		apiAddr           = getenv("ROUTER_APIADDR", ":8081")
 		mongoURL          = getenv("ROUTER_MONGO_URL", "127.0.0.1")
-		mongoDbName       = getenv("ROUTER_MONGO_DB", "router")
+		mongoDBName       = getenv("ROUTER_MONGO_DB", "router")
 		mongoPollInterval = getenvDuration("ROUTER_MONGO_POLL_INTERVAL", "2s")
 		errorLogFile      = getenv("ROUTER_ERROR_LOG", "STDERR")
 		tlsSkipVerify     = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
@@ -109,7 +109,7 @@ func main() {
 
 	rout, err := router.NewRouter(router.Options{
 		MongoURL:             mongoURL,
-		MongoDbName:          mongoDbName,
+		MongoDBName:          mongoDBName,
 		MongoPollInterval:    mongoPollInterval,
 		BackendConnTimeout:   beConnTimeout,
 		BackendHeaderTimeout: beHeaderTimeout,

@@ -58,7 +58,7 @@ func openWriter(output interface{}) (w io.Writer, err error) {
 			}
 		}
 	default:
-		return nil, fmt.Errorf("Invalid output type %T(%v)", output, output)
+		return nil, fmt.Errorf("invalid output type %T(%v)", output, output)
 	}
 	return
 }
