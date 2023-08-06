@@ -82,6 +82,13 @@ type Route struct {
 	Disabled     bool   `bson:"disabled"`
 }
 
+// RegisterMetrics registers Prometheus metrics from the router module and the
+// modules that it directly depends on. To use the default (global) registry,
+// pass prometheus.DefaultRegisterer.
+func RegisterMetrics(r prometheus.Registerer) {
+	registerMetrics(r)
+}
+
 // NewRouter returns a new empty router instance. You will need to call
 // SelfUpdateRoutes() to initialise the self-update process for routes.
 func NewRouter(o Options) (rt *Router, err error) {
@@ -94,9 +101,6 @@ func NewRouter(o Options) (rt *Router, err error) {
 		return nil, err
 	}
 	logInfo("router: logging errors as JSON to", o.LogFileName)
-
-	// TODO: avoid using the global registry.
-	registerMetrics(prometheus.DefaultRegisterer)
 
 	mongoReadToOptime, err := bson.NewMongoTimestamp(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), 1)
 	if err != nil {
