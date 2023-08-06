@@ -20,7 +20,7 @@ var (
 	)
 )
 
-func registerMetrics(r prometheus.Registerer) {
+func RegisterMetrics(r prometheus.Registerer) {
 	r.MustRegister(
 		entryNotFoundCountMetric,
 		internalServiceUnavailableCountMetric,

@@ -40,7 +40,7 @@ var (
 	)
 )
 
-func registerMetrics(r prometheus.Registerer) {
+func RegisterMetrics(r prometheus.Registerer) {
 	r.MustRegister(
 		backendRequestCountMetric,
 		backendResponseDurationSecondsMetric,

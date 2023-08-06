@@ -11,6 +11,7 @@ import (
 
 	"github.com/alphagov/router/handlers"
 	router "github.com/alphagov/router/lib"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func usage() {
@@ -106,6 +107,8 @@ func main() {
 		log.Printf("skipping verification of TLS certificates; " +
 			"Do not use this option in a production environment.")
 	}
+
+	router.RegisterMetrics(prometheus.DefaultRegisterer)
 
 	rout, err := router.NewRouter(router.Options{
 		MongoURL:             mongoURL,

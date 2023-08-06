@@ -1,6 +1,8 @@
 package router
 
 import (
+	"github.com/alphagov/router/handlers"
+	"github.com/alphagov/router/triemux"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -42,4 +44,6 @@ func registerMetrics(r prometheus.Registerer) {
 		routeReloadErrorCountMetric,
 		routesCountMetric,
 	)
+	handlers.RegisterMetrics(r)
+	triemux.RegisterMetrics(r)
 }
