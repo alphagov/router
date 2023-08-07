@@ -50,11 +50,12 @@ func reloadRoutes(optionalPort ...int) {
 	time.Sleep(time.Millisecond * 50)
 }
 
-var runningRouters = make(map[int]*exec.Cmd)
+var runningRouters = make(map[uint16]*exec.Cmd)
 
-func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
-	pubaddr := fmt.Sprintf(":%d", port)
-	apiaddr := fmt.Sprintf(":%d", apiPort)
+func startRouter(port, apiPort uint16, extraEnv []string) error {
+	host := "localhost"
+	pubAddr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	apiAddr := net.JoinHostPort(host, fmt.Sprintf("%d", apiPort))
 
 	bin := os.Getenv("BINARY")
 	if bin == "" {
@@ -62,18 +63,10 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	}
 	cmd := exec.Command(bin)
 
-	env := newEnvMap(os.Environ())
-	env["ROUTER_PUBADDR"] = pubaddr
-	env["ROUTER_APIADDR"] = apiaddr
-	env["ROUTER_MONGO_DB"] = "router_test"
-	env["ROUTER_MONGO_POLL_INTERVAL"] = "2s"
-	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
-	if len(optionalExtraEnv) > 0 {
-		for k, v := range optionalExtraEnv[0] {
-			env[k] = v
-		}
-	}
-	cmd.Env = env.ToEnv()
+	cmd.Env = append(cmd.Environ(), fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
+	cmd.Env = append(cmd.Env, "ROUTER_MONGO_DB=router_test")
+	cmd.Env = append(cmd.Env, extraEnv...)
 
 	if os.Getenv("ROUTER_DEBUG_TESTS") != "" {
 		cmd.Stdout = os.Stdout
@@ -85,13 +78,13 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 		return err
 	}
 
-	waitForServerUp(pubaddr)
+	waitForServerUp(pubAddr)
 
 	runningRouters[port] = cmd
 	return nil
 }
 
-func stopRouter(port int) {
+func stopRouter(port uint16) {
 	cmd := runningRouters[port]
 	if cmd != nil && cmd.Process != nil {
 		err := cmd.Process.Signal(syscall.SIGINT)
