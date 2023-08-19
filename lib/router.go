@@ -235,14 +235,14 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 
 	backends := rt.loadBackends(db.C("backends"))
 	loadRoutes(db.C("routes"), newmux, backends)
+	routeCount := newmux.RouteCount()
 
 	rt.lock.Lock()
 	rt.mux = newmux
 	rt.lock.Unlock()
 
-	logInfo(fmt.Sprintf("router: reloaded %d routes", rt.mux.RouteCount()))
-
-	routesCountMetric.Set(float64(rt.mux.RouteCount()))
+	logInfo(fmt.Sprintf("router: reloaded %d routes", routeCount))
+	routesCountMetric.Set(float64(routeCount))
 }
 
 func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMember, error) {
