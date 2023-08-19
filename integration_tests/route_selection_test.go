@@ -24,7 +24,7 @@ var _ = Describe("Route selection", func() {
 			addRoute("/foo", NewBackendRoute("backend-1"))
 			addRoute("/bar", NewBackendRoute("backend-2"))
 			addRoute("/baz", NewBackendRoute("backend-1"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
 			backend1.Close()
@@ -32,29 +32,29 @@ var _ = Describe("Route selection", func() {
 		})
 
 		It("should route a matching request to the corresponding backend", func() {
-			resp := routerRequest("/foo")
+			resp := routerRequest(routerPort, "/foo")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 
-			resp = routerRequest("/bar")
+			resp = routerRequest(routerPort, "/bar")
 			Expect(readBody(resp)).To(Equal("backend 2"))
 
-			resp = routerRequest("/baz")
+			resp = routerRequest(routerPort, "/baz")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 		})
 
 		It("should 404 for children of the exact route", func() {
-			resp := routerRequest("/foo/bar")
+			resp := routerRequest(routerPort, "/foo/bar")
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 
 		It("should 404 for non-matching requests", func() {
-			resp := routerRequest("/wibble")
+			resp := routerRequest(routerPort, "/wibble")
 			Expect(resp.StatusCode).To(Equal(404))
 
-			resp = routerRequest("/")
+			resp = routerRequest(routerPort, "/")
 			Expect(resp.StatusCode).To(Equal(404))
 
-			resp = routerRequest("/foo.json")
+			resp = routerRequest(routerPort, "/foo.json")
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 	})
@@ -73,7 +73,7 @@ var _ = Describe("Route selection", func() {
 			addRoute("/foo", NewBackendRoute("backend-1", "prefix"))
 			addRoute("/bar", NewBackendRoute("backend-2", "prefix"))
 			addRoute("/baz", NewBackendRoute("backend-1", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
 			backend1.Close()
@@ -81,35 +81,35 @@ var _ = Describe("Route selection", func() {
 		})
 
 		It("should route requests for the prefix to the backend", func() {
-			resp := routerRequest("/foo")
+			resp := routerRequest(routerPort, "/foo")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 
-			resp = routerRequest("/bar")
+			resp = routerRequest(routerPort, "/bar")
 			Expect(readBody(resp)).To(Equal("backend 2"))
 
-			resp = routerRequest("/baz")
+			resp = routerRequest(routerPort, "/baz")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 		})
 
 		It("should route requests for the children of the prefix to the backend", func() {
-			resp := routerRequest("/foo/bar")
+			resp := routerRequest(routerPort, "/foo/bar")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 
-			resp = routerRequest("/bar/foo.json")
+			resp = routerRequest(routerPort, "/bar/foo.json")
 			Expect(readBody(resp)).To(Equal("backend 2"))
 
-			resp = routerRequest("/baz/fooey/kablooie")
+			resp = routerRequest(routerPort, "/baz/fooey/kablooie")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 		})
 
 		It("should 404 for non-matching requests", func() {
-			resp := routerRequest("/wibble")
+			resp := routerRequest(routerPort, "/wibble")
 			Expect(resp.StatusCode).To(Equal(404))
 
-			resp = routerRequest("/")
+			resp = routerRequest(routerPort, "/")
 			Expect(resp.StatusCode).To(Equal(404))
 
-			resp = routerRequest("/foo.json")
+			resp = routerRequest(routerPort, "/foo.json")
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 	})
@@ -126,7 +126,7 @@ var _ = Describe("Route selection", func() {
 			addBackend("outer-backend", outer.URL)
 			addBackend("inner-backend", inner.URL)
 			addRoute("/foo", NewBackendRoute("outer-backend", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
 			outer.Close()
@@ -136,21 +136,21 @@ var _ = Describe("Route selection", func() {
 		Describe("with an exact child", func() {
 			BeforeEach(func() {
 				addRoute("/foo/bar", NewBackendRoute("inner-backend"))
-				reloadRoutes()
+				reloadRoutes(apiPort)
 			})
 
 			It("should route the prefix to the outer backend", func() {
-				resp := routerRequest("/foo")
+				resp := routerRequest(routerPort, "/foo")
 				Expect(readBody(resp)).To(Equal("outer"))
 			})
 
 			It("should route the exact child to the inner backend", func() {
-				resp := routerRequest("/foo/bar")
+				resp := routerRequest(routerPort, "/foo/bar")
 				Expect(readBody(resp)).To(Equal("inner"))
 			})
 
 			It("should route the children of the exact child to the outer backend", func() {
-				resp := routerRequest("/foo/bar/baz")
+				resp := routerRequest(routerPort, "/foo/bar/baz")
 				Expect(readBody(resp)).To(Equal("outer"))
 			})
 		})
@@ -158,29 +158,29 @@ var _ = Describe("Route selection", func() {
 		Describe("with a prefix child", func() {
 			BeforeEach(func() {
 				addRoute("/foo/bar", NewBackendRoute("inner-backend", "prefix"))
-				reloadRoutes()
+				reloadRoutes(apiPort)
 			})
 
 			It("should route the outer prefix to the outer backend", func() {
-				resp := routerRequest("/foo")
+				resp := routerRequest(routerPort, "/foo")
 				Expect(readBody(resp)).To(Equal("outer"))
 			})
 
 			It("should route the inner prefix to the inner backend", func() {
-				resp := routerRequest("/foo/bar")
+				resp := routerRequest(routerPort, "/foo/bar")
 				Expect(readBody(resp)).To(Equal("inner"))
 			})
 
 			It("should route the children of the inner prefix to the inner backend", func() {
-				resp := routerRequest("/foo/bar/baz")
+				resp := routerRequest(routerPort, "/foo/bar/baz")
 				Expect(readBody(resp)).To(Equal("inner"))
 			})
 
 			It("should route other children of the outer prefix to the outer backend", func() {
-				resp := routerRequest("/foo/baz")
+				resp := routerRequest(routerPort, "/foo/baz")
 				Expect(readBody(resp)).To(Equal("outer"))
 
-				resp = routerRequest("/foo/bar.json")
+				resp = routerRequest(routerPort, "/foo/bar.json")
 				Expect(readBody(resp)).To(Equal("outer"))
 			})
 		})
@@ -194,43 +194,43 @@ var _ = Describe("Route selection", func() {
 				addBackend("innerer-backend", innerer.URL)
 				addRoute("/foo/bar", NewBackendRoute("inner-backend"))
 				addRoute("/foo/bar/baz", NewBackendRoute("innerer-backend", "prefix"))
-				reloadRoutes()
+				reloadRoutes(apiPort)
 			})
 			AfterEach(func() {
 				innerer.Close()
 			})
 
 			It("should route the outer prefix to the outer backend", func() {
-				resp := routerRequest("/foo")
+				resp := routerRequest(routerPort, "/foo")
 				Expect(readBody(resp)).To(Equal("outer"))
 
-				resp = routerRequest("/foo/baz")
+				resp = routerRequest(routerPort, "/foo/baz")
 				Expect(readBody(resp)).To(Equal("outer"))
 
-				resp = routerRequest("/foo/bar.json")
+				resp = routerRequest(routerPort, "/foo/bar.json")
 				Expect(readBody(resp)).To(Equal("outer"))
 			})
 
 			It("should route the exact route to the inner backend", func() {
-				resp := routerRequest("/foo/bar")
+				resp := routerRequest(routerPort, "/foo/bar")
 				Expect(readBody(resp)).To(Equal("inner"))
 			})
 
 			It("should route other children of the exact route to the outer backend", func() {
-				resp := routerRequest("/foo/bar/wibble")
+				resp := routerRequest(routerPort, "/foo/bar/wibble")
 				Expect(readBody(resp)).To(Equal("outer"))
 
-				resp = routerRequest("/foo/bar/baz.json")
+				resp = routerRequest(routerPort, "/foo/bar/baz.json")
 				Expect(readBody(resp)).To(Equal("outer"))
 			})
 
 			It("should route the inner prefix route to the innerer backend", func() {
-				resp := routerRequest("/foo/bar/baz")
+				resp := routerRequest(routerPort, "/foo/bar/baz")
 				Expect(readBody(resp)).To(Equal("innerer"))
 			})
 
 			It("should route children of the inner prefix route to the innerer backend", func() {
-				resp := routerRequest("/foo/bar/baz/wibble")
+				resp := routerRequest(routerPort, "/foo/bar/baz/wibble")
 				Expect(readBody(resp)).To(Equal("innerer"))
 			})
 		})
@@ -249,7 +249,7 @@ var _ = Describe("Route selection", func() {
 			addBackend("backend-2", backend2.URL)
 			addRoute("/foo", NewBackendRoute("backend-1", "prefix"))
 			addRoute("/foo", NewBackendRoute("backend-2"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
 			backend1.Close()
@@ -257,12 +257,12 @@ var _ = Describe("Route selection", func() {
 		})
 
 		It("should route the exact route to the exact backend", func() {
-			resp := routerRequest("/foo")
+			resp := routerRequest(routerPort, "/foo")
 			Expect(readBody(resp)).To(Equal("backend 2"))
 		})
 
 		It("should route children of the route to the prefix backend", func() {
-			resp := routerRequest("/foo/bar")
+			resp := routerRequest(routerPort, "/foo/bar")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 		})
 	})
@@ -287,29 +287,29 @@ var _ = Describe("Route selection", func() {
 
 		It("should handle an exact route at the root level", func() {
 			addRoute("/", NewBackendRoute("root"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 
-			resp := routerRequest("/")
+			resp := routerRequest(routerPort, "/")
 			Expect(readBody(resp)).To(Equal("root backend"))
 
-			resp = routerRequest("/foo")
+			resp = routerRequest(routerPort, "/foo")
 			Expect(readBody(resp)).To(Equal("other backend"))
 
-			resp = routerRequest("/bar")
+			resp = routerRequest(routerPort, "/bar")
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 
 		It("should handle a prefix route at the root level", func() {
 			addRoute("/", NewBackendRoute("root", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 
-			resp := routerRequest("/")
+			resp := routerRequest(routerPort, "/")
 			Expect(readBody(resp)).To(Equal("root backend"))
 
-			resp = routerRequest("/foo")
+			resp = routerRequest(routerPort, "/foo")
 			Expect(readBody(resp)).To(Equal("other backend"))
 
-			resp = routerRequest("/bar")
+			resp = routerRequest(routerPort, "/bar")
 			Expect(readBody(resp)).To(Equal("root backend"))
 		})
 	})
@@ -327,7 +327,7 @@ var _ = Describe("Route selection", func() {
 			addBackend("other", recorder.URL())
 			addRoute("/", NewBackendRoute("root", "prefix"))
 			addRoute("/foo/bar", NewBackendRoute("other", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
 			root.Close()
@@ -335,19 +335,19 @@ var _ = Describe("Route selection", func() {
 		})
 
 		It("should not be redirected by our simple test backend", func() {
-			resp := routerRequest("//")
+			resp := routerRequest(routerPort, "//")
 			Expect(readBody(resp)).To(Equal("fallthrough"))
 		})
 
 		It("should not be redirected by our recorder backend", func() {
-			resp := routerRequest("/foo/bar/baz//qux")
+			resp := routerRequest(routerPort, "/foo/bar/baz//qux")
 			Expect(resp.StatusCode).To(Equal(200))
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			Expect(recorder.ReceivedRequests()[0].URL.Path).To(Equal("/foo/bar/baz//qux"))
 		})
 
 		It("should collapse double slashes when looking up route, but pass request as-is", func() {
-			resp := routerRequest("/foo//bar")
+			resp := routerRequest(routerPort, "/foo//bar")
 			Expect(resp.StatusCode).To(Equal(200))
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			Expect(recorder.ReceivedRequests()[0].URL.Path).To(Equal("/foo//bar"))
@@ -367,9 +367,9 @@ var _ = Describe("Route selection", func() {
 
 		It("should handle spaces (%20) in paths", func() {
 			addRoute("/foo%20bar", NewBackendRoute("backend"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 
-			resp := routerRequest("/foo bar")
+			resp := routerRequest(routerPort, "/foo bar")
 			Expect(resp.StatusCode).To(Equal(200))
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			Expect(recorder.ReceivedRequests()[0].RequestURI).To(Equal("/foo%20bar"))

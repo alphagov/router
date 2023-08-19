@@ -11,23 +11,23 @@ var _ = Describe("reload API endpoint", func() {
 
 	Describe("request handling", func() {
 		It("should return 202 for POST /reload", func() {
-			resp := doRequest(newRequest("POST", routerAPIURL("/reload")))
+			resp := doRequest(newRequest("POST", routerURL(apiPort, "/reload")))
 			Expect(resp.StatusCode).To(Equal(202))
 			Expect(readBody(resp)).To(Equal("Reload queued"))
 		})
 
 		It("should return 404 for POST /foo", func() {
-			resp := doRequest(newRequest("POST", routerAPIURL("/foo")))
+			resp := doRequest(newRequest("POST", routerURL(apiPort, "/foo")))
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 
 		It("should return 404 for POST /reload/foo", func() {
-			resp := doRequest(newRequest("POST", routerAPIURL("/reload/foo")))
+			resp := doRequest(newRequest("POST", routerURL(apiPort, "/reload/foo")))
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 
 		It("should return 405 for GET /reload", func() {
-			resp := doRequest(newRequest("GET", routerAPIURL("/reload")))
+			resp := doRequest(newRequest("GET", routerURL(apiPort, "/reload")))
 			Expect(resp.StatusCode).To(Equal(405))
 			Expect(resp.Header.Get("Allow")).To(Equal("POST"))
 		})
@@ -36,34 +36,34 @@ var _ = Describe("reload API endpoint", func() {
 			addRoute("/foo", NewRedirectRoute("/qux", "prefix"))
 
 			start := time.Now()
-			doRequest(newRequest("POST", routerAPIURL("/reload")))
+			doRequest(newRequest("POST", routerURL(apiPort, "/reload")))
 			end := time.Now()
 			duration := end.Sub(start)
 
 			Expect(duration.Nanoseconds()).To(BeNumerically("<", 5000000))
 
 			addRoute("/bar", NewRedirectRoute("/qux", "prefix"))
-			doRequest(newRequest("POST", routerAPIURL("/reload")))
+			doRequest(newRequest("POST", routerURL(apiPort, "/reload")))
 
 			Eventually(func() int {
-				return routerRequest("/foo").StatusCode
+				return routerRequest(routerPort, "/foo").StatusCode
 			}, time.Second*1).Should(Equal(301))
 
 			Eventually(func() int {
-				return routerRequest("/bar").StatusCode
+				return routerRequest(routerPort, "/bar").StatusCode
 			}, time.Second*1).Should(Equal(301))
 		})
 	})
 
 	Describe("healthcheck", func() {
 		It("should return 200 and sting 'OK' on /healthcheck", func() {
-			resp := doRequest(newRequest("GET", routerAPIURL("/healthcheck")))
+			resp := doRequest(newRequest("GET", routerURL(apiPort, "/healthcheck")))
 			Expect(resp.StatusCode).To(Equal(200))
 			Expect(readBody(resp)).To(Equal("OK"))
 		})
 
 		It("should return 405 for other verbs", func() {
-			resp := doRequest(newRequest("POST", routerAPIURL("/healthcheck")))
+			resp := doRequest(newRequest("POST", routerURL(apiPort, "/healthcheck")))
 			Expect(resp.StatusCode).To(Equal(405))
 			Expect(resp.Header.Get("Allow")).To(Equal("GET"))
 		})
@@ -78,8 +78,8 @@ var _ = Describe("reload API endpoint", func() {
 				addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
 				addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
 				addRoute("/foo", NewRedirectRoute("/bar/baz"))
-				reloadRoutes()
-				resp := doRequest(newRequest("GET", routerAPIURL("/stats")))
+				reloadRoutes(apiPort)
+				resp := doRequest(newRequest("GET", routerURL(apiPort, "/stats")))
 				Expect(resp.StatusCode).To(Equal(200))
 				readJSONBody(resp, &data)
 			})
@@ -93,9 +93,9 @@ var _ = Describe("reload API endpoint", func() {
 			var data map[string]map[string]interface{}
 
 			BeforeEach(func() {
-				reloadRoutes()
+				reloadRoutes(apiPort)
 
-				resp := doRequest(newRequest("GET", routerAPIURL("/stats")))
+				resp := doRequest(newRequest("GET", routerURL(apiPort, "/stats")))
 				Expect(resp.StatusCode).To(Equal(200))
 				readJSONBody(resp, &data)
 			})
@@ -106,7 +106,7 @@ var _ = Describe("reload API endpoint", func() {
 		})
 
 		It("should return 405 for other verbs", func() {
-			resp := doRequest(newRequest("POST", routerAPIURL("/stats")))
+			resp := doRequest(newRequest("POST", routerURL(apiPort, "/stats")))
 			Expect(resp.StatusCode).To(Equal(405))
 			Expect(resp.Header.Get("Allow")).To(Equal("GET"))
 		})
@@ -117,9 +117,9 @@ var _ = Describe("reload API endpoint", func() {
 			addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
 			addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
 			addRoute("/foo", NewRedirectRoute("/bar/baz"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 
-			resp := doRequest(newRequest("GET", routerAPIURL("/memory-stats")))
+			resp := doRequest(newRequest("GET", routerURL(apiPort, "/memory-stats")))
 			Expect(resp.StatusCode).To(Equal(200))
 
 			var data map[string]interface{}

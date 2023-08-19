@@ -16,24 +16,16 @@ import (
 	// revive:enable:dot-imports
 )
 
-func routerURL(path string, optionalPort ...int) string {
-	port := 3169
-	if len(optionalPort) > 0 {
-		port = optionalPort[0]
-	}
+const (
+	routerPort = 3169
+	apiPort    = 3168
+)
+
+func routerURL(port int, path string) string {
 	return fmt.Sprintf("http://127.0.0.1:%d%s", port, path)
 }
 
-func routerAPIURL(path string) string {
-	return routerURL(path, 3168)
-}
-
-func reloadRoutes(optionalPort ...int) {
-	port := 3168
-	if len(optionalPort) > 0 {
-		port = optionalPort[0]
-	}
-
+func reloadRoutes(port int) {
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodPost,

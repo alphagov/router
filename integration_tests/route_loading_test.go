@@ -31,19 +31,19 @@ var _ = Describe("loading routes from the db", func() {
 			addRoute("/foo", NewBackendRoute("backend-1"))
 			addRoute("/bar", Route{Handler: "fooey"})
 			addRoute("/baz", NewBackendRoute("backend-2"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		It("should skip the invalid route", func() {
-			resp := routerRequest("/bar")
+			resp := routerRequest(routerPort, "/bar")
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 
 		It("should continue to load other routes", func() {
-			resp := routerRequest("/foo")
+			resp := routerRequest(routerPort, "/foo")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 
-			resp = routerRequest("/baz")
+			resp = routerRequest(routerPort, "/baz")
 			Expect(readBody(resp)).To(Equal("backend 2"))
 		})
 	})
@@ -54,22 +54,22 @@ var _ = Describe("loading routes from the db", func() {
 			addRoute("/bar", NewBackendRoute("backend-non-existent"))
 			addRoute("/baz", NewBackendRoute("backend-2"))
 			addRoute("/qux", NewBackendRoute("backend-1"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		It("should skip the invalid route", func() {
-			resp := routerRequest("/bar")
+			resp := routerRequest(routerPort, "/bar")
 			Expect(resp.StatusCode).To(Equal(404))
 		})
 
 		It("should continue to load other routes", func() {
-			resp := routerRequest("/foo")
+			resp := routerRequest(routerPort, "/foo")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 
-			resp = routerRequest("/baz")
+			resp = routerRequest(routerPort, "/baz")
 			Expect(readBody(resp)).To(Equal("backend 2"))
 
-			resp = routerRequest("/qux")
+			resp = routerRequest(routerPort, "/qux")
 			Expect(readBody(resp)).To(Equal("backend 1"))
 		})
 	})
@@ -82,23 +82,23 @@ var _ = Describe("loading routes from the db", func() {
 			backend3 = startSimpleBackend("backend 3")
 			addBackend("backend-3", blackHole)
 
-			stopRouter(3169)
-			err := startRouter(3169, 3168, []string{fmt.Sprintf("BACKEND_URL_backend-3=%s", backend3.URL)})
+			stopRouter(routerPort)
+			err := startRouter(routerPort, apiPort, []string{fmt.Sprintf("BACKEND_URL_backend-3=%s", backend3.URL)})
 			Expect(err).NotTo(HaveOccurred())
 
 			addRoute("/oof", NewBackendRoute("backend-3"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
-			stopRouter(3169)
-			err := startRouter(3169, 3168, nil)
+			stopRouter(routerPort)
+			err := startRouter(routerPort, apiPort, nil)
 			Expect(err).NotTo(HaveOccurred())
 			backend3.Close()
 		})
 
 		It("should send requests to the backend_url provided in the env var", func() {
-			resp := routerRequest("/oof")
+			resp := routerRequest(routerPort, "/oof")
 			Expect(resp.StatusCode).To(Equal(200))
 			Expect(readBody(resp)).To(Equal("backend 3"))
 		})

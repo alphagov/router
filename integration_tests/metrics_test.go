@@ -10,7 +10,7 @@ var _ = Describe("/metrics API endpoint", func() {
 		var responseBody string
 
 		BeforeEach(func() {
-			resp := doRequest(newRequest("GET", routerAPIURL("/metrics")))
+			resp := doRequest(newRequest("GET", routerURL(apiPort, "/metrics")))
 			Expect(resp.StatusCode).To(Equal(200))
 			responseBody = readBody(resp)
 		})

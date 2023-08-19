@@ -15,12 +15,12 @@ import (
 	// revive:enable:dot-imports
 )
 
-func routerRequest(path string, optionalPort ...int) *http.Response {
-	return doRequest(newRequest("GET", routerURL(path, optionalPort...)))
+func routerRequest(port int, path string) *http.Response {
+	return doRequest(newRequest("GET", routerURL(port, path)))
 }
 
-func routerRequestWithHeaders(path string, headers map[string]string, optionalPort ...int) *http.Response {
-	return doRequest(newRequestWithHeaders("GET", routerURL(path, optionalPort...), headers))
+func routerRequestWithHeaders(port int, path string, headers map[string]string) *http.Response {
+	return doRequest(newRequestWithHeaders("GET", routerURL(port, path), headers))
 }
 
 func newRequest(method, url string) *http.Request {
