@@ -56,13 +56,13 @@ var _ = Describe("reload API endpoint", func() {
 	})
 
 	Describe("healthcheck", func() {
-		It("should return 200 and sting 'OK' on /healthcheck", func() {
+		It("should return HTTP 200 OK on GET", func() {
 			resp := doRequest(newRequest("GET", routerURL(apiPort, "/healthcheck")))
 			Expect(resp.StatusCode).To(Equal(200))
 			Expect(readBody(resp)).To(Equal("OK"))
 		})
 
-		It("should return 405 for other verbs", func() {
+		It("should return HTTP 405 Method Not Allowed on POST", func() {
 			resp := doRequest(newRequest("POST", routerURL(apiPort, "/healthcheck")))
 			Expect(resp.StatusCode).To(Equal(405))
 			Expect(resp.Header.Get("Allow")).To(Equal("GET"))
