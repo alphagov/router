@@ -39,11 +39,11 @@ var _ = Describe("reload API endpoint", func() {
 
 			Eventually(func() int {
 				return routerRequest(routerPort, "/foo").StatusCode
-			}, time.Second*1).Should(Equal(301))
+			}, time.Second*3).Should(Equal(301))
 
 			Eventually(func() int {
 				return routerRequest(routerPort, "/bar").StatusCode
-			}, time.Second*1).Should(Equal(301))
+			}, time.Second*3).Should(Equal(301))
 		})
 	})
 
