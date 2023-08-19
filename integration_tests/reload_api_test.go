@@ -61,49 +61,6 @@ var _ = Describe("reload API endpoint", func() {
 		})
 	})
 
-	Describe("route stats", func() {
-
-		Context("with some routes loaded", func() {
-			var data map[string]map[string]interface{}
-
-			BeforeEach(func() {
-				addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
-				addRoute("/baz", NewRedirectRoute("/qux", "prefix"))
-				addRoute("/foo", NewRedirectRoute("/bar/baz"))
-				reloadRoutes(apiPort)
-				resp := doRequest(newRequest("GET", routerURL(apiPort, "/stats")))
-				Expect(resp.StatusCode).To(Equal(200))
-				readJSONBody(resp, &data)
-			})
-
-			It("should return the number of routes loaded", func() {
-				Expect(data["routes"]["count"]).To(BeEquivalentTo(3))
-			})
-		})
-
-		Context("with no routes", func() {
-			var data map[string]map[string]interface{}
-
-			BeforeEach(func() {
-				reloadRoutes(apiPort)
-
-				resp := doRequest(newRequest("GET", routerURL(apiPort, "/stats")))
-				Expect(resp.StatusCode).To(Equal(200))
-				readJSONBody(resp, &data)
-			})
-
-			It("should return the number of routes loaded", func() {
-				Expect(data["routes"]["count"]).To(BeEquivalentTo(0))
-			})
-		})
-
-		It("should return 405 for other verbs", func() {
-			resp := doRequest(newRequest("POST", routerURL(apiPort, "/stats")))
-			Expect(resp.StatusCode).To(Equal(405))
-			Expect(resp.Header.Get("Allow")).To(Equal("GET"))
-		})
-	})
-
 	Describe("memory stats", func() {
 		It("should return memory statistics", func() {
 			addRoute("/foo", NewRedirectRoute("/bar", "prefix"))

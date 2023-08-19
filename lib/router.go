@@ -393,16 +393,6 @@ func (be *Backend) ParseURL() (*url.URL, error) {
 	return url.Parse(backendURL)
 }
 
-func (rt *Router) RouteStats() (stats map[string]interface{}) {
-	rt.lock.RLock()
-	mux := rt.mux
-	rt.lock.RUnlock()
-
-	stats = make(map[string]interface{})
-	stats["count"] = mux.RouteCount()
-	return
-}
-
 func shouldPreserveSegments(route *Route) bool {
 	switch route.RouteType {
 	case RouteTypeExact:
