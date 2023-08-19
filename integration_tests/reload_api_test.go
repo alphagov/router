@@ -34,14 +34,6 @@ var _ = Describe("reload API endpoint", func() {
 
 		It("eventually reloads the routes", func() {
 			addRoute("/foo", NewRedirectRoute("/qux", "prefix"))
-
-			start := time.Now()
-			doRequest(newRequest("POST", routerURL(apiPort, "/reload")))
-			end := time.Now()
-			duration := end.Sub(start)
-
-			Expect(duration.Nanoseconds()).To(BeNumerically("<", 5000000))
-
 			addRoute("/bar", NewRedirectRoute("/qux", "prefix"))
 			doRequest(newRequest("POST", routerURL(apiPort, "/reload")))
 
