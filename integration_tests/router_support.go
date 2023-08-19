@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -53,8 +54,9 @@ func reloadRoutes(optionalPort ...int) {
 var runningRouters = make(map[int]*exec.Cmd)
 
 func startRouter(port, apiPort int, extraEnv []string) error {
-	pubaddr := fmt.Sprintf(":%d", port)
-	apiaddr := fmt.Sprintf(":%d", apiPort)
+	host := "localhost"
+	pubAddr := net.JoinHostPort(host, strconv.Itoa(port))
+	apiAddr := net.JoinHostPort(host, strconv.Itoa(apiPort))
 
 	bin := os.Getenv("BINARY")
 	if bin == "" {
@@ -63,8 +65,8 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 	cmd := exec.Command(bin)
 
 	cmd.Env = append(cmd.Environ(), "ROUTER_MONGO_DB=router_test")
-	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubaddr))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiaddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_ERROR_LOG=%s", tempLogfile.Name()))
 	cmd.Env = append(cmd.Env, extraEnv...)
 
@@ -78,7 +80,7 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 		return err
 	}
 
-	waitForServerUp(pubaddr)
+	waitForServerUp(pubAddr)
 
 	runningRouters[port] = cmd
 	return nil
