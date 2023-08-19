@@ -42,7 +42,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should log and return a 504 if the connection times out in the configured time", func() {
-			err := startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
+			err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_CONNECT_TIMEOUT=0.3s"})
 			Expect(err).NotTo(HaveOccurred())
 			defer stopRouter(3167)
 
@@ -80,7 +80,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			)
 
 			BeforeEach(func() {
-				err := startRouter(3167, 3166, envMap{"ROUTER_BACKEND_HEADER_TIMEOUT": "0.3s"})
+				err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_HEADER_TIMEOUT=0.3s"})
 				Expect(err).NotTo(HaveOccurred())
 				tarpit1 = startTarpitBackend(time.Second)
 				tarpit2 = startTarpitBackend(100*time.Millisecond, 500*time.Millisecond)
@@ -387,7 +387,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		var recorder *ghttp.Server
 
 		BeforeEach(func() {
-			err := startRouter(3167, 3166, envMap{"ROUTER_TLS_SKIP_VERIFY": "1"})
+			err := startRouter(3167, 3166, []string{"ROUTER_TLS_SKIP_VERIFY=1"})
 			Expect(err).NotTo(HaveOccurred())
 			recorder = startRecordingTLSBackend()
 			addBackend("backend", recorder.URL())

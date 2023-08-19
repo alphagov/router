@@ -52,7 +52,7 @@ func reloadRoutes(optionalPort ...int) {
 
 var runningRouters = make(map[int]*exec.Cmd)
 
-func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
+func startRouter(port, apiPort int, extraEnv []string) error {
 	pubaddr := fmt.Sprintf(":%d", port)
 	apiaddr := fmt.Sprintf(":%d", apiPort)
 
@@ -62,18 +62,11 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	}
 	cmd := exec.Command(bin)
 
-	env := newEnvMap(os.Environ())
-	env["ROUTER_PUBADDR"] = pubaddr
-	env["ROUTER_APIADDR"] = apiaddr
-	env["ROUTER_MONGO_DB"] = "router_test"
-	env["ROUTER_MONGO_POLL_INTERVAL"] = "2s"
-	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
-	if len(optionalExtraEnv) > 0 {
-		for k, v := range optionalExtraEnv[0] {
-			env[k] = v
-		}
-	}
-	cmd.Env = env.ToEnv()
+	cmd.Env = append(cmd.Environ(), "ROUTER_MONGO_DB=router_test")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubaddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiaddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_ERROR_LOG=%s", tempLogfile.Name()))
+	cmd.Env = append(cmd.Env, extraEnv...)
 
 	if os.Getenv("ROUTER_DEBUG_TESTS") != "" {
 		cmd.Stdout = os.Stdout

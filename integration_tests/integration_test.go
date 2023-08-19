@@ -20,7 +20,7 @@ var _ = BeforeSuite(func() {
 	if err != nil {
 		Fail(err.Error())
 	}
-	err = startRouter(3169, 3168)
+	err = startRouter(3169, 3168, nil)
 	if err != nil {
 		Fail(err.Error())
 	}
