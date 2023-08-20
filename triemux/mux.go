@@ -4,7 +4,6 @@
 package triemux
 
 import (
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -15,19 +14,17 @@ import (
 
 type Mux struct {
 	mu         sync.RWMutex
-	exactTrie  *trie.Trie
-	prefixTrie *trie.Trie
+	exactTrie  *trie.Trie[http.Handler]
+	prefixTrie *trie.Trie[http.Handler]
 	count      int
-}
-
-type muxEntry struct {
-	prefix  bool
-	handler http.Handler
 }
 
 // NewMux makes a new empty Mux.
 func NewMux() *Mux {
-	return &Mux{exactTrie: trie.NewTrie(), prefixTrie: trie.NewTrie()}
+	return &Mux{
+		exactTrie: trie.NewTrie[http.Handler](),
+		prefixTrie: trie.NewTrie[http.Handler](),
+	}
 }
 
 // ServeHTTP dispatches the request to a backend with a registered route
@@ -50,59 +47,48 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-
 	handler.ServeHTTP(w, r)
 }
 
-// lookup takes a path and looks up its registered entry in the mux trie,
-// returning the handler for that path, if any matches.
+// lookup finds a URL path in the Mux and returns the corresponding handler.
 func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
-	pathSegments := splitpath(path)
-	val, ok := mux.exactTrie.Get(pathSegments)
-	if !ok {
-		val, ok = mux.prefixTrie.GetLongestPrefix(pathSegments)
+	pathSegments := splitPath(path)
+	if handler, ok = mux.exactTrie.Get(pathSegments); !ok {
+		handler, ok = mux.prefixTrie.GetLongestPrefix(pathSegments)
 	}
 	if !ok {
 		entryNotFoundCountMetric.Inc()
 		return nil, false
 	}
-
-	entry, ok := val.(muxEntry)
-	if !ok {
-		log.Printf("lookup: got value (%v) from trie that wasn't a muxEntry!", val)
-		entryNotFoundCountMetric.Inc()
-		return nil, false
-	}
-
-	return entry.handler, ok
+	return
 }
 
-// Handle registers the specified route (either an exact or a prefix route)
-// and associates it with the specified handler. Requests through the mux for
-// paths matching the route will be passed to that handler.
+// Handle adds a route (either an exact path or a path prefix) to the Mux and
+// and associates it with a handler, so that the Mux will pass matching
+// requests to that handler.
 func (mux *Mux) Handle(path string, prefix bool, handler http.Handler) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	mux.count++
+	t := mux.exactTrie
 	if prefix {
-		mux.prefixTrie.Set(splitpath(path), muxEntry{prefix, handler})
-	} else {
-		mux.exactTrie.Set(splitpath(path), muxEntry{prefix, handler})
+		t = mux.prefixTrie
 	}
+	t.Set(splitPath(path), handler)
+	mux.count++
 }
 
 func (mux *Mux) RouteCount() int {
 	return mux.count
 }
 
-// splitpath turns a slash-delimited string into a lookup path (a slice
-// containing the strings between slashes). Empty items produced by
-// leading, trailing, or adjacent slashes are removed.
-func splitpath(path string) []string {
+// splitPath turns a slash-delimited string into a lookup path (a slice
+// containing the strings between slashes). splitPath omits empty items
+// produced by leading, trailing, or adjacent slashes.
+func splitPath(path string) []string {
 	partsWithBlanks := strings.Split(path, "/")
 
 	parts := make([]string, 0, len(partsWithBlanks))

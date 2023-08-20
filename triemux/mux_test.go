@@ -29,20 +29,20 @@ var splitExamples = []SplitExample{
 	{"/foo/////bar/", []string{"foo", "bar"}},
 }
 
-func TestSplitpath(t *testing.T) {
+func TestSplitPath(t *testing.T) {
 	for _, ex := range splitExamples {
-		testSplitpath(t, ex)
+		testSplitPath(t, ex)
 	}
 }
 
-func testSplitpath(t *testing.T, ex SplitExample) {
-	out := splitpath(ex.in)
+func testSplitPath(t *testing.T, ex SplitExample) {
+	out := splitPath(ex.in)
 	if len(out) != len(ex.out) {
-		t.Errorf("splitpath(%v) was not %v", ex.in, ex.out)
+		t.Errorf("splitPath(%v) was not %v", ex.in, ex.out)
 	}
 	for i := range ex.out {
 		if out[i] != ex.out[i] {
-			t.Errorf("splitpath(%v) differed from %v at component %d "+
+			t.Errorf("splitPath(%v) differed from %v at component %d "+
 				"(expected %v, got %v)", out, ex.out, i, ex.out[i], out[i])
 		}
 	}
