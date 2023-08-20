@@ -23,7 +23,7 @@ func NewTrie() *Trie {
 // and returns the object if the path exists in the Trie, or nil and a status of
 // false. Example:
 //
-//     if res, ok := trie.Get([]string{"foo", "bar"}), ok {
+//     if res, ok := trie.Get([]string{"foo", "bar"}); ok {
 //       fmt.Println("Value at /foo/bar was", res)
 //     }
 func (t *Trie) Get(path []string) (entry interface{}, ok bool) {
@@ -50,7 +50,7 @@ func (t *Trie) Get(path []string) (entry interface{}, ok bool) {
 // longest matching prefix is returned. If nothing matches at all, nil and a
 // status of false is returned. Example:
 //
-//     if res, ok := trie.GetLongestPrefix([]string{"foo", "bar"}), ok {
+//     if res, ok := trie.GetLongestPrefix([]string{"foo", "bar"}); ok {
 //       fmt.Println("Value at /foo/bar was", res)
 //     }
 func (t *Trie) GetLongestPrefix(path []string) (entry interface{}, ok bool) {
