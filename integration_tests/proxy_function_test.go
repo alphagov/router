@@ -177,7 +177,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			Expect(ok).To(BeFalse())
 		})
 
-		It("should add the client IP to X-Forwardrd-For", func() {
+		It("should add the client IP to X-Forwarded-For", func() {
 			resp := routerRequest(routerPort, "/foo")
 			Expect(resp.StatusCode).To(Equal(200))
 
