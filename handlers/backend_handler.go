@@ -134,7 +134,7 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 	var responseCode int
 	var startTime = time.Now()
 
-	BackendHandlerRequestCountMetric.With(prometheus.Labels{
+	backendRequestCountMetric.With(prometheus.Labels{
 		"backend_id":     bt.backendID,
 		"request_method": req.Method,
 	}).Inc()
@@ -142,7 +142,7 @@ func (bt *backendTransport) RoundTrip(req *http.Request) (resp *http.Response, e
 	defer func() {
 		durationSeconds := time.Since(startTime).Seconds()
 
-		BackendHandlerResponseDurationSecondsMetric.With(prometheus.Labels{
+		backendResponseDurationSecondsMetric.With(prometheus.Labels{
 			"backend_id":     bt.backendID,
 			"request_method": req.Method,
 			"response_code":  fmt.Sprintf("%d", responseCode),

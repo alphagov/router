@@ -59,17 +59,17 @@ make lint
 
 ### Debug output
 
-To see debug messages when running tests, set both the `DEBUG` and
-`DEBUG_ROUTER` environment variables.
+To see debug messages when running tests, set both the `ROUTER_DEBUG` and
+`ROUTER_DEBUG_TESTS` environment variables:
 
 ```sh
-export DEBUG=1 DEBUG_ROUTER=1
+export ROUTER_DEBUG=1 ROUTER_DEBUG_TESTS=1
 ```
 
 or equivalently for a single run:
 
 ```sh
-DEBUG=1 DEBUG_ROUTER=1 make test
+ROUTER_DEBUG=1 ROUTER_DEBUG_TESTS=1 make test
 ```
 
 ### Update the dependencies
@@ -79,7 +79,7 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 1. Update all the dependencies, including test dependencies, in your working copy:
 
     ```sh
-    go get -t -u ./... && go mod tidy && go mod vendor
+    make update_deps
     ```
 
 1. Check for any errors and commit.

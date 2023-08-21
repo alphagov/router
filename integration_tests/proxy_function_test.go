@@ -20,9 +20,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		It("should return a 502 if the connection to the backend is refused", func() {
 			addBackend("not-running", "http://127.0.0.1:3164/")
 			addRoute("/not-running", NewBackendRoute("not-running"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 
-			req, err := http.NewRequest(http.MethodGet, routerURL("/not-running"), nil)
+			req, err := http.NewRequest(http.MethodGet, routerURL(routerPort, "/not-running"), nil)
 			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
@@ -42,7 +42,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should log and return a 504 if the connection times out in the configured time", func() {
-			err := startRouter(3167, 3166, envMap{"ROUTER_BACKEND_CONNECT_TIMEOUT": "0.3s"})
+			err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_CONNECT_TIMEOUT=0.3s"})
 			Expect(err).NotTo(HaveOccurred())
 			defer stopRouter(3167)
 
@@ -50,7 +50,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			addRoute("/should-time-out", NewBackendRoute("black-hole"))
 			reloadRoutes(3166)
 
-			req, err := http.NewRequest(http.MethodGet, routerURL("/should-time-out", 3167), nil)
+			req, err := http.NewRequest(http.MethodGet, routerURL(3167, "/should-time-out"), nil)
 			Expect(err).NotTo(HaveOccurred())
 			req.Header.Set("X-Varnish", "12345678")
 
@@ -80,7 +80,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			)
 
 			BeforeEach(func() {
-				err := startRouter(3167, 3166, envMap{"ROUTER_BACKEND_HEADER_TIMEOUT": "0.3s"})
+				err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_HEADER_TIMEOUT=0.3s"})
 				Expect(err).NotTo(HaveOccurred())
 				tarpit1 = startTarpitBackend(time.Second)
 				tarpit2 = startTarpitBackend(100*time.Millisecond, 500*time.Millisecond)
@@ -98,7 +98,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should log and return a 504 if a backend takes longer than the configured response timeout to start returning a response", func() {
-				req := newRequest(http.MethodGet, routerURL("/tarpit1", 3167))
+				req := newRequest(http.MethodGet, routerURL(3167, "/tarpit1"))
 				req.Header.Set("X-Varnish", "12341112")
 				resp := doRequest(req)
 				Expect(resp.StatusCode).To(Equal(504))
@@ -117,7 +117,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should still return the response if the body takes longer than the header timeout", func() {
-				resp := routerRequest("/tarpit2", 3167)
+				resp := routerRequest(3167, "/tarpit2")
 				Expect(resp.StatusCode).To(Equal(200))
 				Expect(readBody(resp)).To(Equal("Tarpit\n"))
 			})
@@ -135,7 +135,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			recorderURL, _ = url.Parse(recorder.URL())
 			addBackend("backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
@@ -143,7 +143,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should pass through most http headers to the backend", func() {
-			resp := routerRequestWithHeaders("/foo", map[string]string{
+			resp := routerRequestWithHeaders(routerPort, "/foo", map[string]string{
 				"Foo":        "bar",
 				"User-Agent": "Router test suite 2.7182",
 			})
@@ -156,7 +156,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should set the Host header to the backend hostname", func() {
-			resp := routerRequestWithHeaders("/foo", map[string]string{
+			resp := routerRequestWithHeaders(routerPort, "/foo", map[string]string{
 				"Host": "www.example.com",
 			})
 			Expect(resp.StatusCode).To(Equal(200))
@@ -168,7 +168,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 		It("should not add a default User-Agent if there isn't one in the request", func() {
 			// Most http libraries add a default User-Agent header.
-			resp := routerRequest("/foo")
+			resp := routerRequest(routerPort, "/foo")
 			Expect(resp.StatusCode).To(Equal(200))
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
@@ -177,15 +177,15 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			Expect(ok).To(BeFalse())
 		})
 
-		It("should add the client IP to X-Forwardrd-For", func() {
-			resp := routerRequest("/foo")
+		It("should add the client IP to X-Forwarded-For", func() {
+			resp := routerRequest(routerPort, "/foo")
 			Expect(resp.StatusCode).To(Equal(200))
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			beReq := recorder.ReceivedRequests()[0]
 			Expect(beReq.Header.Get("X-Forwarded-For")).To(Equal("127.0.0.1"))
 
-			resp = routerRequestWithHeaders("/foo", map[string]string{
+			resp = routerRequestWithHeaders(routerPort, "/foo", map[string]string{
 				"X-Forwarded-For": "10.9.8.7",
 			})
 			Expect(resp.StatusCode).To(Equal(200))
@@ -199,14 +199,14 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			// See https://tools.ietf.org/html/rfc2616#section-14.45
 
 			It("should add itself to the Via request header for an HTTP/1.1 request", func() {
-				resp := routerRequest("/foo")
+				resp := routerRequest(routerPort, "/foo")
 				Expect(resp.StatusCode).To(Equal(200))
 
 				Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 				beReq := recorder.ReceivedRequests()[0]
 				Expect(beReq.Header.Get("Via")).To(Equal("1.1 router"))
 
-				resp = routerRequestWithHeaders("/foo", map[string]string{
+				resp = routerRequestWithHeaders(routerPort, "/foo", map[string]string{
 					"Via": "1.0 fred, 1.1 barney",
 				})
 				Expect(resp.StatusCode).To(Equal(200))
@@ -217,7 +217,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should add itself to the Via request header for an HTTP/1.0 request", func() {
-				req := newRequest(http.MethodGet, routerURL("/foo"))
+				req := newRequest(http.MethodGet, routerURL(routerPort, "/foo"))
 				resp := doHTTP10Request(req)
 				Expect(resp.StatusCode).To(Equal(200))
 
@@ -225,7 +225,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				beReq := recorder.ReceivedRequests()[0]
 				Expect(beReq.Header.Get("Via")).To(Equal("1.0 router"))
 
-				req = newRequestWithHeaders("GET", routerURL("/foo"), map[string]string{
+				req = newRequestWithHeaders("GET", routerURL(routerPort, "/foo"), map[string]string{
 					"Via": "1.0 fred, 1.1 barney",
 				})
 				resp = doHTTP10Request(req)
@@ -237,14 +237,14 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			})
 
 			It("should add itself to the Via response heaver", func() {
-				resp := routerRequest("/foo")
+				resp := routerRequest(routerPort, "/foo")
 				Expect(resp.StatusCode).To(Equal(200))
 				Expect(resp.Header.Get("Via")).To(Equal("1.1 router"))
 
 				recorder.AppendHandlers(ghttp.RespondWith(200, "body", http.Header{
 					"Via": []string{"1.0 fred, 1.1 barney"},
 				}))
-				resp = routerRequest("/foo")
+				resp = routerRequest(routerPort, "/foo")
 				Expect(resp.StatusCode).To(Equal(200))
 				Expect(resp.Header.Get("Via")).To(Equal("1.0 fred, 1.1 barney, 1.1 router"))
 			})
@@ -260,7 +260,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
@@ -273,11 +273,11 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				ghttp.VerifyRequest("DELETE", "/foo/bar/baz.json"),
 			)
 
-			req := newRequest("POST", routerURL("/foo"))
+			req := newRequest("POST", routerURL(routerPort, "/foo"))
 			resp := doRequest(req)
 			Expect(resp.StatusCode).To(Equal(200))
 
-			req = newRequest("DELETE", routerURL("/foo/bar/baz.json"))
+			req = newRequest("DELETE", routerURL(routerPort, "/foo/bar/baz.json"))
 			resp = doRequest(req)
 			Expect(resp.StatusCode).To(Equal(200))
 
@@ -288,7 +288,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			recorder.AppendHandlers(
 				ghttp.VerifyRequest("GET", "/foo/bar", "baz=qux"),
 			)
-			resp := routerRequest("/foo/bar?baz=qux")
+			resp := routerRequest(routerPort, "/foo/bar?baz=qux")
 			Expect(resp.StatusCode).To(Equal(200))
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
@@ -302,7 +302,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				Expect(string(body)).To(Equal("I am the request body.  Woohoo!"))
 			})
 
-			req := newRequest("POST", routerURL("/foo"))
+			req := newRequest("POST", routerURL(routerPort, "/foo"))
 			req.Body = io.NopCloser(strings.NewReader("I am the request body.  Woohoo!"))
 			resp := doRequest(req)
 			Expect(resp.StatusCode).To(Equal(200))
@@ -320,7 +320,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL()+"/something")
 			addRoute("/foo/bar", NewBackendRoute("backend", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
@@ -328,7 +328,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should merge the 2 paths", func() {
-			resp := routerRequest("/foo/bar")
+			resp := routerRequest(routerPort, "/foo/bar")
 			Expect(resp.StatusCode).To(Equal(200))
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
@@ -337,7 +337,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should preserve the request query string", func() {
-			resp := routerRequest("/foo/bar?baz=qux")
+			resp := routerRequest(routerPort, "/foo/bar?baz=qux")
 			Expect(resp.StatusCode).To(Equal(200))
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
@@ -355,7 +355,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
@@ -363,7 +363,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should work with incoming HTTP/1.1 requests", func() {
-			req := newRequest("GET", routerURL("/foo"))
+			req := newRequest("GET", routerURL(routerPort, "/foo"))
 			resp := doHTTP10Request(req)
 			Expect(resp.StatusCode).To(Equal(200))
 
@@ -373,7 +373,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should proxy to the backend as HTTP/1.1 requests", func() {
-			req := newRequest("GET", routerURL("/foo"))
+			req := newRequest("GET", routerURL(routerPort, "/foo"))
 			resp := doHTTP10Request(req)
 			Expect(resp.StatusCode).To(Equal(200))
 
@@ -387,7 +387,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		var recorder *ghttp.Server
 
 		BeforeEach(func() {
-			err := startRouter(3167, 3166, envMap{"ROUTER_TLS_SKIP_VERIFY": "1"})
+			err := startRouter(3167, 3166, []string{"ROUTER_TLS_SKIP_VERIFY=1"})
 			Expect(err).NotTo(HaveOccurred())
 			recorder = startRecordingTLSBackend()
 			addBackend("backend", recorder.URL())
@@ -401,7 +401,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should correctly reverse proxy to a HTTPS backend", func() {
-			req := newRequest("GET", routerURL("/foo", 3167))
+			req := newRequest("GET", routerURL(3167, "/foo"))
 			resp := doRequest(req)
 			Expect(resp.StatusCode).To(Equal(200))
 

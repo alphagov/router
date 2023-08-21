@@ -6,14 +6,11 @@ package triemux
 import (
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/trie"
-
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Mux struct {
@@ -41,16 +38,10 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if mux.count == 0 {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		logger.NotifySentry(logger.ReportableError{
-			Error:   logger.RecoveredError{ErrorMessage: "Route table is empty!"},
+			Error:   logger.RecoveredError{ErrorMessage: "route table is empty"},
 			Request: r,
 		})
-		tempChild, isParent := os.LookupEnv("TEMPORARY_CHILD")
-		if !isParent {
-			tempChild = "0"
-		}
-		InternalServiceUnavailableCountMetric.With(prometheus.Labels{
-			"temporary_child": tempChild,
-		}).Inc()
+		internalServiceUnavailableCountMetric.Inc()
 		return
 	}
 
@@ -75,14 +66,14 @@ func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
 		val, ok = mux.prefixTrie.GetLongestPrefix(pathSegments)
 	}
 	if !ok {
-		EntryNotFoundCountMetric.Inc()
+		entryNotFoundCountMetric.Inc()
 		return nil, false
 	}
 
 	entry, ok := val.(muxEntry)
 	if !ok {
 		log.Printf("lookup: got value (%v) from trie that wasn't a muxEntry!", val)
-		EntryNotFoundCountMetric.Inc()
+		entryNotFoundCountMetric.Inc()
 		return nil, false
 	}
 

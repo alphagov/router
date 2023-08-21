@@ -11,14 +11,14 @@ var _ = Describe("error handling", func() {
 
 	Describe("handling an empty routing table", func() {
 		BeforeEach(func() {
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		It("should return a 503 error to the client", func() {
-			resp := routerRequest("/")
+			resp := routerRequest(routerPort, "/")
 			Expect(resp.StatusCode).To(Equal(503))
 
-			resp = routerRequest("/foo")
+			resp = routerRequest(routerPort, "/foo")
 			Expect(resp.StatusCode).To(Equal(503))
 		})
 	})
@@ -26,16 +26,16 @@ var _ = Describe("error handling", func() {
 	Describe("handling a panic", func() {
 		BeforeEach(func() {
 			addRoute("/boom", Route{Handler: "boom"})
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 
 		It("should return a 500 error to the client", func() {
-			resp := routerRequest("/boom")
+			resp := routerRequest(routerPort, "/boom")
 			Expect(resp.StatusCode).To(Equal(500))
 		})
 
 		It("should log the fact", func() {
-			routerRequest("/boom")
+			routerRequest(routerPort, "/boom")
 
 			logDetails := lastRouterErrorLogEntry()
 			Expect(logDetails.Fields).To(Equal(map[string]interface{}{

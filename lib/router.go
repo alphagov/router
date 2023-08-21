@@ -1,4 +1,4 @@
-package main
+package router
 
 import (
 	"fmt"
@@ -29,17 +29,30 @@ const (
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
 // routes from a passed mongo database.
+//
+// TODO: decouple Router from its database backend. Router should not know
+// anything about the database backend. Its representation of the route table
+// should be independent of the underlying DBMS. Route should define an
+// abstract interface for some other module to be able to bulk-load and
+// incrementally update routes. Since Router should not care where its routes
+// come from, Route and Backend should not contain bson fields.
+// MongoReplicaSet, MongoReplicaSetMember etc. should move out of this module.
 type Router struct {
-	mux                   *triemux.Mux
-	lock                  sync.RWMutex
-	mongoURL              string
-	mongoDbName           string
-	mongoPollInterval     time.Duration
-	backendConnectTimeout time.Duration
-	backendHeaderTimeout  time.Duration
-	mongoReadToOptime     bson.MongoTimestamp
-	logger                logger.Logger
-	ReloadChan            chan bool
+	mux               *triemux.Mux
+	lock              sync.RWMutex
+	mongoReadToOptime bson.MongoTimestamp
+	logger            logger.Logger
+	opts              Options
+	ReloadChan        chan bool
+}
+
+type Options struct {
+	MongoURL             string
+	MongoDBName          string
+	MongoPollInterval    time.Duration
+	BackendConnTimeout   time.Duration
+	BackendHeaderTimeout time.Duration
+	LogFileName          string
 }
 
 type Backend struct {
@@ -69,36 +82,38 @@ type Route struct {
 	Disabled     bool   `bson:"disabled"`
 }
 
+// RegisterMetrics registers Prometheus metrics from the router module and the
+// modules that it directly depends on. To use the default (global) registry,
+// pass prometheus.DefaultRegisterer.
+func RegisterMetrics(r prometheus.Registerer) {
+	registerMetrics(r)
+}
+
 // NewRouter returns a new empty router instance. You will need to call
 // SelfUpdateRoutes() to initialise the self-update process for routes.
-func NewRouter(mongoURL, mongoDbName string, mongoPollInterval, beConnTimeout, beHeaderTimeout time.Duration, logFileName string) (rt *Router, err error) {
-	logInfo("router: using mongo poll interval:", mongoPollInterval)
-	logInfo("router: using backend connect timeout:", beConnTimeout)
-	logInfo("router: using backend header timeout:", beHeaderTimeout)
+func NewRouter(o Options) (rt *Router, err error) {
+	logInfo("router: using mongo poll interval:", o.MongoPollInterval)
+	logInfo("router: using backend connect timeout:", o.BackendConnTimeout)
+	logInfo("router: using backend header timeout:", o.BackendHeaderTimeout)
 
-	l, err := logger.New(logFileName)
+	l, err := logger.New(o.LogFileName)
 	if err != nil {
 		return nil, err
 	}
+	logInfo("router: logging errors as JSON to", o.LogFileName)
 
 	mongoReadToOptime, err := bson.NewMongoTimestamp(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), 1)
 	if err != nil {
 		return nil, err
 	}
 
-	logInfo("router: logging errors as JSON to", logFileName)
-
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
-		mux:                   triemux.NewMux(),
-		mongoURL:              mongoURL,
-		mongoPollInterval:     mongoPollInterval,
-		mongoDbName:           mongoDbName,
-		backendConnectTimeout: beConnTimeout,
-		backendHeaderTimeout:  beHeaderTimeout,
-		mongoReadToOptime:     mongoReadToOptime,
-		logger:                l,
-		ReloadChan:            reloadChan,
+		mux:               triemux.NewMux(),
+		mongoReadToOptime: mongoReadToOptime,
+		logger:            l,
+		opts:              o,
+		ReloadChan:        reloadChan,
 	}
 
 	go rt.pollAndReload()
@@ -135,9 +150,9 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (rt *Router) SelfUpdateRoutes() {
-	logInfo(fmt.Sprintf("router: starting self-update process, polling for route changes every %v", rt.mongoPollInterval))
+	logInfo(fmt.Sprintf("router: starting self-update process, polling for route changes every %v", rt.opts.MongoPollInterval))
 
-	tick := time.Tick(rt.mongoPollInterval)
+	tick := time.Tick(rt.opts.MongoPollInterval)
 	for range tick {
 		logDebug("router: polling MongoDB for changes")
 
@@ -157,9 +172,9 @@ func (rt *Router) pollAndReload() {
 				}
 			}()
 
-			logDebug("mgo: connecting to", rt.mongoURL)
+			logDebug("mgo: connecting to", rt.opts.MongoURL)
 
-			sess, err := mgo.Dial(rt.mongoURL)
+			sess, err := mgo.Dial(rt.opts.MongoURL)
 			if err != nil {
 				logWarn(fmt.Sprintf("mgo: error connecting to MongoDB, skipping update (error: %v)", err))
 				return
@@ -182,7 +197,7 @@ func (rt *Router) pollAndReload() {
 
 			if rt.shouldReload(currentMongoInstance) {
 				logDebug("router: updates found")
-				rt.reloadRoutes(sess.DB(rt.mongoDbName), currentMongoInstance.Optime)
+				rt.reloadRoutes(sess.DB(rt.opts.MongoDBName), currentMongoInstance.Optime)
 			} else {
 				logDebug("router: no updates found")
 			}
@@ -220,14 +235,14 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 
 	backends := rt.loadBackends(db.C("backends"))
 	loadRoutes(db.C("routes"), newmux, backends)
+	routeCount := newmux.RouteCount()
 
 	rt.lock.Lock()
 	rt.mux = newmux
 	rt.lock.Unlock()
 
-	logInfo(fmt.Sprintf("router: reloaded %d routes", rt.mux.RouteCount()))
-
-	routesCountMetric.Set(float64(rt.mux.RouteCount()))
+	logInfo(fmt.Sprintf("router: reloaded %d routes", routeCount))
+	routesCountMetric.Set(float64(routeCount))
 }
 
 func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMember, error) {
@@ -288,7 +303,8 @@ func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Hand
 		backends[backend.BackendID] = handlers.NewBackendHandler(
 			backend.BackendID,
 			backendURL,
-			rt.backendConnectTimeout, rt.backendHeaderTimeout,
+			rt.opts.BackendConnTimeout,
+			rt.opts.BackendHeaderTimeout,
 			rt.logger,
 		)
 	}
@@ -375,16 +391,6 @@ func (be *Backend) ParseURL() (*url.URL, error) {
 		backendURL = be.BackendURL
 	}
 	return url.Parse(backendURL)
-}
-
-func (rt *Router) RouteStats() (stats map[string]interface{}) {
-	rt.lock.RLock()
-	mux := rt.mux
-	rt.lock.RUnlock()
-
-	stats = make(map[string]interface{})
-	stats["count"] = mux.RouteCount()
-	return
 }
 
 func shouldPreserveSegments(route *Route) bool {

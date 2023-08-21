@@ -1,15 +1,14 @@
-package main
+package router
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"runtime"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func newAPIHandler(rout *Router) (api http.Handler, err error) {
+func NewAPIHandler(rout *Router) (api http.Handler, err error) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
@@ -44,30 +43,6 @@ func newAPIHandler(rout *Router) (api http.Handler, err error) {
 		_, err := w.Write([]byte("OK"))
 		if err != nil {
 			logWarn(err)
-		}
-	})
-
-	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.Header().Set("Allow", http.MethodGet)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
-		stats := make(map[string]map[string]interface{})
-		stats["routes"] = rout.RouteStats()
-
-		jsonData, err := json.MarshalIndent(stats, "", "  ")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		_, err = fmt.Fprintln(w, string(jsonData))
-		if err != nil {
-			logWarn(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
 		}
 	})
 

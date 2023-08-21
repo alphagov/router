@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -15,24 +16,16 @@ import (
 	// revive:enable:dot-imports
 )
 
-func routerURL(path string, optionalPort ...int) string {
-	port := 3169
-	if len(optionalPort) > 0 {
-		port = optionalPort[0]
-	}
+const (
+	routerPort = 3169
+	apiPort    = 3168
+)
+
+func routerURL(port int, path string) string {
 	return fmt.Sprintf("http://127.0.0.1:%d%s", port, path)
 }
 
-func routerAPIURL(path string) string {
-	return routerURL(path, 3168)
-}
-
-func reloadRoutes(optionalPort ...int) {
-	port := 3168
-	if len(optionalPort) > 0 {
-		port = optionalPort[0]
-	}
-
+func reloadRoutes(port int) {
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodPost,
@@ -52,9 +45,10 @@ func reloadRoutes(optionalPort ...int) {
 
 var runningRouters = make(map[int]*exec.Cmd)
 
-func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
-	pubaddr := fmt.Sprintf(":%d", port)
-	apiaddr := fmt.Sprintf(":%d", apiPort)
+func startRouter(port, apiPort int, extraEnv []string) error {
+	host := "localhost"
+	pubAddr := net.JoinHostPort(host, strconv.Itoa(port))
+	apiAddr := net.JoinHostPort(host, strconv.Itoa(apiPort))
 
 	bin := os.Getenv("BINARY")
 	if bin == "" {
@@ -62,20 +56,13 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 	}
 	cmd := exec.Command(bin)
 
-	env := newEnvMap(os.Environ())
-	env["ROUTER_PUBADDR"] = pubaddr
-	env["ROUTER_APIADDR"] = apiaddr
-	env["ROUTER_MONGO_DB"] = "router_test"
-	env["ROUTER_MONGO_POLL_INTERVAL"] = "2s"
-	env["ROUTER_ERROR_LOG"] = tempLogfile.Name()
-	if len(optionalExtraEnv) > 0 {
-		for k, v := range optionalExtraEnv[0] {
-			env[k] = v
-		}
-	}
-	cmd.Env = env.ToEnv()
+	cmd.Env = append(cmd.Environ(), "ROUTER_MONGO_DB=router_test")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_ERROR_LOG=%s", tempLogfile.Name()))
+	cmd.Env = append(cmd.Env, extraEnv...)
 
-	if os.Getenv("DEBUG_ROUTER") != "" {
+	if os.Getenv("ROUTER_DEBUG_TESTS") != "" {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
@@ -85,7 +72,7 @@ func startRouter(port, apiPort int, optionalExtraEnv ...envMap) error {
 		return err
 	}
 
-	waitForServerUp(pubaddr)
+	waitForServerUp(pubAddr)
 
 	runningRouters[port] = cmd
 	return nil

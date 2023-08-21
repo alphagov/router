@@ -26,7 +26,7 @@ var _ = Describe("Performance", func() {
 			addBackend("backend-2", backend2.URL)
 			addRoute("/one", NewBackendRoute("backend-1"))
 			addRoute("/two", NewBackendRoute("backend-2"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
 			backend1.Close()
@@ -48,7 +48,7 @@ var _ = Describe("Performance", func() {
 					case <-stopCh:
 						return
 					case <-ticker.C:
-						reloadRoutes()
+						reloadRoutes(apiPort)
 					}
 				}()
 
@@ -62,9 +62,9 @@ var _ = Describe("Performance", func() {
 				defer slowBackend.Close()
 				addBackend("backend-slow", slowBackend.URL)
 				addRoute("/slow", NewBackendRoute("backend-slow"))
-				reloadRoutes()
+				reloadRoutes(apiPort)
 
-				_, gen := generateLoad([]string{routerURL("/slow")}, 50)
+				_, gen := generateLoad([]string{routerURL(routerPort, "/slow")}, 50)
 				defer gen.Stop()
 
 				assertPerformantRouter(backend1, backend2, 50)
@@ -75,9 +75,9 @@ var _ = Describe("Performance", func() {
 			It("Router should not cause errors or much latency", func() {
 				addBackend("backend-down", "http://127.0.0.1:3162/")
 				addRoute("/down", NewBackendRoute("backend-down"))
-				reloadRoutes()
+				reloadRoutes(apiPort)
 
-				_, gen := generateLoad([]string{routerURL("/down")}, 50)
+				_, gen := generateLoad([]string{routerURL(routerPort, "/down")}, 50)
 				defer gen.Stop()
 
 				assertPerformantRouter(backend1, backend2, 50)
@@ -102,7 +102,7 @@ var _ = Describe("Performance", func() {
 			addBackend("backend-2", backend2.URL)
 			addRoute("/one", NewBackendRoute("backend-1"))
 			addRoute("/two", NewBackendRoute("backend-2"))
-			reloadRoutes()
+			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
 			backend1.Close()
@@ -117,7 +117,7 @@ var _ = Describe("Performance", func() {
 
 func assertPerformantRouter(backend1, backend2 *httptest.Server, rps int) {
 	directResultsCh, _ := generateLoad([]string{backend1.URL + "/one", backend2.URL + "/two"}, rps)
-	routerResultsCh, _ := generateLoad([]string{routerURL("/one"), routerURL("/two")}, rps)
+	routerResultsCh, _ := generateLoad([]string{routerURL(routerPort, "/one"), routerURL(routerPort, "/two")}, rps)
 
 	directResults := <-directResultsCh
 	routerResults := <-routerResultsCh

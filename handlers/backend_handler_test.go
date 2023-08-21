@@ -1,4 +1,4 @@
-package handlers_test
+package handlers
 
 import (
 	"io"
@@ -15,7 +15,6 @@ import (
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	prommodel "github.com/prometheus/client_model/go"
 
-	"github.com/alphagov/router/handlers"
 	log "github.com/alphagov/router/logger"
 )
 
@@ -51,7 +50,7 @@ var _ = Describe("Backend handler", func() {
 
 	Context("when the backend times out", func() {
 		BeforeEach(func() {
-			router = handlers.NewBackendHandler(
+			router = NewBackendHandler(
 				"backend-timeout",
 				backendURL,
 				timeout, timeout,
@@ -80,7 +79,7 @@ var _ = Describe("Backend handler", func() {
 
 	Context("when the backend handles the connection", func() {
 		BeforeEach(func() {
-			router = handlers.NewBackendHandler(
+			router = NewBackendHandler(
 				"backend-handle",
 				backendURL,
 				timeout, timeout,
@@ -141,15 +140,14 @@ var _ = Describe("Backend handler", func() {
 
 	Context("metrics", func() {
 		var (
-			beforeRequestCountMetric float64
-
+			beforeRequestCountMetric            float64
 			beforeResponseCountMetric           float64
 			beforeResponseDurationSecondsMetric float64
 		)
 
 		measureRequestCount := func() float64 {
 			return promtest.ToFloat64(
-				handlers.BackendHandlerRequestCountMetric.With(prometheus.Labels{
+				backendRequestCountMetric.With(prometheus.Labels{
 					"backend_id":     "backend-metrics",
 					"request_method": http.MethodGet,
 				}),
@@ -160,7 +158,7 @@ var _ = Describe("Backend handler", func() {
 			var err error
 			metricChan := make(chan prometheus.Metric, 1024)
 
-			handlers.BackendHandlerResponseDurationSecondsMetric.Collect(metricChan)
+			backendResponseDurationSecondsMetric.Collect(metricChan)
 			close(metricChan)
 			for m := range metricChan {
 				metric := new(prommodel.Metric)
@@ -197,7 +195,7 @@ var _ = Describe("Backend handler", func() {
 		}
 
 		BeforeEach(func() {
-			router = handlers.NewBackendHandler(
+			router = NewBackendHandler(
 				"backend-metrics",
 				backendURL,
 				timeout, timeout,
