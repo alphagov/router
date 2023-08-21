@@ -20,6 +20,16 @@ Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
 
 ### Run the test suite
 
+Checks run automatically on GitHub on PR and push. For faster feedback, you can
+run the tests locally.
+
+The lint check uses [golangci-lint](https://golangci-lint.run/), which you can
+install via Homebrew or your favourite package manager:
+
+```sh
+brew install golangci-lint
+```
+
 You can run all tests (some of which need Docker installed) by running:
 
 ```
@@ -29,32 +39,20 @@ make test
 You can also run just the unit tests or just the integration tests, using the
 `unit_tests` and `integration_tests` targets. The unit tests don't need Docker.
 
-The `trie` and `triemux` sub-packages have unit tests and benchmarks written
-in Go's own testing framework. To run them individually:
+The `trie` and `triemux` packages have unit tests. To run these on their own:
 
 ```
 go test -bench=. ./trie ./triemux
 ```
 
-The integration tests require Docker in order to run MongoDB. They are intended
+The integration tests need Docker in order to run MongoDB. They are intended
 to cover Router's overall request handling, error reporting and performance.
 
+You can use `--ginkgo.focus <partial regex>` to run a subset of the integration
+tests, for example:
+
 ```
-go test ./integration_tests
-```
-
-### Lint
-
-Checks run automatically on GitHub on PR and push. For faster feedback, you can
-install and run the [linter](https://golangci-lint.run/) yourself, or configure
-your editor/IDE to do so. For example:
-
-```sh
-brew install golangci-lint
-```
-
-```sh
-make lint
+go test ./integration_tests -v --ginkgo.focus 'redirect should preserve the query string'
 ```
 
 ### Debug output
