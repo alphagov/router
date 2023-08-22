@@ -60,6 +60,8 @@ type Span struct { //nolint: maligned // prefer readability over optimal memory 
 	contexts map[string]Context
 	// profiler instance if attached, nil otherwise.
 	profiler transactionProfiler
+	// a Once instance to make sure that Finish() is only called once.
+	finishOnce sync.Once
 }
 
 // TraceParentContext describes the context of a (remote) parent span.
@@ -196,35 +198,11 @@ func StartSpan(ctx context.Context, operation string, options ...SpanOption) *Sp
 
 // Finish sets the span's end time, unless already set. If the span is the root
 // of a span tree, Finish sends the span tree to Sentry as a transaction.
+//
+// The logic is executed at most once per span, so that (incorrectly) calling it twice
+// never double sends to Sentry.
 func (s *Span) Finish() {
-	// TODO(tracing): maybe make Finish run at most once, such that
-	// (incorrectly) calling it twice never double sends to Sentry.
-
-	// For the timing to be correct, the profiler must be stopped before s.EndTime.
-	var profile *profileInfo
-	if s.profiler != nil {
-		profile = s.profiler.Finish(s)
-	}
-
-	if s.EndTime.IsZero() {
-		s.EndTime = monotonicTimeSince(s.StartTime)
-	}
-
-	if !s.Sampled.Bool() {
-		return
-	}
-	event := s.toEvent()
-	if event == nil {
-		return
-	}
-
-	event.sdkMetaData.transactionProfile = profile
-
-	// TODO(tracing): add breadcrumbs
-	// (see https://github.com/getsentry/sentry-python/blob/f6f3525f8812f609/sentry_sdk/tracing.py#L372)
-
-	hub := hubFromContext(s.ctx)
-	hub.CaptureEvent(event)
+	s.finishOnce.Do(s.doFinish)
 }
 
 // Context returns the context containing the span.
@@ -351,6 +329,35 @@ func (s *Span) SetDynamicSamplingContext(dsc DynamicSamplingContext) {
 	if s.isTransaction {
 		s.dynamicSamplingContext = dsc
 	}
+}
+
+// doFinish runs the actual Span.Finish() logic.
+func (s *Span) doFinish() {
+	// For the timing to be correct, the profiler must be stopped before s.EndTime.
+	var profile *profileInfo
+	if s.profiler != nil {
+		profile = s.profiler.Finish(s)
+	}
+
+	if s.EndTime.IsZero() {
+		s.EndTime = monotonicTimeSince(s.StartTime)
+	}
+
+	if !s.Sampled.Bool() {
+		return
+	}
+	event := s.toEvent()
+	if event == nil {
+		return
+	}
+
+	event.sdkMetaData.transactionProfile = profile
+
+	// TODO(tracing): add breadcrumbs
+	// (see https://github.com/getsentry/sentry-python/blob/f6f3525f8812f609/sentry_sdk/tracing.py#L372)
+
+	hub := hubFromContext(s.ctx)
+	hub.CaptureEvent(event)
 }
 
 // sentryTracePattern matches either
@@ -949,27 +956,9 @@ func TransactionFromContext(ctx context.Context) *Span {
 	return nil
 }
 
-// spanFromContext returns the last span stored in the context or a dummy
-// non-nil span.
-//
-// TODO(tracing): consider exporting this. Without this, users cannot retrieve a
-// span from a context since spanContextKey is not exported.
-//
-// This can be added retroactively, and in the meantime think better whether it
-// should return nil (like GetHubFromContext), always non-nil (like
-// HubFromContext), or both: two exported functions.
-//
-// Note the equivalence:
-//
-//	SpanFromContext(ctx).StartChild(...) === StartSpan(ctx, ...)
-//
-// So we don't aim spanFromContext at creating spans, but mutating existing
-// spans that you'd have no access otherwise (because it was created in code you
-// do not control, for example SDK auto-instrumentation).
-//
-// For now we provide TransactionFromContext, which solves the more common case
-// of setting tags, etc, on the current transaction.
-func spanFromContext(ctx context.Context) *Span {
+// SpanFromContext returns the last span stored in the context, or nil if no span
+// is set on the context.
+func SpanFromContext(ctx context.Context) *Span {
 	if span, ok := ctx.Value(spanContextKey{}).(*Span); ok {
 		return span
 	}
