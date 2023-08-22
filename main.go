@@ -85,17 +85,17 @@ func main() {
 
 	router.EnableDebugOutput = os.Getenv("ROUTER_DEBUG") != ""
 	var (
-		pubAddr           = getenv("ROUTER_PUBADDR", ":8080")
-		apiAddr           = getenv("ROUTER_APIADDR", ":8081")
-		mongoURL          = getenv("ROUTER_MONGO_URL", "127.0.0.1")
-		mongoDBName       = getenv("ROUTER_MONGO_DB", "router")
-		mongoPollInterval = getenvDuration("ROUTER_MONGO_POLL_INTERVAL", "2s")
-		errorLogFile      = getenv("ROUTER_ERROR_LOG", "STDERR")
-		tlsSkipVerify     = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
-		beConnTimeout     = getenvDuration("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
-		beHeaderTimeout   = getenvDuration("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
-		feReadTimeout     = getenvDuration("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
-		feWriteTimeout    = getenvDuration("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
+		pubAddr         = getenv("ROUTER_PUBADDR", ":8080")
+		apiAddr         = getenv("ROUTER_APIADDR", ":8081")
+		postgresURL     = getenv("DATABASE_URL", "postgresql://postgres@127.0.0.1:27017/router?sslmode=disable")
+		postgresDbName  = getenv("DATABASE_NAME", "router")
+		dbPollInterval  = getenv("ROUTER_POLL_INTERVAL", "2s")
+		errorLogFile    = getenv("ROUTER_ERROR_LOG", "STDERR")
+		tlsSkipVerify   = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
+		beConnTimeout   = getenvDuration("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
+		beHeaderTimeout = getenvDuration("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
+		feReadTimeout   = getenvDuration("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
+		feWriteTimeout  = getenvDuration("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
 	)
 
 	log.Printf("using frontend read timeout: %v", feReadTimeout)
@@ -111,9 +111,9 @@ func main() {
 	router.RegisterMetrics(prometheus.DefaultRegisterer)
 
 	rout, err := router.NewRouter(router.Options{
-		MongoURL:             mongoURL,
-		MongoDBName:          mongoDBName,
-		MongoPollInterval:    mongoPollInterval,
+		MongoURL:             postgresURL,
+		MongoDBName:          postgresDbName,
+		MongoPollInterval:    dbPollInterval,
 		BackendConnTimeout:   beConnTimeout,
 		BackendHeaderTimeout: beHeaderTimeout,
 		LogFileName:          errorLogFile,
