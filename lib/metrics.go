@@ -15,11 +15,26 @@ var (
 		[]string{"host"},
 	)
 
-	routeReloadCountMetric = prometheus.NewCounter(
+	routeReloadCountMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "router_route_reload_total",
 			Help: "Total number of attempts to reload the routing table",
 		},
+		[]string{},
+	)
+
+	routeReloadDurationMetric = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name: "router_route_reload_duration_seconds",
+			Help: "Histogram of route reload durations in seconds",
+			Objectives: map[float64]float64{
+				0.5:  0.01,
+				0.9:  0.01,
+				0.95: 0.01,
+				0.99: 0.005,
+			},
+		},
+		[]string{},
 	)
 
 	routeReloadErrorCountMetric = prometheus.NewCounter(
@@ -41,6 +56,7 @@ func registerMetrics(r prometheus.Registerer) {
 	r.MustRegister(
 		internalServerErrorCountMetric,
 		routeReloadCountMetric,
+		routeReloadDurationMetric,
 		routeReloadErrorCountMetric,
 		routesCountMetric,
 	)

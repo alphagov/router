@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -213,11 +214,11 @@ type mongoDatabase interface {
 // create a new proxy mux, load applications (backends) and routes into it, and
 // then flip the "mux" pointer in the Router.
 func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimestamp) {
+	startTime := time.Now()
 	defer func() {
-		// increment this metric regardless of whether the route reload succeeded
-		routeReloadCountMetric.Inc()
-
+		success := true
 		if r := recover(); r != nil {
+			success = false
 			logWarn("router: recovered from panic in reloadRoutes:", r)
 			logInfo("router: original routes have not been modified")
 			errorMessage := fmt.Sprintf("panic: %v", r)
@@ -228,6 +229,9 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 		} else {
 			rt.mongoReadToOptime = currentOptime
 		}
+		labels := prometheus.Labels{"success": strconv.FormatBool(success)}
+		routeReloadCountMetric.With(labels).Inc()
+		routeReloadDurationMetric.With(labels).Observe(time.Since(startTime).Seconds())
 	}()
 
 	logInfo("router: reloading routes")
