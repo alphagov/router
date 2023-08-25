@@ -20,7 +20,7 @@ var (
 			Name: "router_route_reload_total",
 			Help: "Total number of attempts to reload the routing table",
 		},
-		[]string{},
+		[]string{"success"},
 	)
 
 	routeReloadDurationMetric = prometheus.NewSummaryVec(
@@ -34,7 +34,7 @@ var (
 				0.99: 0.005,
 			},
 		},
-		[]string{},
+		[]string{"success"},
 	)
 
 	routeReloadErrorCountMetric = prometheus.NewCounter(
