@@ -224,13 +224,10 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 			errorMessage := fmt.Sprintf("panic: %v", r)
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
 			logger.NotifySentry(logger.ReportableError{Error: err})
-
-			routeReloadErrorCountMetric.Inc()
 		} else {
 			rt.mongoReadToOptime = currentOptime
 		}
 		labels := prometheus.Labels{"success": strconv.FormatBool(success)}
-		routeReloadCountMetric.With(labels).Inc()
 		routeReloadDurationMetric.With(labels).Observe(time.Since(startTime).Seconds())
 	}()
 
