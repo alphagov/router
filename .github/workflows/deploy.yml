@@ -9,7 +9,6 @@ on:
         description: 'Commit, tag or branch name to deploy'
         required: true
         type: string
-        default: 'main'
       environment:
         description: 'Environment to deploy to'
         required: true
