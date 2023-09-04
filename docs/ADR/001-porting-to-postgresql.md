@@ -38,4 +38,10 @@ This ADR is to outline our decisions and rationale on the steps we take for that
 
 ## Status
 
-Accepted
+~~Accepted~~
+
+Reverted
+
+On recommendation from the Tech Lead of the Platform Engineering team
+
+> For simplicity, we came to the conclusion that assuming that the separate postgres version of router-api is running in the background already, and is fully up to date (as in, all changes before it went "live" are synced, plus anything new after the fact), then there is no reason for Router to not just be delivered as normal.
