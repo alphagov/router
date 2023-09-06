@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	routerPort = 3169
-	apiPort    = 3168
+	routerPort = 5434
+	apiPort    = 5433
 )
 
 func routerURL(port int, path string) string {
@@ -56,7 +56,7 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 	}
 	cmd := exec.Command(bin)
 
-	cmd.Env = append(cmd.Environ(), "ROUTER_MONGO_DB=router_test")
+	cmd.Env = append(cmd.Environ(), "DATABASE_NAME=router_test")
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_ERROR_LOG=%s", tempLogfile.Name()))

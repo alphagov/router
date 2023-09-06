@@ -27,14 +27,37 @@ lint:
 unit_tests:
 	go test -race $$(go list ./... | grep -v integration_tests)
 
-integration_tests: build start_mongo
+integration_tests: build start_postgres init_test_db
 	go test -race -v ./integration_tests
 
-start_mongo:
-	./mongo.sh start
+start_postgres:
+	@if [ -z $$(docker ps -aqf name=router-postgres-test-db) ]; then \
+		docker run \
+			--name router-postgres-test-db \
+			-e POSTGRES_HOST_AUTH_METHOD=trust \
+			-d \
+			-p 5432:5432 \
+			--user 'postgres' \
+			--health-cmd 'pg_isready' \
+			--health-start-period 5s \
+			postgres:14; \
+		echo Waiting for postgres to be up; \
+		for _ in $$(seq 60); do \
+			if [ "$$(docker inspect -f '{{.State.Health.Status}}' router-postgres-test-db)" = "healthy" ]; then \
+				break; \
+			fi; \
+			echo '.\c'; \
+			sleep 1; \
+		done; \
+	else \
+		echo "PostgreSQL container 'router-postgres-test-db' already exists. Skipping creation."; \
+	fi
 
-stop_mongo:
-	./mongo.sh stop
+init_test_db:
+	docker exec -i router-postgres-test-db psql < localdb_init.sql
+	
+cleanup_postgres:
+	@docker rm -f router-postgres-test-db || true
 
 update_deps:
 	go get -t -u ./... && go mod tidy && go mod vendor
