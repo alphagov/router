@@ -1,12 +1,12 @@
 package integration
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+	_ "github.com/lib/pq" // Without which we can't use PSQL calls
 
 	// revive:disable:dot-imports
 	. "github.com/onsi/ginkgo/v2"
@@ -19,18 +19,18 @@ var _ = AfterEach(func() {
 })
 
 var (
-	routerDB *mgo.Database
+	routerDB *sql.DB
 )
 
 type Route struct {
-	IncomingPath string `bson:"incoming_path"`
-	RouteType    string `bson:"route_type"`
-	Handler      string `bson:"handler"`
-	BackendID    string `bson:"backend_id"`
-	RedirectTo   string `bson:"redirect_to"`
-	RedirectType string `bson:"redirect_type"`
-	SegmentsMode string `bson:"segments_mode"`
-	Disabled     bool   `bson:"disabled"`
+	IncomingPath string
+	RouteType    string
+	Handler      string
+	BackendID    string
+	RedirectTo   string
+	RedirectType string
+	SegmentsMode string
+	Disabled     bool
 }
 
 func NewBackendRoute(backendID string, extraParams ...string) Route {
@@ -80,36 +80,61 @@ func NewGoneRoute(extraParams ...string) Route {
 }
 
 func initRouteHelper() error {
-	databaseURL := os.Getenv("ROUTER_MONGO_URL")
+	databaseURL := os.Getenv("DATABASE_URL")
 
 	if databaseURL == "" {
-		databaseURL = "127.0.0.1"
+		databaseURL = "postgresql://postgres@127.0.0.1:5432/router_test?sslmode=disable"
 	}
 
-	sess, err := mgo.Dial(databaseURL)
+	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		return fmt.Errorf("failed to connect to mongo: %w", err)
+		return fmt.Errorf("Failed to connect to Postgres: " + err.Error())
 	}
-	sess.SetSyncTimeout(10 * time.Minute)
-	sess.SetSocketTimeout(10 * time.Minute)
 
-	routerDB = sess.DB("router_test")
+	db.SetConnMaxLifetime(10 * time.Minute)
+	db.SetMaxIdleConns(0)
+	db.SetMaxOpenConns(10)
+
+	routerDB = db
 	return nil
 }
 
 func addBackend(id, url string) {
-	err := routerDB.C("backends").Insert(bson.M{"backend_id": id, "backend_url": url})
-	Expect(err).NotTo(HaveOccurred())
+	query := `
+		INSERT INTO backends (backend_id, backend_url, created_at, updated_at)
+		VALUES ($1, $2, $3, $4)
+	`
+
+	_, err := routerDB.Exec(query, id, url, time.Now(), time.Now())
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func addRoute(path string, route Route) {
 	route.IncomingPath = path
 
-	err := routerDB.C("routes").Insert(route)
-	Expect(err).NotTo(HaveOccurred())
+	query := `
+    INSERT INTO routes (incoming_path, route_type, handler, backend_id, redirect_to, redirect_type, segments_mode, disabled, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `
+
+	_, err := routerDB.Exec(
+		query,
+		route.IncomingPath,
+		route.RouteType,
+		route.Handler,
+		route.BackendID,
+		route.RedirectTo,
+		route.RedirectType,
+		route.SegmentsMode,
+		route.Disabled,
+		time.Now(),
+		time.Now(),
+	)
+
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func clearRoutes() {
-	_ = routerDB.C("routes").DropCollection()
-	_ = routerDB.C("backends").DropCollection()
+	_, err := routerDB.Exec("DELETE FROM routes; DELETE FROM backends")
+	Expect(err).ToNot(HaveOccurred())
 }
