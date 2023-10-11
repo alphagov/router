@@ -61,12 +61,6 @@ To see debug messages when running tests, set both the `ROUTER_DEBUG` and
 `ROUTER_DEBUG_TESTS` environment variables:
 
 ```sh
-export ROUTER_DEBUG=1 ROUTER_DEBUG_TESTS=1
-```
-
-or equivalently for a single run:
-
-```sh
 ROUTER_DEBUG=1 ROUTER_DEBUG_TESTS=1 make test
 ```
 
