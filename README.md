@@ -11,7 +11,7 @@ loads a routing table into memory from a MongoDB database and:
 The sister project [`router-api`][router-api] provides a read/write
 interface to the underlying database.
 
-[tm]: https://github.com/alphagov/router/tree/master/triemux
+[tm]: https://github.com/alphagov/router/tree/main/triemux
 [router-api]: https://github.com/alphagov/router-api
 
 ## Technical documentation
@@ -101,8 +101,8 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 ### Further documentation
 
 - [Data structure](docs/data-structure.md)
-- [Original thinking behind the router](https://gdstechnology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk)
-- [Example of adding a metric](https://github.com/alphagov/router/commit/b443d3d) using the [Go prometheus client library](https://godoc.org/github.com/dnesting/client_golang/prometheus)
+- [Original thinking behind the router](https://technology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk/)
+- [Example of adding a metric](https://github.com/alphagov/router/commit/b443d3d) using the [Go prometheus client library](https://pkg.go.dev/github.com/prometheus/client_golang/prometheus)
 
 ## Team
 
