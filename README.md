@@ -104,6 +104,16 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 - [Original thinking behind the router](https://gdstechnology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk)
 - [Example of adding a metric](https://github.com/alphagov/router/commit/b443d3d) using the [Go prometheus client library](https://godoc.org/github.com/dnesting/client_golang/prometheus)
 
+## Team
+
+[GOV.UK Platform
+Engineering](https://github.com/orgs/alphagov/teams/gov-uk-platform-engineering)
+team looks after this repo. If you're inside GDS, you can find us in
+[#govuk-platform-engineering] or view our [kanban
+board](https://trello.com/b/u4FCzm53/).
+
 ## Licence
 
 [MIT License](LICENCE)
+
+[#govuk-platform-engineering]: https://gds.slack.com/channels/govuk-platform-engineering
