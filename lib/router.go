@@ -280,6 +280,7 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 		return MongoReplicaSetMember{}, fmt.Errorf("router: did not find exactly one current MongoDB instance, skipping update (current instances found: %d)", len(currentInstance))
 	}
 
+	// #nosec G602 -- not actually an out-of-bounds access.
 	return currentInstance[0], nil
 }
 
