@@ -11,9 +11,6 @@ loads a routing table into memory from a MongoDB database and:
 The sister project [`router-api`][router-api] provides a read/write
 interface to the underlying database.
 
-[tm]: https://github.com/alphagov/router/tree/main/triemux
-[router-api]: https://github.com/alphagov/router-api
-
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
@@ -70,15 +67,15 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 
 1. Update all the dependencies, including test dependencies, in your working copy:
 
-    ```sh
-    make update_deps
-    ```
+   ```sh
+   make update_deps
+   ```
 
 1. Check for any errors and commit.
 
-    ```sh
-    git commit -- go.{mod,sum} vendor
-    ```
+   ```sh
+   git commit -- go.{mod,sum} vendor
+   ```
 
 1. [Run the Router test suite](#run-the-test-suite). If you need to fix a
    failing test, keep your changes in separate commits to the `go get` /
@@ -86,15 +83,15 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 
 1. Run the tests for all dependencies:
 
-    ```sh
-    go test all
-    ```
+   ```sh
+   go test all
+   ```
 
-    - If there are failures, look into each one and determine whether it needs
-      fixing.
-    - If anything under `vendor/` needs changing then either raise a PR with
-      the upstream project or revert to a set of versions that work together.
-      Only `go get` and `go mod` should touch files in `vendor/`.
+   - If there are failures, look into each one and determine whether it needs
+     fixing.
+   - If anything under `vendor/` needs changing then either raise a PR with
+     the upstream project or revert to a set of versions that work together.
+     Only `go get` and `go mod` should touch files in `vendor/`.
 
 1. Raise a PR.
 
@@ -117,3 +114,5 @@ board](https://trello.com/b/u4FCzm53/).
 [MIT License](LICENCE)
 
 [#govuk-platform-engineering]: https://gds.slack.com/channels/govuk-platform-engineering
+[router-api]: https://github.com/alphagov/router-api
+[tm]: https://github.com/alphagov/router/tree/main/triemux
