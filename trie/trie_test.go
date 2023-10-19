@@ -4,52 +4,54 @@ import (
 	"testing"
 )
 
-type Meth int
+type method int
 
 const (
-	Set Meth = iota
+	Set method = iota
 	Del
 )
 
-type Pair struct {
-	meth Meth
-	path []string
-	val  interface{}
+type FixtureRow struct {
+	method method
+	path   []string
+	val    interface{}
 }
 
-type Check struct {
+type Expectation struct {
 	path []string
 	val  interface{}
 	ok   bool
 }
 
 type Example struct {
-	pairs  []Pair
-	checks []Check
+	fixtures     []FixtureRow
+	expectations []Expectation
 }
 
-// Data driven testing. Each Example consists of a slice of Pairs which are
-// "set" in the Trie, and a set of Checks, which consist of a Trie path and
-// expected return values and "ok" checks.
+// In these table-driven tests, each Example consists of:
+// 
+//   - a slice of FixtureRows which are inserted into the Trie
+//   - a set of Expectations, which consist of a Trie path and expected return
+//     values and "ok" checks
 //
-// TestExamples iterates through the examples slice and runs all the Checks
-// having set up a Trie with the appropriate Pairs.
+// TestExamples iterates over each test case in `examples`, setting up the
+// fixture and asserting the corresponding Expectations.
 var examples = []Example{
 	{ // Simple setting and getting
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo"}, "bar"},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo"}, "bar", true},
 			{[]string{"baz"}, nil, false},
 			{[]string{"foo", "bar"}, nil, false},
 		},
 	},
 	{ // Multiple path components
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo", "bar"}, 123},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo", "bar"}, 123, true},
 			{[]string{"baz"}, nil, false},
 			{[]string{"foo", "baz"}, nil, false},
@@ -58,11 +60,11 @@ var examples = []Example{
 		},
 	},
 	{ // Multiple values on the same path
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo"}, "hello"},
 			{Set, []string{"foo", "bar"}, 123},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo", "bar"}, 123, true},
 			{[]string{"foo"}, "hello", true},
 			{[]string{"foo", "baz"}, nil, false},
@@ -71,27 +73,27 @@ var examples = []Example{
 		},
 	},
 	{ // Deleting
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo"}, "hello"},
 			{Del, []string{"foo"}, nil},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo"}, nil, false},
 		},
 	},
 	{ // Setting at the root
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{}, "hello"},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{}, "hello", true},
 		},
 	},
 	{ // Setting nil
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo"}, nil},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo"}, nil, true},
 		},
 	},
@@ -99,11 +101,11 @@ var examples = []Example{
 
 var prefixExamples = []Example{
 	{ // Multiple values on the same path
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo"}, "hello"},
 			{Set, []string{"foo", "bar"}, 123},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo", "bar"}, 123, true},
 			{[]string{"foo"}, "hello", true},
 			{[]string{"foo", "baz"}, "hello", true},
@@ -113,11 +115,11 @@ var prefixExamples = []Example{
 		},
 	},
 	{ // Multiple values on the same path with gaps
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo"}, "hello"},
 			{Set, []string{"foo", "bar", "baz"}, 123},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo", "bar", "baz"}, 123, true},
 			{[]string{"foo"}, "hello", true},
 			{[]string{"foo", "baz"}, "hello", true},
@@ -127,12 +129,12 @@ var prefixExamples = []Example{
 		},
 	},
 	{ // Deleting
-		[]Pair{
+		[]FixtureRow{
 			{Set, []string{"foo"}, "hello"},
 			{Set, []string{"foo", "bar", "baz"}, 123},
 			{Del, []string{"foo", "bar", "baz"}, nil},
 		},
-		[]Check{
+		[]Expectation{
 			{[]string{"foo", "bar", "baz"}, "hello", true},
 		},
 	},
@@ -140,7 +142,7 @@ var prefixExamples = []Example{
 
 func TestNew(t *testing.T) {
 	path := []string{"hello", "world"}
-	trie := NewTrie()
+	trie := NewTrie[interface{}]()
 	_, ok := trie.Get(path)
 	if ok {
 		t.Error("An empty Trie should not contain any entries")
@@ -154,15 +156,15 @@ func TestExamples(t *testing.T) {
 }
 
 func testExample(t *testing.T, i int, ex Example) {
-	trie := buildExampleTrie(t, ex.pairs)
-	for _, c := range ex.checks {
-		val, ok := trie.Get(c.path)
-		t.Logf("trie.Get(path:%v) -> val:%v, ok:%v", c.path, val, ok)
-		if ok != c.ok {
-			t.Errorf("Example %d check %+v: trie.Get ok was %v (expected %v)", i, c, ok, c.ok)
+	trie := buildExampleTrie(t, ex.fixtures)
+	for _, e := range ex.expectations {
+		val, ok := trie.Get(e.path)
+		t.Logf("trie.Get(path:%v) -> val:%v, ok:%v", e.path, val, ok)
+		if ok != e.ok {
+			t.Errorf("Example %d check %+v: trie.Get ok was %v (expected %v)", i, e, ok, e.ok)
 		}
-		if val != c.val {
-			t.Errorf("Example %d check %+v: trie.Get val was %v (expected %v)", i, c, val, c.val)
+		if val != e.val {
+			t.Errorf("Example %d check %+v: trie.Get val was %v (expected %v)", i, e, val, e.val)
 		}
 	}
 }
@@ -174,45 +176,45 @@ func TestPrefixExamples(t *testing.T) {
 }
 
 func testPrefixExample(t *testing.T, i int, ex Example) {
-	trie := buildExampleTrie(t, ex.pairs)
-	for _, c := range ex.checks {
-		val, ok := trie.GetLongestPrefix(c.path)
-		t.Logf("trie.GetLongestPrefix(path:%v) -> val:%v, ok:%v", c.path, val, ok)
-		if ok != c.ok {
-			t.Errorf("Example %d check %+v: trie.Get ok was %v (expected %v)", i, c, ok, c.ok)
+	trie := buildExampleTrie(t, ex.fixtures)
+	for _, e := range ex.expectations {
+		val, ok := trie.GetLongestPrefix(e.path)
+		t.Logf("trie.GetLongestPrefix(path:%v) -> val:%v, ok:%v", e.path, val, ok)
+		if ok != e.ok {
+			t.Errorf("Example %d check %+v: trie.Get ok was %v (expected %v)", i, e, ok, e.ok)
 		}
-		if val != c.val {
-			t.Errorf("Example %d check %+v: trie.Get val was %v (expected %v)", i, c, val, c.val)
+		if val != e.val {
+			t.Errorf("Example %d check %+v: trie.Get val was %v (expected %v)", i, e, val, e.val)
 		}
 	}
 }
 
 func TestDelReturnsStatus(t *testing.T) {
-	trie := NewTrie()
+	trie := NewTrie[interface{}]()
 	path := []string{"foo"}
 	trie.Set(path, "bar")
 	ok := trie.Del(path)
 	if !ok {
-		t.Error("trie.Del didn't return true when deleting a key that exists!")
+		t.Error("trie.Del didn't return true when deleting a key that exists")
 	}
 	ok = trie.Del(path)
 	if ok {
-		t.Error("trie.Del didn't return false when deleting a key that didn't exist!")
+		t.Error("trie.Del didn't return false when deleting a key that didn't exist")
 	}
 }
 
-func buildExampleTrie(t *testing.T, pairs []Pair) *Trie {
-	trie := NewTrie()
-	for _, p := range pairs {
-		switch p.meth {
+func buildExampleTrie(t *testing.T, fixtures []FixtureRow) *Trie[interface{}] {
+	trie := NewTrie[interface{}]()
+	for _, f := range fixtures {
+		switch f.method {
 		case Set:
-			trie.Set(p.path, p.val)
-			t.Logf("trie.Set(path:%v, val:%v)", p.path, p.val)
+			trie.Set(f.path, f.val)
+			t.Logf("trie.Set(path:%v, val:%v)", f.path, f.val)
 		case Del:
-			trie.Del(p.path)
-			t.Logf("trie.Del(path:%v)", p.path)
+			trie.Del(f.path)
+			t.Logf("trie.Del(path:%v)", f.path)
 		default:
-			t.Errorf("Unrecognised method %v in Pair %v", p.meth, p)
+			t.Errorf("Unrecognised method %v in FixtureRow %v", f.method, f)
 		}
 	}
 	return trie

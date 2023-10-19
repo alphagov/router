@@ -1,136 +1,121 @@
 // Package trie implements a simple trie data structure that maps "paths" (which
-// are slices of strings) to arbitrary data values (type interface{}).
+// are slices of strings) to values of some type T.
 package trie
 
-type trieChildren map[string]*Trie
+type trieChildren[T interface{}] map[string]*Trie[T]
 
-type Trie struct {
-	Leaf     bool
-	Entry    interface{}
-	Children trieChildren
+type Trie[T interface{}] struct {
+	leaf     bool
+	entry    T
+	children trieChildren[T]
 }
 
-// NewTrie makes a new empty Trie
-func NewTrie() *Trie {
-	return &Trie{
-		Children: make(trieChildren),
-	}
+// NewTrie makes a new, empty Trie.
+func NewTrie[T interface{}]() *Trie[T] {
+	return &Trie[T]{children: make(trieChildren[T])}
 }
 
-// Get retrieves an element from the Trie
+// Get retrieves an entry from the Trie. If there is no fully-matching entry,
+// Get returns `(nil, false)`. `path` can be empty, to denote the root node.
 //
-// Takes a path (which can be empty, to denote the root element of the Trie),
-// and returns the object if the path exists in the Trie, or nil and a status of
-// false. Example:
+// Example:
 //
-//     if res, ok := trie.Get([]string{"foo", "bar"}); ok {
-//       fmt.Println("Value at /foo/bar was", res)
-//     }
-func (t *Trie) Get(path []string) (entry interface{}, ok bool) {
+//	if res, ok := trie.Get([]string{"foo", "bar"}); ok {
+//	  fmt.Println("Value at /foo/bar was", res)
+//	}
+func (t *Trie[T]) Get(path []string) (entry T, ok bool) {
 	if len(path) == 0 {
-		return t.getentry()
+		return t.getEntry()
 	}
 
-	key := path[0]
-	newpath := path[1:]
+	key, newPath := path[0], path[1:]
 
-	res, ok := t.Children[key]
+	res, ok := t.children[key]
 	if !ok {
-		// Path doesn't exist: shortcut return value
-		return nil, false
+		return
 	}
-
-	return res.Get(newpath)
+	return res.Get(newPath)
 }
 
-// GetLongestPrefix retrieves an element from the Trie
+// GetLongestPrefix retrieves the longest matching entry from the Trie.
 //
-// Takes a path (which can be empty, to denote the root element of the Trie).
-// If a matching object exists, it is returned. Otherwise the object with the
-// longest matching prefix is returned. If nothing matches at all, nil and a
-// status of false is returned. Example:
+// GetLongestPrefix returns a full match if there is one, or the entry with the
+// longest matching prefix. If there is no match at all, GetLongestPrefix
+// returns `(nil, false)`. `path` can be empty, to denote the root node.
 //
-//     if res, ok := trie.GetLongestPrefix([]string{"foo", "bar"}); ok {
-//       fmt.Println("Value at /foo/bar was", res)
-//     }
-func (t *Trie) GetLongestPrefix(path []string) (entry interface{}, ok bool) {
+// Example:
+//
+//	if res, ok := trie.GetLongestPrefix([]string{"foo", "bar"}); ok {
+//	  fmt.Println("Value at /foo/bar was", res)
+//	}
+func (t *Trie[T]) GetLongestPrefix(path []string) (entry T, ok bool) {
 	if len(path) == 0 {
-		return t.getentry()
+		return t.getEntry()
 	}
 
-	key := path[0]
-	newpath := path[1:]
+	key, newPath := path[0], path[1:]
 
-	res, ok := t.Children[key]
+	res, ok := t.children[key]
 	if !ok {
-		// Path doesn't exist: return this node as possible best match
-		return t.getentry()
+		return t.getEntry() // Full path not found, but this is the longest match.
 	}
 
-	entry, ok = res.GetLongestPrefix(newpath)
+	entry, ok = res.GetLongestPrefix(newPath)
 	if ok {
 		return entry, ok
 	}
-	// We haven't found a match yet, return this node
-	return t.getentry()
+	return t.getEntry() // No match yet, so return this node.
 }
 
-// Set creates an element in the Trie
-//
-// Takes a path (which can be empty, to denote the root element of the Trie),
-// and an arbitrary value (interface{}) to use as the leaf data.
-func (t *Trie) Set(path []string, value interface{}) {
+// Set adds an entry to the Trie. `path` can be empty, to denote the root node.
+func (t *Trie[T]) Set(path []string, value T) {
 	if len(path) == 0 {
-		t.setentry(value)
+		t.setEntry(value)
 		return
 	}
 
-	key := path[0]
-	newpath := path[1:]
+	key, newPath := path[0], path[1:]
 
-	res, ok := t.Children[key]
+	res, ok := t.children[key]
 	if !ok {
-		// Trie node that should hold entry doesn't already exist, so let's create it
-		res = NewTrie()
-		t.Children[key] = res
+		res = NewTrie[T]()
+		t.children[key] = res
 	}
 
-	res.Set(newpath, value)
+	res.Set(newPath, value)
 }
 
-// Del removes an element from the Trie. Returns a boolean indicating whether an
-// element was actually deleted.
-func (t *Trie) Del(path []string) bool {
+// Del removes an entry from the Trie, returning true if it deleted an entry.
+func (t *Trie[T]) Del(path []string) bool {
 	if len(path) == 0 {
-		return t.delentry()
+		return t.delEntry()
 	}
 
-	key := path[0]
-	newpath := path[1:]
+	key, newPath := path[0], path[1:]
 
-	res, ok := t.Children[key]
+	res, ok := t.children[key]
 	if !ok {
 		return false
 	}
-
-	return res.Del(newpath)
+	return res.Del(newPath)
 }
 
-func (t *Trie) setentry(value interface{}) {
-	t.Leaf = true
-	t.Entry = value
+func (t *Trie[T]) setEntry(value T) {
+	t.leaf = true
+	t.entry = value
 }
 
-func (t *Trie) getentry() (entry interface{}, ok bool) {
-	if t.Leaf {
-		return t.Entry, true
+func (t *Trie[T]) getEntry() (entry T, ok bool) {
+	if t.leaf {
+		return t.entry, true
 	}
-	return nil, false
+	return
 }
 
-func (t *Trie) delentry() (ok bool) {
-	ok = t.Leaf
-	t.Leaf = false
-	t.Entry = nil
+func (t *Trie[T]) delEntry() (ok bool) {
+	ok = t.leaf
+	t.leaf = false
+	var zero T
+	t.entry = zero
 	return
 }
