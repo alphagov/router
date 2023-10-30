@@ -226,8 +226,7 @@ func benchSetup() *Mux {
 	return tm
 }
 
-// Test behaviour looking up extant urls
-func BenchmarkLookup(b *testing.B) {
+func BenchmarkLookupFound(b *testing.B) {
 	b.StopTimer()
 	tm := benchSetup()
 	urls := loadStrings("testdata/urls")
@@ -239,8 +238,7 @@ func BenchmarkLookup(b *testing.B) {
 	}
 }
 
-// Test behaviour when looking up nonexistent urls
-func BenchmarkLookupBogus(b *testing.B) {
+func BenchmarkLookupNotFound(b *testing.B) {
 	b.StopTimer()
 	tm := benchSetup()
 	urls := loadStrings("testdata/bogus")
@@ -252,9 +250,7 @@ func BenchmarkLookupBogus(b *testing.B) {
 	}
 }
 
-// Test worst-case lookup behaviour (see comment in findlongestmatch for
-// details)
-func BenchmarkLookupMalicious(b *testing.B) {
+func BenchmarkLookupWorstCase(b *testing.B) {
 	b.StopTimer()
 	tm := benchSetup()
 	b.StartTimer()
