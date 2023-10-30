@@ -14,11 +14,11 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-var _ = Describe("Functioning as a reverse proxy", func() {
+var _ = Describe("As a reverse proxy", func() {
 	var recorder *ghttp.Server
 
-	Describe("connecting to the backend", func() {
-		It("should return a 502 if the connection to the backend is refused", func() {
+	Describe("when connecting to the backend", func() {
+		It("should return 502 on backend connection refused", func() {
 			addBackend("not-running", "http://127.0.0.1:3164/")
 			addRoute("/not-running", NewBackendRoute("not-running"))
 			reloadRoutes(apiPort)
@@ -42,7 +42,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
 
-		It("should log and return a 504 if the connection times out in the configured time", func() {
+		It("should log and return 504 on backend connection timeout", func() {
 			err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_CONNECT_TIMEOUT=0.3s"})
 			Expect(err).NotTo(HaveOccurred())
 			defer stopRouter(3167)
@@ -60,7 +60,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			duration := time.Since(start)
 
 			Expect(resp.StatusCode).To(Equal(504))
-			Expect(duration).To(BeNumerically("~", 320*time.Millisecond, 20*time.Millisecond)) // 300 - 340 ms
+			Expect(duration).To(BeNumerically("~", 320*time.Millisecond, 20*time.Millisecond))
 
 			logDetails := lastRouterErrorLogEntry()
 			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
@@ -130,9 +130,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			reloadRoutes(apiPort)
 		})
 
-		AfterEach(func() {
-			recorder.Close()
-		})
+		AfterEach(func() { recorder.Close() })
 
 		It("should pass through most http headers to the backend", func() {
 			resp := routerRequestWithHeaders(routerPort, "/foo", map[string]string{
@@ -246,7 +244,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 	})
 
-	Describe("request verb, path, query and body handling", func() {
+	Describe("request method, path, query and body handling", func() {
+		var recorder *ghttp.Server
+
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
@@ -254,11 +254,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			reloadRoutes(apiPort)
 		})
 
-		AfterEach(func() {
-			recorder.Close()
-		})
+		AfterEach(func() { recorder.Close() })
 
-		It("should use the same verb and path when proxying", func() {
+		It("should use the same HTTP method and path when proxying", func() {
 			recorder.AppendHandlers(
 				ghttp.VerifyRequest("POST", "/foo"),
 				ghttp.VerifyRequest("DELETE", "/foo/bar/baz.json"),
@@ -276,9 +274,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should pass through the query string unmodified", func() {
-			recorder.AppendHandlers(
-				ghttp.VerifyRequest("GET", "/foo/bar", "baz=qux"),
-			)
+			recorder.AppendHandlers(ghttp.VerifyRequest("GET", "/foo/bar", "baz=qux"))
 			resp := routerRequest(routerPort, "/foo/bar?baz=qux")
 			Expect(resp.StatusCode).To(Equal(200))
 
@@ -303,6 +299,8 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	})
 
 	Describe("handling a backend with a non '/' path", func() {
+		var recorder *ghttp.Server
+
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL()+"/something")
@@ -310,9 +308,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			reloadRoutes(apiPort)
 		})
 
-		AfterEach(func() {
-			recorder.Close()
-		})
+		AfterEach(func() { recorder.Close() })
 
 		It("should merge the 2 paths", func() {
 			resp := routerRequest(routerPort, "/foo/bar")
@@ -334,6 +330,8 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	})
 
 	Describe("handling HTTP/1.0 requests", func() {
+		var recorder *ghttp.Server
+
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
@@ -341,9 +339,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			reloadRoutes(apiPort)
 		})
 
-		AfterEach(func() {
-			recorder.Close()
-		})
+		AfterEach(func() { recorder.Close() })
 
 		It("should work with incoming HTTP/1.1 requests", func() {
 			req := newRequest("GET", routerURL(routerPort, "/foo"))
