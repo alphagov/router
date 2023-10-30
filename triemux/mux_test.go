@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 func TestSplitPath(t *testing.T) {
@@ -172,48 +170,19 @@ var lookupExamples = []LookupExample{
 }
 
 func TestLookup(t *testing.T) {
-	beforeCount := promtest.ToFloat64(entryNotFoundCountMetric)
-
 	for _, ex := range lookupExamples {
 		testLookup(t, ex)
-	}
-
-	afterCount := promtest.ToFloat64(entryNotFoundCountMetric)
-	notFoundCount := afterCount - beforeCount
-
-	var expectedNotFoundCount int
-
-	for _, ex := range lookupExamples {
-		for _, c := range ex.checks {
-			if !c.ok {
-				expectedNotFoundCount++
-			}
-		}
-	}
-
-	if expectedNotFoundCount == 0 {
-		t.Errorf("expectedNotFoundCount should not be zero")
-	}
-
-	if notFoundCount != float64(expectedNotFoundCount) {
-		t.Errorf(
-			"Expected notFoundCount (%f) ok to be %f",
-			notFoundCount, float64(expectedNotFoundCount),
-		)
 	}
 }
 
 func testLookup(t *testing.T, ex LookupExample) {
-	mux := NewMux()
+	mux := NewMux(nil)
 	for _, r := range ex.registrations {
 		t.Logf("Register(path:%v, prefix:%v, handler:%v)", r.path, r.prefix, r.handler)
 		mux.Handle(r.path, r.prefix, r.handler)
 	}
 	for _, c := range ex.checks {
-		handler, ok := mux.lookup(c.path)
-		if ok != c.ok {
-			t.Errorf("Expected lookup(%v) ok to be %v, was %v", c.path, c.ok, ok)
-		}
+		handler := mux.lookup(c.path)
 		if handler != c.handler {
 			t.Errorf("Expected lookup(%v) to map to handler %v, was %v", c.path, c.handler, handler)
 		}
@@ -227,7 +196,7 @@ var statsExample = []Registration{
 }
 
 func TestRouteCount(t *testing.T) {
-	mux := NewMux()
+	mux := NewMux(nil)
 	for _, reg := range statsExample {
 		mux.Handle(reg.path, reg.prefix, reg.handler)
 	}
@@ -248,7 +217,7 @@ func loadStrings(filename string) []string {
 func benchSetup() *Mux {
 	routes := loadStrings("testdata/routes")
 
-	tm := NewMux()
+	tm := NewMux(nil)
 	tm.Handle("/government", true, a)
 
 	for _, l := range routes {

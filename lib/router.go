@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -40,6 +41,7 @@ const (
 // MongoReplicaSet, MongoReplicaSetMember etc. should move out of this module.
 type Router struct {
 	mux               *triemux.Mux
+	defaultHandler    http.Handler
 	lock              sync.RWMutex
 	mongoReadToOptime bson.MongoTimestamp
 	logger            logger.Logger
@@ -92,7 +94,7 @@ func RegisterMetrics(r prometheus.Registerer) {
 
 // NewRouter returns a new empty router instance. You will need to call
 // SelfUpdateRoutes() to initialise the self-update process for routes.
-func NewRouter(o Options) (rt *Router, err error) {
+func NewRouter(defaultBackend *url.URL, o Options) (rt *Router, err error) {
 	logInfo("router: using mongo poll interval:", o.MongoPollInterval)
 	logInfo("router: using backend connect timeout:", o.BackendConnTimeout)
 	logInfo("router: using backend header timeout:", o.BackendHeaderTimeout)
@@ -108,9 +110,22 @@ func NewRouter(o Options) (rt *Router, err error) {
 		return nil, err
 	}
 
+	defaultHandler := handlers.NewBackendHandler(
+		"default",
+		defaultBackend,
+		o.BackendConnTimeout,
+		o.BackendHeaderTimeout,
+		l,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logDebug("defaultHandler:", defaultHandler)
+
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
-		mux:               triemux.NewMux(),
+		mux:               triemux.NewMux(defaultHandler),
+		defaultHandler:    defaultHandler,
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,
@@ -235,7 +250,7 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 	}()
 
 	logInfo("router: reloading routes")
-	newmux := triemux.NewMux()
+	newmux := triemux.NewMux(rt.defaultHandler)
 
 	backends := rt.loadBackends(db.C("backends"))
 	loadRoutes(db.C("routes"), newmux, backends)

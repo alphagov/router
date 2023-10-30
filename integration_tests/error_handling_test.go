@@ -8,18 +8,18 @@ import (
 )
 
 var _ = Describe("error handling", func() {
-
-	Describe("handling an empty routing table", func() {
+	Describe("when no routes are loaded", func() {
 		BeforeEach(func() {
 			reloadRoutes(apiPort)
 		})
 
-		It("should return a 503 error to the client", func() {
+		It("should forward to the default backend", func() {
 			resp := routerRequest(routerPort, "/")
-			Expect(resp.StatusCode).To(Equal(503))
+			Expect(resp).To(HaveHTTPHeaderWithValue("Server", "dummy-default-backend"))
 
 			resp = routerRequest(routerPort, "/foo")
-			Expect(resp.StatusCode).To(Equal(503))
+			Expect(resp).To(HaveHTTPStatus(404))
+			Expect(resp).To(HaveHTTPHeaderWithValue("Server", "dummy-default-backend"))
 		})
 	})
 
@@ -31,7 +31,7 @@ var _ = Describe("error handling", func() {
 
 		It("should return a 500 error to the client", func() {
 			resp := routerRequest(routerPort, "/boom")
-			Expect(resp.StatusCode).To(Equal(500))
+			Expect(resp).To(HaveHTTPStatus(500))
 		})
 
 		It("should log the fact", func() {

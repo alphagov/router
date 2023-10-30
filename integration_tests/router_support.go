@@ -50,6 +50,8 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 	pubAddr := net.JoinHostPort(host, strconv.Itoa(port))
 	apiAddr := net.JoinHostPort(host, strconv.Itoa(apiPort))
 
+	defaultBackend := startDummyBackend("dummy-default-backend", 404)
+
 	bin := os.Getenv("BINARY")
 	if bin == "" {
 		bin = "../router"
@@ -59,6 +61,7 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 	cmd.Env = append(cmd.Environ(), "ROUTER_MONGO_DB=router_test")
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_DEFAULT_BACKEND_URL=%s", defaultBackend.URL))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_ERROR_LOG=%s", tempLogfile.Name()))
 	cmd.Env = append(cmd.Env, extraEnv...)
 
