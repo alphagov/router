@@ -22,8 +22,11 @@ FROM scratch
 COPY --from=builder /src/router /bin/router
 COPY --from=builder /usr/share/ca-certificates /usr/share/ca-certificates
 COPY --from=builder /etc/ssl /etc/ssl
+# TODO: remove rds-combined-ca-bundle.pem once app is using global-bundle.pem.
 ADD https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \
     /etc/ssl/certs/rds-combined-ca-bundle.pem
+ADD https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+    /etc/ssl/certs/rds-global-bundle.pem
 USER 1001
 CMD ["/bin/router"]
 LABEL org.opencontainers.image.source="https://github.com/alphagov/router"
