@@ -16,7 +16,7 @@ failure_hints() {
 }
 
 docker_run() {
-  docker run --name router-mongo -dp 27017:27017 mongo:2.4 --replSet rs0 --quiet
+  docker run --name router-mongo -dp 27017:27017 mongo:2.6 --replSet rs0 --quiet
 }
 
 init_replicaset() {
