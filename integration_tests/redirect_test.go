@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/ghttp"
 )
 
 var _ = Describe("Redirection", func() {
@@ -225,6 +226,50 @@ var _ = Describe("Redirection", func() {
 			resp := routerRequest(routerPort, "/query-paramed?unwanted_param=blah&_ga=12345")
 			// https://param.servicegov.uk?included-param=true?unwanted_param=blah&_ga=12345
 			Expect(resp.Header.Get("Location")).To(Equal("https://param.servicegov.uk?_ga=12345&included-param=true"))
+		})
+	})
+
+	Describe("path case normalisation rule", func() {
+		var recorder *ghttp.Server
+
+		BeforeEach(func() {
+			recorder = startRecordingBackend()
+			addBackend("be", recorder.URL())
+			addRoute("/guidance/keeping-a-pet-pig-or-micropig", NewBackendRoute("be", "exact"))
+			addRoute("/GUIDANCE/keeping-a-pet-pig-or-micropig", NewBackendRoute("be", "exact"))
+			reloadRoutes(apiPort)
+		})
+
+		AfterEach(func() {
+			recorder.Close()
+		})
+
+		It("should permanently redirect an ALL CAPS path to lowercase", func() {
+			resp := routerRequest(routerPort, "/GUIDANCE/KEEPING-A-PET-PIG-OR-MICROPIG")
+			Expect(resp.StatusCode).To(Equal(301))
+			Expect(resp.Header.Get("Location")).To(Equal("/guidance/keeping-a-pet-pig-or-micropig"))
+		})
+
+		It("should preserve case in the query string", func() {
+			resp := routerRequest(routerPort, "/GUIDANCE/KEEPING-A-PET-PIG-OR-MICROPIG?Pig=Kunekune")
+			Expect(resp.StatusCode).To(Equal(301))
+			Expect(resp.Header.Get("Location")).To(Equal("/guidance/keeping-a-pet-pig-or-micropig?Pig=Kunekune"))
+		})
+
+		It("should forward an all-lowercase path unchanged", func() {
+			resp := routerRequest(routerPort, "/guidance/keeping-a-pet-pig-or-micropig")
+			Expect(resp.StatusCode).To(Equal(200))
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.URL.RequestURI()).To(Equal("/guidance/keeping-a-pet-pig-or-micropig"))
+		})
+
+		It("should forward a mixed-case path unchanged", func() {
+			resp := routerRequest(routerPort, "/GUIDANCE/keeping-a-pet-pig-or-micropig")
+			Expect(resp.StatusCode).To(Equal(200))
+			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+			beReq := recorder.ReceivedRequests()[0]
+			Expect(beReq.URL.RequestURI()).To(Equal("/GUIDANCE/keeping-a-pet-pig-or-micropig"))
 		})
 	})
 })

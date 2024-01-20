@@ -10,47 +10,57 @@ import (
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 )
 
-type SplitExample struct {
-	in  string
-	out []string
-}
-
-var splitExamples = []SplitExample{
-	{"", []string{}},
-	{"/", []string{}},
-	{"foo", []string{"foo"}},
-	{"/foo", []string{"foo"}},
-	{"/füßball", []string{"füßball"}},
-	{"/foo/bar", []string{"foo", "bar"}},
-	{"///foo/bar", []string{"foo", "bar"}},
-	{"foo/bar", []string{"foo", "bar"}},
-	{"/foo/bar/", []string{"foo", "bar"}},
-	{"/foo//bar/", []string{"foo", "bar"}},
-	{"/foo/////bar/", []string{"foo", "bar"}},
-}
-
 func TestSplitPath(t *testing.T) {
-	for _, ex := range splitExamples {
-		testSplitPath(t, ex)
+	tests := []struct {
+		in  string
+		out []string
+	}{
+		{"", []string{}},
+		{"/", []string{}},
+		{"foo", []string{"foo"}},
+		{"/foo", []string{"foo"}},
+		{"/füßball", []string{"füßball"}},
+		{"/foo/bar", []string{"foo", "bar"}},
+		{"///foo/bar", []string{"foo", "bar"}},
+		{"foo/bar", []string{"foo", "bar"}},
+		{"/foo/bar/", []string{"foo", "bar"}},
+		{"/foo//bar/", []string{"foo", "bar"}},
+		{"/foo/////bar/", []string{"foo", "bar"}},
 	}
-}
 
-func testSplitPath(t *testing.T, ex SplitExample) {
-	out := splitPath(ex.in)
-	if len(out) != len(ex.out) {
-		t.Errorf("splitPath(%v) was not %v", ex.in, ex.out)
-	}
-	for i := range ex.out {
-		if out[i] != ex.out[i] {
-			t.Errorf("splitPath(%v) differed from %v at component %d "+
-				"(expected %v, got %v)", out, ex.out, i, ex.out[i], out[i])
+	for _, ex := range tests {
+		out := splitPath(ex.in)
+		if len(out) != len(ex.out) {
+			t.Errorf("splitPath(%v) was not %v", ex.in, ex.out)
+		}
+		for i := range ex.out {
+			if out[i] != ex.out[i] {
+				t.Errorf("splitPath(%v) differed from %v at component %d "+
+					"(expected %v, got %v)", out, ex.out, i, ex.out[i], out[i])
+			}
 		}
 	}
 }
 
-type DummyHandler struct {
-	id string
+func TestShouldRedirToLowercasePath(t *testing.T) {
+	tests := []struct {
+		in  string
+		out bool
+	}{
+		{"/GOVERNMENT/GUIDANCE", true},
+		{"/GoVeRnMeNt/gUiDaNcE", false},
+		{"/government/guidance", false},
+	}
+
+	for _, ex := range tests {
+		out := shouldRedirToLowercasePath(ex.in)
+		if out != ex.out {
+			t.Errorf("shouldRedirToLowercasePath(%v): expected %v, got %v", ex.in, ex.out, out)
+		}
+	}
 }
+
+type DummyHandler struct{ id string }
 
 func (dh *DummyHandler) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {}
 

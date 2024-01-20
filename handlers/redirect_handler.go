@@ -17,6 +17,7 @@ const (
 
 	redirectHandlerType               = "redirect-handler"
 	pathPreservingRedirectHandlerType = "path-preserving-redirect-handler"
+	downcaseRedirectHandlerType       = "downcase-redirect-handler"
 )
 
 func NewRedirectHandler(source, target string, preserve bool, temporary bool) http.Handler {
@@ -85,5 +86,28 @@ func (handler *pathPreservingRedirectHandler) ServeHTTP(writer http.ResponseWrit
 	redirectCountMetric.With(prometheus.Labels{
 		"redirect_code": fmt.Sprintf("%d", handler.code),
 		"redirect_type": pathPreservingRedirectHandlerType,
+	}).Inc()
+}
+
+type downcaseRedirectHandler struct{}
+
+func NewDowncaseRedirectHandler() http.Handler {
+	return &downcaseRedirectHandler{}
+}
+
+func (handler *downcaseRedirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	const status = http.StatusMovedPermanently
+
+	target := strings.ToLower(r.URL.Path)
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+
+	addCacheHeaders(w)
+	http.Redirect(w, r, target, status)
+
+	redirectCountMetric.With(prometheus.Labels{
+		"redirect_code": fmt.Sprintf("%d", status),
+		"redirect_type": downcaseRedirectHandlerType,
 	}).Inc()
 }
