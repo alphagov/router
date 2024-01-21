@@ -44,18 +44,18 @@ var _ = Describe("Route selection", func() {
 
 		It("should 404 for children of the exact route", func() {
 			resp := routerRequest(routerPort, "/foo/bar")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 		})
 
 		It("should 404 for non-matching requests", func() {
 			resp := routerRequest(routerPort, "/wibble")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 
 			resp = routerRequest(routerPort, "/")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 
 			resp = routerRequest(routerPort, "/foo.json")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 		})
 	})
 
@@ -104,13 +104,13 @@ var _ = Describe("Route selection", func() {
 
 		It("should 404 for non-matching requests", func() {
 			resp := routerRequest(routerPort, "/wibble")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 
 			resp = routerRequest(routerPort, "/")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 
 			resp = routerRequest(routerPort, "/foo.json")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 		})
 	})
 
@@ -296,7 +296,7 @@ var _ = Describe("Route selection", func() {
 			Expect(readBody(resp)).To(Equal("other backend"))
 
 			resp = routerRequest(routerPort, "/bar")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 		})
 
 		It("should handle a prefix route at the root level", func() {
@@ -341,14 +341,14 @@ var _ = Describe("Route selection", func() {
 
 		It("should not be redirected by our recorder backend", func() {
 			resp := routerRequest(routerPort, "/foo/bar/baz//qux")
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp).To(HaveHTTPStatus(200))
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			Expect(recorder.ReceivedRequests()[0].URL.Path).To(Equal("/foo/bar/baz//qux"))
 		})
 
 		It("should collapse double slashes when looking up route, but pass request as-is", func() {
 			resp := routerRequest(routerPort, "/foo//bar")
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp).To(HaveHTTPStatus(200))
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			Expect(recorder.ReceivedRequests()[0].URL.Path).To(Equal("/foo//bar"))
 		})
@@ -370,7 +370,7 @@ var _ = Describe("Route selection", func() {
 			reloadRoutes(apiPort)
 
 			resp := routerRequest(routerPort, "/foo bar")
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp).To(HaveHTTPStatus(200))
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			Expect(recorder.ReceivedRequests()[0].RequestURI).To(Equal("/foo%20bar"))
 		})

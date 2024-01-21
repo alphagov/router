@@ -11,7 +11,7 @@ var _ = Describe("/metrics API endpoint", func() {
 
 		BeforeEach(func() {
 			resp := doRequest(newRequest("GET", routerURL(apiPort, "/metrics")))
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp).To(HaveHTTPStatus(200))
 			responseBody = readBody(resp)
 		})
 

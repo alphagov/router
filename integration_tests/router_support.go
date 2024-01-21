@@ -36,7 +36,7 @@ func reloadRoutes(port int) {
 
 	resp, err := http.DefaultClient.Do(req)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(resp.StatusCode).To(Equal(202))
+	Expect(resp).To(HaveHTTPStatus(202))
 	resp.Body.Close()
 	// Now that reloading is done asynchronously, we need a small sleep to ensure
 	// it has actually been performed.

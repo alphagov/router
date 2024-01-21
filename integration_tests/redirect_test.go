@@ -22,12 +22,12 @@ var _ = Describe("Redirection", func() {
 
 		It("should redirect permanently by default", func() {
 			resp := routerRequest(routerPort, "/foo")
-			Expect(resp.StatusCode).To(Equal(301))
+			Expect(resp).To(HaveHTTPStatus(301))
 		})
 
 		It("should redirect temporarily when asked to", func() {
 			resp := routerRequest(routerPort, "/foo-temp")
-			Expect(resp.StatusCode).To(Equal(302))
+			Expect(resp).To(HaveHTTPStatus(302))
 		})
 
 		It("should contain the redirect location", func() {
@@ -79,13 +79,13 @@ var _ = Describe("Redirection", func() {
 
 		It("should redirect permanently to the destination", func() {
 			resp := routerRequest(routerPort, "/foo")
-			Expect(resp.StatusCode).To(Equal(301))
+			Expect(resp).To(HaveHTTPStatus(301))
 			Expect(resp.Header.Get("Location")).To(Equal("/bar"))
 		})
 
 		It("should redirect temporarily to the destination when asked to", func() {
 			resp := routerRequest(routerPort, "/foo-temp")
-			Expect(resp.StatusCode).To(Equal(302))
+			Expect(resp).To(HaveHTTPStatus(302))
 			Expect(resp.Header.Get("Location")).To(Equal("/bar-temp"))
 		})
 
@@ -127,7 +127,7 @@ var _ = Describe("Redirection", func() {
 			reloadRoutes(apiPort)
 
 			resp := routerRequest(routerPort, "/foo bar/something")
-			Expect(resp.StatusCode).To(Equal(301))
+			Expect(resp).To(HaveHTTPStatus(301))
 			Expect(resp.Header.Get("Location")).To(Equal("/bar%20baz/something"))
 		})
 	})
