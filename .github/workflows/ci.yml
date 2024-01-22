@@ -23,6 +23,7 @@ jobs:
           go-version-file: go.mod
       - run: make unit_tests
       - run: make integration_tests
+        timeout-minutes: 15
         env:
           ROUTER_MONGO_URL: 127.0.0.1
   golangci-lint:

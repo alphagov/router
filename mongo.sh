@@ -39,6 +39,7 @@ retry_or_fatal() {
       return
     fi
     sleep 1 && echo -n .
+    n=$((n-1))
   done
   echo "gave up"
   exit 1
