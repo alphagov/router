@@ -5,9 +5,11 @@ package triemux
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 
+	"github.com/alphagov/router/handlers"
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/trie"
 )
@@ -17,20 +19,22 @@ type Mux struct {
 	exactTrie  *trie.Trie[http.Handler]
 	prefixTrie *trie.Trie[http.Handler]
 	count      int
+	downcaser  http.Handler
 }
 
 // NewMux makes a new empty Mux.
 func NewMux() *Mux {
 	return &Mux{
-		exactTrie: trie.NewTrie[http.Handler](),
+		exactTrie:  trie.NewTrie[http.Handler](),
 		prefixTrie: trie.NewTrie[http.Handler](),
+		downcaser:  handlers.NewDowncaseRedirectHandler(),
 	}
 }
 
-// ServeHTTP dispatches the request to a backend with a registered route
-// matching the request path, or 404s.
-//
-// If the routing table is empty, return a 503.
+// ServeHTTP forwards the request to a backend with a registered route matching
+// the request path. Serves 404 when there is no backend. Serves 301 redirect
+// to lowercase path when the URL path is entirely uppercase. Serves 503 when
+// no routes are loaded.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if mux.count == 0 {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -42,12 +46,28 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if shouldRedirToLowercasePath(r.URL.Path) {
+		mux.downcaser.ServeHTTP(w, r)
+		return
+	}
+
 	handler, ok := mux.lookup(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 	handler.ServeHTTP(w, r)
+}
+
+// shouldRedirToLowercasePath takes a URL path string (such as "/government/guidance")
+// and returns:
+//   - true, if path is in all caps; for example:
+//     "/GOVERNMENT/GUIDANCE" -> true (should redirect to "/government/guidance")
+//   - false, otherwise; for example:
+//     "/GoVeRnMeNt/gUiDaNcE" -> false (should forward "/GoVeRnMeNt/gUiDaNcE" as-is)
+func shouldRedirToLowercasePath(path string) (match bool) {
+	match, _ = regexp.MatchString(`^\/[A-Z]+[A-Z\W\d]+$`, path)
+	return
 }
 
 // lookup finds a URL path in the Mux and returns the corresponding handler.

@@ -15,6 +15,7 @@ import (
 )
 
 var _ = Describe("Functioning as a reverse proxy", func() {
+	var recorder *ghttp.Server
 
 	Describe("connecting to the backend", func() {
 		It("should return a 502 if the connection to the backend is refused", func() {
@@ -74,10 +75,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		Describe("response header timeout", func() {
-			var (
-				tarpit1 *httptest.Server
-				tarpit2 *httptest.Server
-			)
+			var tarpit1, tarpit2 *httptest.Server
 
 			BeforeEach(func() {
 				err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_HEADER_TIMEOUT=0.3s"})
@@ -125,14 +123,8 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	})
 
 	Describe("header handling", func() {
-		var (
-			recorder    *ghttp.Server
-			recorderURL *url.URL
-		)
-
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			recorderURL, _ = url.Parse(recorder.URL())
 			addBackend("backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
@@ -160,6 +152,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				"Host": "www.example.com",
 			})
 			Expect(resp.StatusCode).To(Equal(200))
+
+			recorderURL, err := url.Parse(recorder.URL())
+			Expect(err).NotTo(HaveOccurred())
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
 			beReq := recorder.ReceivedRequests()[0]
@@ -252,10 +247,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	})
 
 	Describe("request verb, path, query and body handling", func() {
-		var (
-			recorder *ghttp.Server
-		)
-
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
@@ -312,10 +303,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	})
 
 	Describe("handling a backend with a non '/' path", func() {
-		var (
-			recorder *ghttp.Server
-		)
-
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL()+"/something")
@@ -347,10 +334,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	})
 
 	Describe("handling HTTP/1.0 requests", func() {
-		var (
-			recorder *ghttp.Server
-		)
-
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
 			addBackend("backend", recorder.URL())
@@ -384,8 +367,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	})
 
 	Describe("handling requests to a HTTPS backend", func() {
-		var recorder *ghttp.Server
-
 		BeforeEach(func() {
 			err := startRouter(3167, 3166, []string{"ROUTER_TLS_SKIP_VERIFY=1"})
 			Expect(err).NotTo(HaveOccurred())
