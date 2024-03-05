@@ -31,7 +31,7 @@ healthy() {
 
 # usage: retry_or_fatal description command-to-try
 retry_or_fatal() {
-  n=10
+  n=20
   echo -n "Waiting up to $n s for $1"; shift
   while [ "$n" -ge 0 ]; do
     if "$@"; then
