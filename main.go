@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"time"
@@ -26,6 +27,7 @@ ROUTER_APIADDR=:8081             Address on which to receive reload requests
 ROUTER_MONGO_URL=127.0.0.1       Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')
 ROUTER_MONGO_DB=router           Name of mongo database to use
 ROUTER_MONGO_POLL_INTERVAL=2s    Interval to poll mongo for route changes
+ROUTER_DEFAULT_BACKEND_URL       Where to forward requests that don't match any route
 ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
 ROUTER_DEBUG=                    Enable debug output if non-empty
 
@@ -96,6 +98,7 @@ func main() {
 		beHeaderTimeout   = getenvDuration("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
 		feReadTimeout     = getenvDuration("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
 		feWriteTimeout    = getenvDuration("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
+		defaultBackend    = getenv("ROUTER_DEFAULT_BACKEND_URL", "http://government-frontend")
 	)
 
 	log.Printf("using frontend read timeout: %v", feReadTimeout)
@@ -110,7 +113,12 @@ func main() {
 
 	router.RegisterMetrics(prometheus.DefaultRegisterer)
 
-	rout, err := router.NewRouter(router.Options{
+	d, err := url.Parse(defaultBackend)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rout, err := router.NewRouter(d, router.Options{
 		MongoURL:             mongoURL,
 		MongoDBName:          mongoDBName,
 		MongoPollInterval:    mongoPollInterval,

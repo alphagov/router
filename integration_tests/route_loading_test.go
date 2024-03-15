@@ -36,7 +36,7 @@ var _ = Describe("loading routes from the db", func() {
 
 		It("should skip the invalid route", func() {
 			resp := routerRequest(routerPort, "/bar")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 		})
 
 		It("should continue to load other routes", func() {
@@ -59,7 +59,7 @@ var _ = Describe("loading routes from the db", func() {
 
 		It("should skip the invalid route", func() {
 			resp := routerRequest(routerPort, "/bar")
-			Expect(resp.StatusCode).To(Equal(404))
+			Expect(resp).To(HaveHTTPStatus(404))
 		})
 
 		It("should continue to load other routes", func() {
@@ -99,7 +99,7 @@ var _ = Describe("loading routes from the db", func() {
 
 		It("should send requests to the backend_url provided in the env var", func() {
 			resp := routerRequest(routerPort, "/oof")
-			Expect(resp.StatusCode).To(Equal(200))
+			Expect(resp).To(HaveHTTPStatus(200))
 			Expect(readBody(resp)).To(Equal("backend 3"))
 		})
 	})

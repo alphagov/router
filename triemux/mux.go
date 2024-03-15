@@ -10,12 +10,12 @@ import (
 	"sync"
 
 	"github.com/alphagov/router/handlers"
-	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/trie"
 )
 
 type Mux struct {
 	mu         sync.RWMutex
+	defaultHandler http.Handler
 	exactTrie  *trie.Trie[http.Handler]
 	prefixTrie *trie.Trie[http.Handler]
 	count      int
@@ -23,40 +23,25 @@ type Mux struct {
 }
 
 // NewMux makes a new empty Mux.
-func NewMux() *Mux {
+func NewMux(defaultHandler http.Handler) *Mux {
 	return &Mux{
+		defaultHandler: defaultHandler,
 		exactTrie:  trie.NewTrie[http.Handler](),
 		prefixTrie: trie.NewTrie[http.Handler](),
 		downcaser:  handlers.NewDowncaseRedirectHandler(),
 	}
 }
 
-// ServeHTTP forwards the request to a backend with a registered route matching
-// the request path. Serves 404 when there is no backend. Serves 301 redirect
-// to lowercase path when the URL path is entirely uppercase. Serves 503 when
-// no routes are loaded.
+// ServeHTTP forwards the request to the backend based on the longest-matching
+// URL path prefix, or to the default backend if there is no match. Serves a
+// 301 redirect to lowercase path when the URL path is entirely uppercase.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if mux.count == 0 {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		logger.NotifySentry(logger.ReportableError{
-			Error:   logger.RecoveredError{ErrorMessage: "route table is empty"},
-			Request: r,
-		})
-		internalServiceUnavailableCountMetric.Inc()
-		return
-	}
-
 	if shouldRedirToLowercasePath(r.URL.Path) {
 		mux.downcaser.ServeHTTP(w, r)
 		return
 	}
 
-	handler, ok := mux.lookup(r.URL.Path)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	handler.ServeHTTP(w, r)
+	mux.lookup(r.URL.Path).ServeHTTP(w, r)
 }
 
 // shouldRedirToLowercasePath takes a URL path string (such as "/government/guidance")
@@ -71,19 +56,19 @@ func shouldRedirToLowercasePath(path string) (match bool) {
 }
 
 // lookup finds a URL path in the Mux and returns the corresponding handler.
-func (mux *Mux) lookup(path string) (handler http.Handler, ok bool) {
+func (mux *Mux) lookup(path string) http.Handler {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
 	pathSegments := splitPath(path)
-	if handler, ok = mux.exactTrie.Get(pathSegments); !ok {
+	handler, ok := mux.exactTrie.Get(pathSegments)
+	if !ok {
 		handler, ok = mux.prefixTrie.GetLongestPrefix(pathSegments)
 	}
 	if !ok {
-		entryNotFoundCountMetric.Inc()
-		return nil, false
+		return mux.defaultHandler
 	}
-	return
+	return handler
 }
 
 // Handle adds a route (either an exact path or a path prefix) to the Mux and
