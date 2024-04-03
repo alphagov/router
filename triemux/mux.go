@@ -59,6 +59,8 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler.ServeHTTP(w, r)
 }
 
+var reShouldRedirect = regexp.MustCompile(`^\/[A-Z]+[A-Z\W\d]+$`)
+
 // shouldRedirToLowercasePath takes a URL path string (such as "/government/guidance")
 // and returns:
 //   - true, if path is in all caps; for example:
@@ -66,8 +68,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //   - false, otherwise; for example:
 //     "/GoVeRnMeNt/gUiDaNcE" -> false (should forward "/GoVeRnMeNt/gUiDaNcE" as-is)
 func shouldRedirToLowercasePath(path string) (match bool) {
-	match, _ = regexp.MatchString(`^\/[A-Z]+[A-Z\W\d]+$`, path)
-	return
+	return reShouldRedirect.MatchString(path)
 }
 
 // lookup finds a URL path in the Mux and returns the corresponding handler.
