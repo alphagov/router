@@ -16,7 +16,7 @@ failure_hints() {
 }
 
 docker_run() {
-  docker run --name router-mongo -dp 27017:27017 mongo:2.6 --replSet rs0 --quiet
+  docker run --name router-mongo -dp 27017:27017 ghcr.io/alphagov/govuk-infrastructure/mongodb:016364bbefd79123a59be4ad2ce0f338688dc16f --replSet rs0 --quiet
 }
 
 init_replicaset() {
