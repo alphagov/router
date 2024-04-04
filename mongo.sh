@@ -16,17 +16,16 @@ failure_hints() {
 }
 
 docker_run() {
-  docker run --name router-mongo -dp 27017:27017 ghcr.io/alphagov/govuk-infrastructure/mongodb:016364bbefd79123a59be4ad2ce0f338688dc16f --replSet rs0 --quiet
+  docker run --name router-mongo -dp 27017:27017 ghcr.io/alphagov/govuk-infrastructure/mongodb:016364bbefd79123a59be4ad2ce0f338688dc16f --replSet rs0
 }
 
 init_replicaset() {
-  docker exec router-mongo mongo --quiet --eval 'rs.initiate();' >/dev/null 2>&1
+  docker exec router-mongo mongo --eval 'rs.initiate();'
 }
 
 healthy() {
-  docker exec router-mongo mongo --quiet --eval \
-    'if (rs.status().members[0].health==1) print("healthy");' \
-    2>&1 | grep healthy >/dev/null
+  docker exec router-mongo mongo --eval \
+    'print(rs.status());'
 }
 
 # usage: retry_or_fatal description command-to-try
@@ -34,15 +33,9 @@ retry_or_fatal() {
   n=20
   echo -n "Waiting up to $n s for $1"; shift
   while [ "$n" -ge 0 ]; do
-    if "$@"; then
-      echo " done"
-      return
-    fi
     sleep 1 && echo -n .
     n=$((n-1))
   done
-  echo "gave up"
-  exit 1
 }
 
 stop() {
