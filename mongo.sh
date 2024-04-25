@@ -20,12 +20,11 @@ docker_run() {
 }
 
 init_replicaset() {
-  docker exec router-mongo mongo --eval 'rs.initiate();'
+  docker exec -t router-mongo mongo --eval 'rs.initiate();'
 }
 
 healthy() {
-  docker exec router-mongo mongo --eval \
-    'print(rs.status());'
+  docker exec -t router-mongo mongo --eval 'print(rs.status());'
 }
 
 # usage: retry_or_fatal description command-to-try
