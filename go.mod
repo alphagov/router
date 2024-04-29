@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/getsentry/sentry-go v0.27.0
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
-	github.com/onsi/ginkgo/v2 v2.17.1
+	github.com/onsi/ginkgo/v2 v2.17.2
 	github.com/onsi/gomega v1.33.0
 	github.com/prometheus/client_golang v1.19.0
 	github.com/prometheus/client_model v0.6.1
@@ -17,7 +17,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
-	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
+	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20240424215950-a892ee059fd6 // indirect
 	github.com/influxdata/tdigest v0.0.1 // indirect
