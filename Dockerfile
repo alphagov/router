@@ -2,7 +2,7 @@ ARG go_registry=""
 ARG go_version=1.22
 ARG go_tag_suffix=-alpine
 
-FROM ${go_registry}golang:${go_version}${go_tag_suffix} AS builder
+FROM --platform=$TARGETPLATFORM ${go_registry}golang:${go_version}${go_tag_suffix} AS builder
 ARG TARGETARCH TARGETOS
 ARG GOARCH=$TARGETARCH GOOS=$TARGETOS
 ARG CGO_ENABLED=0
@@ -18,7 +18,7 @@ RUN go build -ldflags="$go_ldflags" && \
     ./router -version && \
     go version -m ./router
 
-FROM scratch
+FROM --platform=$TARGETPLATFORM scratch
 COPY --from=builder /src/router /bin/router
 COPY --from=builder /usr/share/ca-certificates /usr/share/ca-certificates
 COPY --from=builder /etc/ssl /etc/ssl
