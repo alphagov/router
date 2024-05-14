@@ -3,8 +3,10 @@ ARG go_version=1.22
 ARG go_tag_suffix=-alpine
 
 FROM --platform=$TARGETPLATFORM ${go_registry}golang:${go_version}${go_tag_suffix} AS builder
-ARG TARGETARCH TARGETOS
-ARG GOARCH=$TARGETARCH GOOS=$TARGETOS
+ARG TARGETARCH
+ARG TARGETOS
+ARG GOARCH=$TARGETARCH
+ARG GOOS=$TARGETOS
 ARG CGO_ENABLED=0
 ARG GOFLAGS="-trimpath"
 ARG go_ldflags="-s -w"
