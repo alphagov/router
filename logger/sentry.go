@@ -5,10 +5,12 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"time"
 
 	sentry "github.com/getsentry/sentry-go"
 )
+
+// TODO: use the Sentry API as intended + remove these wonky, reinvented wheels.
+// See https://docs.sentry.io/platforms/go/guides/http/.
 
 type RecoveredError struct {
 	ErrorMessage string
@@ -24,25 +26,14 @@ type ReportableError struct {
 	Response *http.Response
 }
 
-func (re ReportableError) hint() *sentry.EventHint {
-	return &sentry.EventHint{
-		Request:  re.Request,
-		Response: re.Response,
+func InitSentry() {
+	if err := sentry.Init(sentry.ClientOptions{}); err != nil {
+		log.Printf("sentry.Init failed: %v\n", err)
 	}
 }
 
-func (re ReportableError) scope() *sentry.Scope {
-	scope := sentry.NewScope()
-	if re.hint().Request != nil {
-		scope.SetRequest(re.hint().Request)
-	}
-	if re.hint().Response != nil {
-		scope.SetExtra("Response Status", re.hint().Response.Status)
-	}
-	return scope
-}
-
-func (re ReportableError) timeoutError() bool {
+// Timeout returns true if and only if this ReportableError is a timeout.
+func (re ReportableError) Timeout() bool {
 	var oerr *net.OpError
 	if errors.As(re.Error, &oerr) {
 		return oerr.Timeout()
@@ -50,27 +41,21 @@ func (re ReportableError) timeoutError() bool {
 	return false
 }
 
-func (re ReportableError) ignorableError() bool {
-	// We don't want to hear about timeouts. These get visibility elsewhere.
-	return re.timeoutError()
-}
-
+// NotifySentry sends an event to sentry.io. Sentry is configurable via the
+// environment variables SENTRY_ENVIRONMENT, SENTRY_DSN, SENTRY_RELEASE.
 func NotifySentry(re ReportableError) {
-	if re.ignorableError() {
+	if re.Timeout() {
 		return
 	}
 
-	// We don't need to set SENTRY_ENVIRONMENT, SENTRY_DSN or SENTRY_RELEASE
-	// in ClientOptions as they are automatically picked up as env vars.
-	// https://docs.sentry.io/platforms/go/config/
-	client, err := sentry.NewClient(sentry.ClientOptions{})
-
-	if err != nil {
-		log.Printf("router: Sentry initialization failed: %v\n", err)
-		return
-	}
-
-	hub := sentry.NewHub(client, re.scope())
-	hub.CaptureException(re.Error)
-	sentry.Flush(time.Second * 5)
+	hub := sentry.CurrentHub().Clone()
+	hub.WithScope(func(s *sentry.Scope) {
+		if re.Request != nil {
+			s.SetRequest(re.Request)
+		}
+		if re.Response != nil {
+			s.SetExtra("Response Status", re.Response.Status)
+		}
+		hub.CaptureException(re.Error)
+	})
 }
