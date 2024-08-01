@@ -12,11 +12,17 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-func startSimpleBackend(identifier string) *httptest.Server {
+func startDummyBackend(id string, statusCode int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(identifier))
+		w.Header().Add("Server", id)
+		w.WriteHeader(statusCode)
+		_, err := w.Write([]byte(id))
 		Expect(err).NotTo(HaveOccurred())
 	}))
+}
+
+func startSimpleBackend(id string) *httptest.Server {
+	return startDummyBackend(id, 200)
 }
 
 func startTarpitBackend(delays ...time.Duration) *httptest.Server {
@@ -29,18 +35,14 @@ func startTarpitBackend(delays ...time.Duration) *httptest.Server {
 		bodyDelay = delays[1]
 	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body := "Tarpit\n"
+		const body = "Tarpit\n"
 
-		if responseDelay > 0 {
-			time.Sleep(responseDelay)
-		}
+		time.Sleep(responseDelay)
 		w.Header().Add("Content-Length", strconv.Itoa(len(body)))
 		w.WriteHeader(http.StatusOK)
 		w.(http.Flusher).Flush()
 
-		if bodyDelay > 0 {
-			time.Sleep(bodyDelay)
-		}
+		time.Sleep(bodyDelay)
 		_, err := w.Write([]byte(body))
 		Expect(err).NotTo(HaveOccurred())
 	}))

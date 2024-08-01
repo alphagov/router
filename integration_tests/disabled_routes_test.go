@@ -16,12 +16,12 @@ var _ = Describe("marking routes as disabled", func() {
 
 		It("should return a 503 to the client", func() {
 			resp := routerRequest(routerPort, "/unavailable")
-			Expect(resp.StatusCode).To(Equal(503))
+			Expect(resp).To(HaveHTTPStatus(503))
 		})
 
 		It("should continue to route other requests", func() {
 			resp := routerRequest(routerPort, "/something-live")
-			Expect(resp.StatusCode).To(Equal(301))
+			Expect(resp).To(HaveHTTPStatus(301))
 			Expect(resp.Header.Get("Location")).To(Equal("/somewhere-else"))
 		})
 	})
