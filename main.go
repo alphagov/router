@@ -11,6 +11,8 @@ import (
 
 	"github.com/alphagov/router/handlers"
 	router "github.com/alphagov/router/lib"
+	"github.com/alphagov/router/logger"
+	sentry "github.com/getsentry/sentry-go"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -130,6 +132,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	logger.InitSentry()
+	defer sentry.Flush(2 * time.Second)
+
 	log.Printf("router: listening for API requests on %v", apiAddr)
 	listenAndServeOrFatal(apiAddr, api, feReadTimeout, feWriteTimeout)
 }
