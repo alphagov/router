@@ -43,7 +43,6 @@ var _ = Describe("error handling", func() {
 				"request":        "GET /boom HTTP/1.1",
 				"request_method": "GET",
 				"status":         float64(500), // All numbers in JSON are floating point
-				"varnish_id":     "",
 			}))
 			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
