@@ -30,7 +30,6 @@ type Route struct {
 	RedirectTo   string `bson:"redirect_to"`
 	RedirectType string `bson:"redirect_type"`
 	SegmentsMode string `bson:"segments_mode"`
-	Disabled     bool   `bson:"disabled"`
 }
 
 func NewBackendRoute(backendID string, extraParams ...string) Route {
