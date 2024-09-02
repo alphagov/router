@@ -41,6 +41,7 @@ const (
 // MongoReplicaSet, MongoReplicaSetMember etc. should move out of this module.
 type Router struct {
 	mux               *triemux.Mux
+	csmux             *csmux.ContentStoreMux
 	lock              sync.RWMutex
 	mongoReadToOptime bson.MongoTimestamp
 	logger            logger.Logger
@@ -111,6 +112,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		mux:               triemux.NewMux(),
+		csmux:             csmux.NewMux(rt.loadBackends(db.C("backends"))),
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,
@@ -147,6 +149,11 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if shouldRedirToLowercasePath(r.URL.Path) {
 		rt.downcaser.ServeHTTP(w, r)
+		return
+	}
+
+	if req.Header.Get("x-govuk-routing-method") == "content-store" {
+		rt.csmux.ServeHTTP(w, req)
 		return
 	}
 
