@@ -5,11 +5,9 @@ package triemux
 
 import (
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 
-	"github.com/alphagov/router/handlers"
 	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/trie"
 )
@@ -19,7 +17,6 @@ type Mux struct {
 	exactTrie  *trie.Trie[http.Handler]
 	prefixTrie *trie.Trie[http.Handler]
 	count      int
-	downcaser  http.Handler
 }
 
 // NewMux makes a new empty Mux.
@@ -27,7 +24,6 @@ func NewMux() *Mux {
 	return &Mux{
 		exactTrie:  trie.NewTrie[http.Handler](),
 		prefixTrie: trie.NewTrie[http.Handler](),
-		downcaser:  handlers.NewDowncaseRedirectHandler(),
 	}
 }
 
@@ -46,29 +42,12 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if shouldRedirToLowercasePath(r.URL.Path) {
-		mux.downcaser.ServeHTTP(w, r)
-		return
-	}
-
 	handler, ok := mux.lookup(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 	handler.ServeHTTP(w, r)
-}
-
-var reShouldRedirect = regexp.MustCompile(`^\/[A-Z]+[A-Z\W\d]+$`)
-
-// shouldRedirToLowercasePath takes a URL path string (such as "/government/guidance")
-// and returns:
-//   - true, if path is in all caps; for example:
-//     "/GOVERNMENT/GUIDANCE" -> true (should redirect to "/government/guidance")
-//   - false, otherwise; for example:
-//     "/GoVeRnMeNt/gUiDaNcE" -> false (should forward "/GoVeRnMeNt/gUiDaNcE" as-is)
-func shouldRedirToLowercasePath(path string) (match bool) {
-	return reShouldRedirect.MatchString(path)
 }
 
 // lookup finds a URL path in the Mux and returns the corresponding handler.

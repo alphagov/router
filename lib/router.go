@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -45,6 +46,7 @@ type Router struct {
 	logger            logger.Logger
 	opts              Options
 	ReloadChan        chan bool
+	downcaser         http.Handler
 }
 
 type Options struct {
@@ -113,6 +115,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 		logger:            l,
 		opts:              o,
 		ReloadChan:        reloadChan,
+		downcaser:         handlers.NewDowncaseRedirectHandler(),
 	}
 
 	go rt.pollAndReload()
@@ -141,11 +144,29 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			internalServerErrorCountMetric.With(prometheus.Labels{"host": req.Host}).Inc()
 		}
 	}()
+
+	if shouldRedirToLowercasePath(r.URL.Path) {
+		rt.downcaser.ServeHTTP(w, r)
+		return
+	}
+
 	rt.lock.RLock()
 	mux := rt.mux
 	rt.lock.RUnlock()
 
 	mux.ServeHTTP(w, req)
+}
+
+var reShouldRedirect = regexp.MustCompile(`^\/[A-Z]+[A-Z\W\d]+$`)
+
+// shouldRedirToLowercasePath takes a URL path string (such as "/government/guidance")
+// and returns:
+//   - true, if path is in all caps; for example:
+//     "/GOVERNMENT/GUIDANCE" -> true (should redirect to "/government/guidance")
+//   - false, otherwise; for example:
+//     "/GoVeRnMeNt/gUiDaNcE" -> false (should forward "/GoVeRnMeNt/gUiDaNcE" as-is)
+func shouldRedirToLowercasePath(path string) (match bool) {
+	return reShouldRedirect.MatchString(path)
 }
 
 func (rt *Router) SelfUpdateRoutes() {
