@@ -1,4 +1,4 @@
-package csmux
+package router
 
 import (
 	"context"
@@ -6,74 +6,105 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/alphagov/router/handlers"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var conn *pgx.Conn
 
-type ContentStoreMux struct {
-	backends map[string]http.Handler
+var lookupStatement = `WITH unnested_routes AS (
+  SELECT 
+    c.id,
+    c.rendering_app,
+    c.schema_name,
+    route->>'path' AS path, 
+    route->>'type' AS type,
+    route->>'destination' AS destination,
+    route->>'segments_mode' AS segments_mode
+  FROM 
+    content_items c, 
+    LATERAL jsonb_array_elements(c.routes || c.redirects) AS route
+)
+SELECT 
+  path, 
+  type,
+  rendering_app,
+  destination,
+  segments_mode,
+  schema_name
+FROM 
+  unnested_routes
+WHERE 
+  (type = 'prefix' AND $1 LIKE path || '%')  -- Match if type is prefix and path is a prefix
+  OR (type = 'exact' AND $1 = path)          -- Match if type is exact and paths are identical
+ORDER BY 
+  CASE WHEN type = 'exact' THEN 1 ELSE 2 END,  -- Prioritize exact matches first
+  LENGTH(path) DESC                            -- Then order by longest prefix match
+LIMIT 1;`
+
+type CSRoute struct {
+	Path         string
+	Type         string
+	Backend      string `db:"rendering_app"`
+	Destination  string
+	SegmentsMode string
+	SchemaName   string
 }
 
-func NewMux(backends map[string]http.Handler) *ContentStoreMux {
+type ContentStoreMux struct {
+	pool *pgxpool.Pool
+}
+
+func NewCSMux() *ContentStoreMux {
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil {
+		// ...
+	}
+
 	return &ContentStoreMux{
-		backends: backends,
+		pool: pool,
 	}
 }
 
-func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, backends map[string]http.Handler) {
 	path := req.URL.Path
-	backend, err := queryContentStore(path)
+	route, err := mux.queryContentStore(path)
 	if err != nil {
 		// Handle error
+		fmt.Fprintf(os.Stderr, "Error with quering content store: %v\n", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	backends := rt.loadBackends(db.C("backends"))
+	var handler http.Handler
 
-	// Use the backend to select the appropriate handler
-	handler := backends[backend]
+	if route.SchemaName == 'redirect' {
+		handler = handlers.NewRedirectHandler(path, route.Destination, shouldPreserveSegments(route), false)
+	} else if route.SchemaName == 'gone' {
+		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "410 Gone", http.StatusGone)
+		})
+	} else if route.Backend != "" {
+		handler = backends[route.Backend]
+	} 
 
 	// Serve the request using the selected handler
 	handler.ServeHTTP(w, req)
 }
 
-func queryContentStore(path string) (string, error) {
+func (mux *ContentStoreMux) queryContentStore(path string) (*CSRoute, error) {
 	var err error
-	conn, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+
+	rows, err := mux.pool.Query(context.Background(), lookupStatement, path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connection to database: %v\n", err)
-		os.Exit(1)
+		return nil, err
 	}
 
-	rows, _ := conn.Query(
-		context.Background(),
-		`WITH unnested_routes AS (
-  SELECT 
-	  c.id,
-	  c.rendering_app,
-	  route->>'path' AS path, 
-	  route->>'type' AS type
-  FROM 
-	  content_items c, 
-	  jsonb_array_elements(c.routes) AS route
-)
-SELECT 
-	id,
-	rendering_app,
-	path, 
-	type
-FROM 
-	unnested_routes
-WHERE 
-	(type = 'prefix' AND 'your/given/path' LIKE path || '%')  -- Match if type is prefix and path is a prefix
-	OR (type = 'exact' AND 'your/given/path' = path)         -- Match if type is exact and paths are identical
-ORDER BY 
-	CASE WHEN type = 'exact' THEN 1 ELSE 2 END,              -- Prioritize exact matches first
-	LENGTH(path) DESC                                         -- Then order by longest prefix match
-LIMIT 1;`
-)
-	
-	return "", nil
+	route, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[CSRoute])
+	if err != nil {
+		return nil, err
+	}
+
+	return &route, nil
 }

@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -41,13 +42,14 @@ const (
 // MongoReplicaSet, MongoReplicaSetMember etc. should move out of this module.
 type Router struct {
 	mux               *triemux.Mux
-	csmux             *csmux.ContentStoreMux
+	csmux             *ContentStoreMux
 	lock              sync.RWMutex
 	mongoReadToOptime bson.MongoTimestamp
 	logger            logger.Logger
 	opts              Options
 	ReloadChan        chan bool
 	downcaser         http.Handler
+	backends          map[string]http.Handler
 }
 
 type Options struct {
@@ -112,12 +114,13 @@ func NewRouter(o Options) (rt *Router, err error) {
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		mux:               triemux.NewMux(),
-		csmux:             csmux.NewMux(rt.loadBackends(db.C("backends"))),
+		csmux:             NewCSMux(),
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,
 		ReloadChan:        reloadChan,
 		downcaser:         handlers.NewDowncaseRedirectHandler(),
+		backends:          make(map[string]http.Handler),
 	}
 
 	go rt.pollAndReload()
@@ -147,13 +150,14 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
-	if shouldRedirToLowercasePath(r.URL.Path) {
-		rt.downcaser.ServeHTTP(w, r)
+	if shouldRedirToLowercasePath(req.URL.Path) {
+		rt.downcaser.ServeHTTP(w, req)
 		return
 	}
 
 	if req.Header.Get("x-govuk-routing-method") == "content-store" {
-		rt.csmux.ServeHTTP(w, req)
+		log.Printf("handling request with content store: %s", req.URL.Path)
+		rt.csmux.ServeHTTP(w, req, rt.backends)
 		return
 	}
 
@@ -263,8 +267,8 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 	logInfo("router: reloading routes")
 	newmux := triemux.NewMux()
 
-	backends := rt.loadBackends(db.C("backends"))
-	loadRoutes(db.C("routes"), newmux, backends)
+	rt.backends = rt.loadBackends(db.C("backends"))
+	loadRoutes(db.C("routes"), newmux, rt.backends)
 	routeCount := newmux.RouteCount()
 
 	rt.lock.Lock()

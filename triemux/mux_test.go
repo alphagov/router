@@ -42,24 +42,6 @@ func TestSplitPath(t *testing.T) {
 	}
 }
 
-func TestShouldRedirToLowercasePath(t *testing.T) {
-	tests := []struct {
-		in  string
-		out bool
-	}{
-		{"/GOVERNMENT/GUIDANCE", true},
-		{"/GoVeRnMeNt/gUiDaNcE", false},
-		{"/government/guidance", false},
-	}
-
-	for _, ex := range tests {
-		out := shouldRedirToLowercasePath(ex.in)
-		if out != ex.out {
-			t.Errorf("shouldRedirToLowercasePath(%v): expected %v, got %v", ex.in, ex.out, out)
-		}
-	}
-}
-
 type DummyHandler struct{ id string }
 
 func (dh *DummyHandler) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {}
