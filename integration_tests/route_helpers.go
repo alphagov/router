@@ -28,7 +28,6 @@ type Route struct {
 	Handler      string `bson:"handler"`
 	BackendID    string `bson:"backend_id"`
 	RedirectTo   string `bson:"redirect_to"`
-	RedirectType string `bson:"redirect_type"`
 	SegmentsMode string `bson:"segments_mode"`
 }
 
@@ -47,20 +46,16 @@ func NewBackendRoute(backendID string, extraParams ...string) Route {
 
 func NewRedirectRoute(redirectTo string, extraParams ...string) Route {
 	route := Route{
-		Handler:      "redirect",
-		RedirectTo:   redirectTo,
-		RedirectType: "permanent",
-		RouteType:    "exact",
+		Handler:    "redirect",
+		RedirectTo: redirectTo,
+		RouteType:  "exact",
 	}
 
 	if len(extraParams) > 0 {
 		route.RouteType = extraParams[0]
 	}
 	if len(extraParams) > 1 {
-		route.RedirectType = extraParams[1]
-	}
-	if len(extraParams) > 2 {
-		route.SegmentsMode = extraParams[2]
+		route.SegmentsMode = extraParams[1]
 	}
 
 	return route

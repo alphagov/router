@@ -40,8 +40,7 @@ extra fields are supported:
 
 ```json
 {
-  "redirect_to"   : "/target-of-redirect",
-  "redirect_type" : ["permanent", "temporary"]
+  "redirect_to"   : "/target-of-redirect"
 }
 ```
 

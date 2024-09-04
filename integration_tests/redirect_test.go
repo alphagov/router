@@ -13,21 +13,16 @@ var _ = Describe("Redirection", func() {
 	Describe("exact redirects", func() {
 		BeforeEach(func() {
 			addRoute("/foo", NewRedirectRoute("/bar"))
-			addRoute("/foo-temp", NewRedirectRoute("/bar", "exact", "temporary"))
+			addRoute("/foo-temp", NewRedirectRoute("/bar", "exact"))
 			addRoute("/query-temp", NewRedirectRoute("/bar?query=true", "exact"))
 			addRoute("/fragment", NewRedirectRoute("/bar#section", "exact"))
-			addRoute("/preserve-query", NewRedirectRoute("/qux", "exact", "permanent", "preserve"))
+			addRoute("/preserve-query", NewRedirectRoute("/qux", "exact", "preserve"))
 			reloadRoutes(apiPort)
 		})
 
-		It("should redirect permanently by default", func() {
+		It("should redirect", func() {
 			resp := routerRequest(routerPort, "/foo")
 			Expect(resp.StatusCode).To(Equal(301))
-		})
-
-		It("should redirect temporarily when asked to", func() {
-			resp := routerRequest(routerPort, "/foo-temp")
-			Expect(resp.StatusCode).To(Equal(302))
 		})
 
 		It("should contain the redirect location", func() {
@@ -72,21 +67,15 @@ var _ = Describe("Redirection", func() {
 	Describe("prefix redirects", func() {
 		BeforeEach(func() {
 			addRoute("/foo", NewRedirectRoute("/bar", "prefix"))
-			addRoute("/foo-temp", NewRedirectRoute("/bar-temp", "prefix", "temporary"))
-			addRoute("/qux", NewRedirectRoute("/baz", "prefix", "temporary", "ignore"))
+			addRoute("/foo-temp", NewRedirectRoute("/bar-temp", "prefix"))
+			addRoute("/qux", NewRedirectRoute("/baz", "prefix", "ignore"))
 			reloadRoutes(apiPort)
 		})
 
-		It("should redirect permanently to the destination", func() {
+		It("should redirect to the destination", func() {
 			resp := routerRequest(routerPort, "/foo")
 			Expect(resp.StatusCode).To(Equal(301))
 			Expect(resp.Header.Get("Location")).To(Equal("/bar"))
-		})
-
-		It("should redirect temporarily to the destination when asked to", func() {
-			resp := routerRequest(routerPort, "/foo-temp")
-			Expect(resp.StatusCode).To(Equal(302))
-			Expect(resp.Header.Get("Location")).To(Equal("/bar-temp"))
 		})
 
 		It("should preserve extra path sections when redirecting by default", func() {
@@ -135,9 +124,9 @@ var _ = Describe("Redirection", func() {
 	Describe("external redirects", func() {
 		BeforeEach(func() {
 			addRoute("/foo", NewRedirectRoute("http://foo.example.com/foo"))
-			addRoute("/baz", NewRedirectRoute("http://foo.example.com/baz", "exact", "permanent", "preserve"))
+			addRoute("/baz", NewRedirectRoute("http://foo.example.com/baz", "exact", "preserve"))
 			addRoute("/bar", NewRedirectRoute("http://bar.example.com/bar", "prefix"))
-			addRoute("/qux", NewRedirectRoute("http://bar.example.com/qux", "prefix", "permanent", "ignore"))
+			addRoute("/qux", NewRedirectRoute("http://bar.example.com/qux", "prefix", "ignore"))
 			reloadRoutes(apiPort)
 		})
 
@@ -183,12 +172,12 @@ var _ = Describe("Redirection", func() {
 
 	Describe("redirects with a _ga parameter", func() {
 		BeforeEach(func() {
-			addRoute("/foo", NewRedirectRoute("https://hmrc.service.gov.uk/pay", "prefix", "permanent", "ignore"))
-			addRoute("/bar", NewRedirectRoute("https://bar.service.gov.uk/bar", "exact", "temporary", "preserve"))
-			addRoute("/baz", NewRedirectRoute("https://gov.uk/baz-luhrmann", "exact", "permanent", "ignore"))
-			addRoute("/pay-tax", NewRedirectRoute("https://tax.service.gov.uk/pay", "exact", "permanent", "ignore"))
-			addRoute("/biz-bank", NewRedirectRoute("https://british-business-bank.co.uk", "prefix", "permanent", "ignore"))
-			addRoute("/query-paramed", NewRedirectRoute("https://param.servicegov.uk?included-param=true", "exact", "permanent", "ignore"))
+			addRoute("/foo", NewRedirectRoute("https://hmrc.service.gov.uk/pay", "prefix", "ignore"))
+			addRoute("/bar", NewRedirectRoute("https://bar.service.gov.uk/bar", "exact", "preserve"))
+			addRoute("/baz", NewRedirectRoute("https://gov.uk/baz-luhrmann", "exact", "ignore"))
+			addRoute("/pay-tax", NewRedirectRoute("https://tax.service.gov.uk/pay", "exact", "ignore"))
+			addRoute("/biz-bank", NewRedirectRoute("https://british-business-bank.co.uk", "prefix", "ignore"))
+			addRoute("/query-paramed", NewRedirectRoute("https://param.servicegov.uk?included-param=true", "exact", "ignore"))
 			reloadRoutes(apiPort)
 		})
 
