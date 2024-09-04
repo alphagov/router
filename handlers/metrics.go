@@ -11,7 +11,6 @@ var (
 			Help: "Number of redirects served by redirect handlers",
 		},
 		[]string{
-			"redirect_code",
 			"redirect_type",
 		},
 	)

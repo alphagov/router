@@ -20,15 +20,12 @@ const (
 	downcaseRedirectHandlerType       = "downcase-redirect-handler"
 )
 
-func NewRedirectHandler(source, target string, preserve bool, temporary bool) http.Handler {
-	statusMoved := http.StatusMovedPermanently
-	if temporary {
-		statusMoved = http.StatusFound
-	}
+func NewRedirectHandler(source, target string, preserve bool) http.Handler {
+	status := http.StatusMovedPermanently
 	if preserve {
-		return &pathPreservingRedirectHandler{source, target, statusMoved}
+		return &pathPreservingRedirectHandler{source, target, status}
 	}
-	return &redirectHandler{target, statusMoved}
+	return &redirectHandler{target, status}
 }
 
 func addCacheHeaders(w http.ResponseWriter) {
@@ -63,7 +60,6 @@ func (handler *redirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	http.Redirect(w, r, target, handler.code)
 
 	redirectCountMetric.With(prometheus.Labels{
-		"redirect_code": fmt.Sprintf("%d", handler.code),
 		"redirect_type": redirectHandlerType,
 	}).Inc()
 }
@@ -84,7 +80,6 @@ func (handler *pathPreservingRedirectHandler) ServeHTTP(w http.ResponseWriter, r
 	http.Redirect(w, r, target, handler.code)
 
 	redirectCountMetric.With(prometheus.Labels{
-		"redirect_code": fmt.Sprintf("%d", handler.code),
 		"redirect_type": pathPreservingRedirectHandlerType,
 	}).Inc()
 }
@@ -107,7 +102,6 @@ func (handler *downcaseRedirectHandler) ServeHTTP(w http.ResponseWriter, r *http
 	http.Redirect(w, r, target, status)
 
 	redirectCountMetric.With(prometheus.Labels{
-		"redirect_code": fmt.Sprintf("%d", status),
 		"redirect_type": downcaseRedirectHandlerType,
 	}).Inc()
 }
