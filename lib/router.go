@@ -170,6 +170,7 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if rt.csmuxSampleRate > 0 && rand.Float64() < rt.csmuxSampleRate {
+		logInfo("router: handling request with csmux: ", req.URL.Path)
 		rt.csmux.ServeHTTP(w, req, &rt.backends)
 		return
 	}
@@ -178,6 +179,7 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	mux := rt.mux
 	rt.lock.RUnlock()
 
+	logInfo("router: handling request with triemux: ", req.URL.Path)
 	mux.ServeHTTP(w, req)
 }
 
