@@ -41,12 +41,12 @@ ORDER BY
 LIMIT 1;`
 
 type CSRoute struct {
-	Path         string
-	Type         string
-	Backend      string `db:"rendering_app"`
-	Destination  string
-	SegmentsMode string
-	SchemaName   string
+	Path         *string
+	Type         *string
+	Backend      *string `db:"rendering_app"`
+	Destination  *string
+	SegmentsMode *string
+	SchemaName   *string
 }
 
 type PgxIface interface {
@@ -75,14 +75,14 @@ func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, 
 
 	var handler http.Handler
 
-	if route.SchemaName == "redirect" {
-		handler = handlers.NewRedirectHandler(path, route.Destination, shouldPreserveSegments(route.Type, route.SegmentsMode))
-	} else if route.SchemaName == "gone" {
+	if *route.SchemaName == "redirect" {
+		handler = handlers.NewRedirectHandler(path, *route.Destination, shouldPreserveSegments(*route.Type, *route.SegmentsMode))
+	} else if *route.SchemaName == "gone" {
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "410 Gone", http.StatusGone)
 		})
-	} else if route.Backend != "" {
-		handler = (*backends)[route.Backend]
+	} else if *route.Backend != "" {
+		handler = (*backends)[*route.Backend]
 	}
 
 	// Serve the request using the selected handler
