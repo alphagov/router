@@ -8,10 +8,7 @@ import (
 
 	"github.com/alphagov/router/handlers"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-var conn *pgx.Conn
 
 var lookupStatement = `WITH unnested_routes AS (
   SELECT 
@@ -52,22 +49,21 @@ type CSRoute struct {
 	SchemaName   string
 }
 
-type ContentStoreMux struct {
-	pool *pgxpool.Pool
+type PgxIface interface {
+	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 }
 
-func NewCSMux() *ContentStoreMux {
-	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
-	if err != nil {
-		// ...
-	}
+type ContentStoreMux struct {
+	pool PgxIface
+}
 
+func NewCSMux(pool PgxIface) *ContentStoreMux {
 	return &ContentStoreMux{
 		pool: pool,
 	}
 }
 
-func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, backends map[string]http.Handler) {
+func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, backends *map[string]http.Handler) {
 	path := req.URL.Path
 	route, err := mux.queryContentStore(path)
 	if err != nil {
@@ -79,15 +75,15 @@ func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, 
 
 	var handler http.Handler
 
-	if route.SchemaName == 'redirect' {
-		handler = handlers.NewRedirectHandler(path, route.Destination, shouldPreserveSegments(route), false)
-	} else if route.SchemaName == 'gone' {
+	if route.SchemaName == "redirect" {
+		handler = handlers.NewRedirectHandler(path, route.Destination, shouldPreserveSegments(route.Type, route.SegmentsMode))
+	} else if route.SchemaName == "gone" {
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "410 Gone", http.StatusGone)
 		})
 	} else if route.Backend != "" {
-		handler = backends[route.Backend]
-	} 
+		handler = (*backends)[route.Backend]
+	}
 
 	// Serve the request using the selected handler
 	handler.ServeHTTP(w, req)

@@ -1,8 +1,9 @@
 package router
 
 import (
+	"context"
 	"fmt"
-	"log"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/alphagov/router/triemux"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -50,6 +52,7 @@ type Router struct {
 	ReloadChan        chan bool
 	downcaser         http.Handler
 	backends          map[string]http.Handler
+	csmuxSampleRate   float64
 }
 
 type Options struct {
@@ -111,16 +114,27 @@ func NewRouter(o Options) (rt *Router, err error) {
 		return nil, err
 	}
 
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil {
+		return nil, err
+	}
+
+	csmuxSampleRate, err := strconv.ParseFloat(os.Getenv("CSMUX_SAMPLE_RATE"), 64)
+	if err != nil {
+		csmuxSampleRate = 0.0
+	}
+
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		mux:               triemux.NewMux(),
-		csmux:             NewCSMux(),
+		csmux:             NewCSMux(pool),
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,
 		ReloadChan:        reloadChan,
 		downcaser:         handlers.NewDowncaseRedirectHandler(),
 		backends:          make(map[string]http.Handler),
+		csmuxSampleRate:   csmuxSampleRate,
 	}
 
 	go rt.pollAndReload()
@@ -155,9 +169,8 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Header.Get("x-govuk-routing-method") == "content-store" {
-		log.Printf("handling request with content store: %s", req.URL.Path)
-		rt.csmux.ServeHTTP(w, req, rt.backends)
+	if rt.csmuxSampleRate > 0 && rand.Float64() < rt.csmuxSampleRate {
+		rt.csmux.ServeHTTP(w, req, &rt.backends)
 		return
 	}
 
@@ -385,7 +398,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
 				incomingURL.Path, prefix, route.BackendID))
 		case "redirect":
-			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route))
+			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route.RouteType, route.SegmentsMode))
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				incomingURL.Path, prefix, route.RedirectTo))
@@ -418,12 +431,12 @@ func (be *Backend) ParseURL() (*url.URL, error) {
 	return url.Parse(backendURL)
 }
 
-func shouldPreserveSegments(route *Route) bool {
-	switch route.RouteType {
+func shouldPreserveSegments(routeType, segmentsMode string) bool {
+	switch routeType {
 	case RouteTypeExact:
-		return route.SegmentsMode == SegmentsModePreserve
+		return segmentsMode == SegmentsModePreserve
 	case RouteTypePrefix:
-		return route.SegmentsMode != SegmentsModeIgnore
+		return segmentsMode != SegmentsModeIgnore
 	default:
 		return false
 	}
