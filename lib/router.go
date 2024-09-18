@@ -117,10 +117,15 @@ func NewRouter(o Options) (rt *Router, err error) {
 		csmuxSampleRate = 0.0
 	}
 
+	csmux, err := NewContentStoreMux()
+	if err != nil {
+		return nil, err
+	}
+
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		mux:               triemux.NewMux(),
-		csmux:             &ContentStoreMux{},
+		csmux:             csmux,
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,
@@ -164,7 +169,7 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if rt.csmuxSampleRate > 0 && rand.Float64() < rt.csmuxSampleRate {
 		logInfo("router: handling request with csmux: ", req.URL.Path)
-		rt.csmux.ServeHTTP(w, req, &rt.backends)
+		rt.csmux.ServeHTTP(w, req, rt.backends)
 		return
 	}
 

@@ -17,55 +17,82 @@ type CSRoute struct {
 	SegmentsMode *string `json:"segments_mode"`
 }
 
-type ContentStoreMux struct{}
+type ContentStoreMux struct {
+	BearerToken     string
+	ContentStoreURL string
+}
 
-func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, backends *map[string]http.Handler) {
+func NewContentStoreMux() (*ContentStoreMux, error) {
+	contentStoreToken := os.Getenv("CONTENT_STORE_BEARER_TOKEN")
+	if contentStoreToken == "" {
+		return nil, fmt.Errorf("environment variable CONTENT_STORE_BEARER_TOKEN is not set")
+	}
+
+	contentStoreURL := os.Getenv("BACKEND_URL_content-store")
+	if contentStoreURL == "" {
+		return nil, fmt.Errorf("environment variable BACKEND_URL_content-store is not set")
+	}
+
+	return &ContentStoreMux{
+		BearerToken:     fmt.Sprintf("Bearer %s", contentStoreToken),
+		ContentStoreURL: contentStoreURL,
+	}, nil
+}
+
+func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, backends map[string]http.Handler) {
 	path := req.URL.Path
 	fmt.Printf("Debug: Request path: %s\n", path)
+
 	route, err := mux.queryContentStore(path)
 	if err != nil {
-		// Handle error
-		fmt.Fprintf(os.Stderr, "Error with querying content store: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error querying content store: %v\n", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	var handler http.Handler
 	if route == nil {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
-	} else if *route.Backend == "redirect" {
-		handler = handlers.NewRedirectHandler(path, *route.Destination, shouldPreserveSegments(*route.MatchType, *route.SegmentsMode))
-	} else if *route.Backend == "gone" {
-		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "410 Gone", http.StatusGone)
-		})
-	} else if *route.Backend != "" {
-		handler = (*backends)[*route.Backend]
 	}
 
-	// Serve the request using the selected handler
-	fmt.Println("Debug: Serving request using the selected handler.")
+	handler, err := mux.getHandler(w, req, route, backends)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error finding request handler: %v\n", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	handler.ServeHTTP(w, req)
 }
 
+func (mux *ContentStoreMux) getHandler(w http.ResponseWriter, req *http.Request, route *CSRoute, backends map[string]http.Handler) (http.Handler, error) {
+	switch *route.Backend {
+	case "redirect":
+		return handlers.NewRedirectHandler(req.URL.Path, *route.Destination, shouldPreserveSegments(*route.MatchType, *route.SegmentsMode)), nil
+	case "gone":
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "410 Gone", http.StatusGone) }), nil
+	default:
+		handler, exists := backends[*route.Backend]
+		if !exists {
+			return nil, fmt.Errorf("no handler available for: %s", *route.Backend)
+		}
+		return handler, nil
+	}
+}
+
 func (mux *ContentStoreMux) queryContentStore(path string) (*CSRoute, error) {
-	requestURL := fmt.Sprintf("http://content-store/routes?path=%s", path)
+	requestURL := fmt.Sprintf("%s/routes?path=%s", mux.ContentStoreURL, path)
+
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request object: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add authorization header with bearer token
-	bearerToken := os.Getenv("CONTENT_STORE_BEARER_TOKEN")
-	if bearerToken == "" {
-		return nil, fmt.Errorf("environment variable CONTENT_STORE_BEARER_TOKEN is not set")
-	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+	req.Header.Add("Authorization", mux.BearerToken)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make GET request: %w", err)
+		return nil, fmt.Errorf("failed to make GET request to content store: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -74,12 +101,12 @@ func (mux *ContentStoreMux) queryContentStore(path string) (*CSRoute, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code from content store: %d", resp.StatusCode)
 	}
 
 	var route CSRoute
 	if err := json.NewDecoder(resp.Body).Decode(&route); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %w", err)
+		return nil, fmt.Errorf("failed to decode response body from content store: %w", err)
 	}
 
 	return &route, nil
