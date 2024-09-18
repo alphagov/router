@@ -1,7 +1,6 @@
 package router
 
 import (
-	"context"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -19,7 +18,6 @@ import (
 	"github.com/alphagov/router/triemux"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -114,11 +112,6 @@ func NewRouter(o Options) (rt *Router, err error) {
 		return nil, err
 	}
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
-	if err != nil {
-		return nil, err
-	}
-
 	csmuxSampleRate, err := strconv.ParseFloat(os.Getenv("CSMUX_SAMPLE_RATE"), 64)
 	if err != nil {
 		csmuxSampleRate = 0.0
@@ -127,7 +120,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		mux:               triemux.NewMux(),
-		csmux:             NewCSMux(pool),
+		csmux:             &ContentStoreMux{},
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,

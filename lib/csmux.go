@@ -1,67 +1,23 @@
 package router
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 
 	"github.com/alphagov/router/handlers"
-	"github.com/jackc/pgx/v5"
 )
-
-var lookupStatement = `WITH unnested_routes AS (
-  SELECT 
-    c.id,
-    c.rendering_app,
-    c.schema_name,
-    route->>'path' AS path, 
-    route->>'type' AS type,
-    route->>'destination' AS destination,
-    route->>'segments_mode' AS segments_mode
-  FROM 
-    content_items c, 
-    LATERAL jsonb_array_elements(c.routes || c.redirects) AS route
-)
-SELECT 
-  path, 
-  type,
-  rendering_app,
-  destination,
-  segments_mode,
-  schema_name
-FROM 
-  unnested_routes
-WHERE 
-  (type = 'prefix' AND $1 LIKE path || '%')  -- Match if type is prefix and path is a prefix
-  OR (type = 'exact' AND $1 = path)          -- Match if type is exact and paths are identical
-ORDER BY 
-  CASE WHEN type = 'exact' THEN 1 ELSE 2 END,  -- Prioritize exact matches first
-  LENGTH(path) DESC                            -- Then order by longest prefix match
-LIMIT 1;`
 
 type CSRoute struct {
 	Path         *string
-	Type         *string
-	Backend      *string `db:"rendering_app"`
+	MatchType    *string
+	Backend      *string
 	Destination  *string
 	SegmentsMode *string
-	SchemaName   *string
 }
 
-type PgxIface interface {
-	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
-}
-
-type ContentStoreMux struct {
-	pool PgxIface
-}
-
-func NewCSMux(pool PgxIface) *ContentStoreMux {
-	return &ContentStoreMux{
-		pool: pool,
-	}
-}
+type ContentStoreMux struct{}
 
 func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, backends *map[string]http.Handler) {
 	path := req.URL.Path
@@ -75,9 +31,9 @@ func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, 
 
 	var handler http.Handler
 
-	if *route.SchemaName == "redirect" {
-		handler = handlers.NewRedirectHandler(path, *route.Destination, shouldPreserveSegments(*route.Type, *route.SegmentsMode))
-	} else if *route.SchemaName == "gone" {
+	if *route.Backend == "redirect" {
+		handler = handlers.NewRedirectHandler(path, *route.Destination, shouldPreserveSegments(*route.MatchType, *route.SegmentsMode))
+	} else if *route.Backend == "gone" {
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "410 Gone", http.StatusGone)
 		})
@@ -90,16 +46,33 @@ func (mux *ContentStoreMux) ServeHTTP(w http.ResponseWriter, req *http.Request, 
 }
 
 func (mux *ContentStoreMux) queryContentStore(path string) (*CSRoute, error) {
-	var err error
-
-	rows, err := mux.pool.Query(context.Background(), lookupStatement, path)
+	requestURL := fmt.Sprintf("http://content-store/routes?path=%s", path)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
-		return nil, err
+		fmt.Printf("client: could not create request: %s\n", err)
+		os.Exit(1)
 	}
 
-	route, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[CSRoute])
+	// Add authorization header with bearer token
+	bearerToken := os.Getenv("CONTENT_STORE_BEARER_TOKEN")
+	if bearerToken == "" {
+		return nil, fmt.Errorf("environment variable CONTENT_STORE_BEARER_TOKEN is not set")
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to make GET request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var route CSRoute
+	if err := json.NewDecoder(resp.Body).Decode(&route); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
 	return &route, nil

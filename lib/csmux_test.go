@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/pashagolub/pgxmock/v4"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -30,19 +28,8 @@ var _ = Describe("ContentStoreMux", func() {
 			}),
 		}
 
-		mock, err := pgxmock.NewPool()
-		if err != nil {
-			Fail("Failed to create mock pool: " + err.Error())
-		}
-		defer mock.Close()
-
-		rows := mock.NewRows([]string{"path", "type", "rendering_app", "destination", "segments_mode", "schema_name"}).
-			AddRow(path, "exact", backend, destination, nil, schema)
-
-		mock.ExpectQuery("WITH unnested_routes AS").WithArgs(path).WillReturnRows(rows)
-
 		// Create a ContentStoreMux instance
-		mux := NewCSMux(mock)
+		mux := &ContentStoreMux{}
 
 		// Create a test request
 		req, err := http.NewRequest(http.MethodGet, path, nil)
