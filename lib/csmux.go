@@ -12,11 +12,11 @@ import (
 )
 
 type CSRoute struct {
-	Path         *string
-	MatchType    *string
-	Backend      *string
-	Destination  *string
-	SegmentsMode *string
+	Path         *string `json:"path"`
+	MatchType    *string `json:"match_type"`
+	Backend      *string `json:"backend"`
+	Destination  *string `json:"destination"`
+	SegmentsMode *string `json:"segments_mode"`
 }
 
 type ContentStoreMux struct{}
