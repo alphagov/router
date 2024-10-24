@@ -48,6 +48,7 @@ type Router struct {
 	logger            logger.Logger
 	opts              Options
 	ReloadChan        chan bool
+	csMuxSampleRate   float64
 	pool              *pgxpool.Pool
 }
 
@@ -112,11 +113,25 @@ func NewRouter(o Options) (rt *Router, err error) {
 
 	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, l)
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("CONTENT_STORE_DATABASE_URL"))
+	csMuxSampleRate, err := strconv.ParseFloat(os.Getenv("CSMUX_SAMPLE_RATE"), 64)
+
 	if err != nil {
-		return nil, err
+		csMuxSampleRate = 0.0
 	}
-	logInfo("router: postgres connection pool created")
+
+	logInfo("router: content store mux sample rate set at", csMuxSampleRate)
+
+	var pool *pgxpool.Pool
+
+	if csMuxSampleRate != 0.0 {
+		pool, err = pgxpool.New(context.Background(), os.Getenv("CONTENT_STORE_DATABASE_URL"))
+		if err != nil {
+			return nil, err
+		}
+		logInfo("router: postgres connection pool created")
+	} else {
+		logInfo("router: not using content store postgres")
+	}
 
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
@@ -127,6 +142,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 		opts:              o,
 		ReloadChan:        reloadChan,
 		pool:              pool,
+		csMuxSampleRate:   csMuxSampleRate,
 	}
 
 	go rt.pollAndReload()
