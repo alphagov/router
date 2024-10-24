@@ -1,13 +1,16 @@
 package router
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/alphagov/router/handlers"
@@ -45,6 +48,7 @@ type Router struct {
 	logger            logger.Logger
 	opts              Options
 	ReloadChan        chan bool
+	pool              *pgxpool.Pool
 }
 
 type Options struct {
@@ -108,6 +112,12 @@ func NewRouter(o Options) (rt *Router, err error) {
 
 	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, l)
 
+	pool, err := pgxpool.New(context.Background(), os.Getenv("CONTENT_STORE_DATABASE_URL"))
+	if err != nil {
+		return nil, err
+	}
+	logInfo("router: postgres connection pool created")
+
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		backends:          backends,
@@ -116,6 +126,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 		logger:            l,
 		opts:              o,
 		ReloadChan:        reloadChan,
+		pool:              pool,
 	}
 
 	go rt.pollAndReload()
