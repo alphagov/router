@@ -26,14 +26,15 @@ var (
 				0.99: 0.005,
 			},
 		},
-		[]string{"success"},
+		[]string{"success", "source"},
 	)
 
-	routesCountMetric = prometheus.NewGauge(
+	routesCountMetric = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "router_routes_loaded",
 			Help: "Number of routes currently loaded",
 		},
+		[]string{"source"},
 	)
 )
 
