@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -43,6 +44,7 @@ const (
 type Router struct {
 	backends          map[string]http.Handler
 	mux               *triemux.Mux
+	csMux             *triemux.Mux
 	lock              sync.RWMutex
 	mongoReadToOptime bson.MongoTimestamp
 	logger            logger.Logger
@@ -137,6 +139,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 	rt = &Router{
 		backends:          backends,
 		mux:               triemux.NewMux(),
+		csMux:             triemux.NewMux(),
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,
@@ -171,8 +174,16 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			internalServerErrorCountMetric.With(prometheus.Labels{"host": req.Host}).Inc()
 		}
 	}()
+
+	useContentStoreMux := rt.csMuxSampleRate > 0 && rand.Float64() < rt.csMuxSampleRate //nolint:gosec
+	var mux *triemux.Mux
+
 	rt.lock.RLock()
-	mux := rt.mux
+	if useContentStoreMux {
+		mux = rt.csMux
+	} else {
+		mux = rt.mux
+	}
 	rt.lock.RUnlock()
 
 	mux.ServeHTTP(w, req)
