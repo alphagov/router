@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/alphagov/router/handlers"
+	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
 )
 
@@ -105,4 +108,44 @@ func loadRoutesFromCS(pool PgxIface, mux *triemux.Mux, backends map[string]http.
 		return err
 	}
 	return nil
+}
+
+func (rt *Router) reloadCsRoutes(pool PgxIface) {
+	var success bool
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
+		labels := prometheus.Labels{"success": strconv.FormatBool(success), "source": "content-store"}
+		routeReloadDurationMetric.With(labels).Observe(v)
+	}))
+
+	defer func() {
+		success = true
+		if r := recover(); r != nil {
+			success = false
+			logWarn("router: recovered from panic in reloadCsRoutes:", r)
+			logInfo("router: original content store routes have not been modified")
+			errorMessage := fmt.Sprintf("panic: %v", r)
+			err := logger.RecoveredError{ErrorMessage: errorMessage}
+			logger.NotifySentry(logger.ReportableError{Error: err})
+		}
+		timer.ObserveDuration()
+	}()
+
+	logInfo("router: reloading routes from content store")
+	newmux := triemux.NewMux()
+
+	err := loadRoutesFromCS(pool, newmux, rt.backends)
+	if err != nil {
+		logWarn(fmt.Sprintf("router: error reloading routes from content store: %v", err))
+		return
+	}
+
+	routeCount := newmux.RouteCount()
+
+	rt.lock.Lock()
+	rt.csMux = newmux
+	rt.lock.Unlock()
+
+	logInfo(fmt.Sprintf("router: reloaded %d routes from content store", routeCount))
+	routesCountMetric.WithLabelValues("content-store").Set(float64(routeCount))
+
 }

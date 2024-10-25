@@ -148,6 +148,10 @@ func NewRouter(o Options) (rt *Router, err error) {
 		csMuxSampleRate:   csMuxSampleRate,
 	}
 
+	if csMuxSampleRate != 0.0 {
+		rt.reloadCsRoutes(pool)
+	}
+
 	go rt.pollAndReload()
 
 	return rt, nil

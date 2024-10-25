@@ -1,8 +1,10 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 
 	"github.com/alphagov/router/triemux"
 	. "github.com/onsi/ginkgo/v2"
@@ -200,6 +202,58 @@ var _ = Describe("loadRoutesFromCS", func() {
 
 			Expect(rr.Code).To(Equal(http.StatusMovedPermanently))
 			Expect(rr.Header().Get("Location")).To(Equal("/redirected-prefix-preserve/foo/bar"))
+		})
+	})
+})
+
+var _ = Describe("Router", func() {
+	Describe("reloadCsRoutes", func() {
+		var (
+			mockPool pgxmock.PgxPoolIface
+			router   *Router
+		)
+
+		BeforeEach(func() {
+			var err error
+			mockPool, err = pgxmock.NewPool()
+			Expect(err).NotTo(HaveOccurred())
+
+			router = &Router{
+				ReloadChan: make(chan bool, 1),
+				lock:       sync.RWMutex{},
+				backends: map[string]http.Handler{
+					"backend1": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						http.Redirect(w, r, "http://example.com", http.StatusFound)
+					}),
+					"backend2": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						http.Redirect(w, r, "http://example.com", http.StatusFound)
+					}),
+				},
+			}
+		})
+
+		AfterEach(func() {
+			mockPool.Close()
+		})
+
+		It("should reload routes from content store successfully", func() {
+			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+				AddRow(stringPtr("backend1"), stringPtr("/path1"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
+				AddRow(stringPtr("backend2"), stringPtr("/path2"), stringPtr("prefix"), nil, nil, stringPtr("guidance"), stringPtr(""))
+
+			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
+
+			router.reloadCsRoutes(mockPool)
+
+			Expect(router.csMux.RouteCount()).To(Equal(2))
+		})
+
+		It("should handle panic and log error", func() {
+			defer GinkgoRecover()
+
+			mockPool.ExpectQuery("WITH").WillReturnError(fmt.Errorf("some error"))
+
+			Expect(func() { router.reloadCsRoutes(mockPool) }).NotTo(Panic())
 		})
 	})
 })
