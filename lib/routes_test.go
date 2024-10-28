@@ -42,20 +42,20 @@ var _ = Describe("CsRoute", func() {
 		Context("when route is a redirect", func() {
 			It("should return 'redirect'", func() {
 				route.SchemaName = stringPtr("redirect")
-				Expect(route.handlerType()).To(Equal("redirect"))
+				Expect(route.handlerType()).To(Equal(HandlerTypeRedirect))
 			})
 		})
 
 		Context("when route is gone", func() {
 			It("should return 'gone'", func() {
 				route.SchemaName = stringPtr("gone")
-				Expect(route.handlerType()).To(Equal("gone"))
+				Expect(route.handlerType()).To(Equal(HandlerTypeGone))
 			})
 		})
 
 		Context("when route is neither redirect nor gone", func() {
 			It("should return 'backend'", func() {
-				Expect(route.handlerType()).To(Equal("backend"))
+				Expect(route.handlerType()).To(Equal(HandlerTypeBackend))
 			})
 		})
 	})

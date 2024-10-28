@@ -39,11 +39,11 @@ func addHandler(mux *triemux.Mux, route *CsRoute, backends map[string]http.Handl
 	incomingURL, err := url.Parse(*route.IncomingPath)
 	if err != nil {
 		logWarn(fmt.Sprintf("router: found route %+v with invalid incoming path '%s', skipping!", route, *route.IncomingPath))
-		return nil
+		return nil //nolint:nilerr
 	}
 
 	switch route.handlerType() {
-	case "backend":
+	case HandlerTypeBackend:
 		backend := route.backend()
 		if backend == nil {
 			logWarn(fmt.Sprintf("router: found route %+v with nil backend_id, skipping!", *route.IncomingPath))
@@ -56,14 +56,14 @@ func addHandler(mux *triemux.Mux, route *CsRoute, backends map[string]http.Handl
 			return nil
 		}
 		mux.Handle(incomingURL.Path, prefix, handler)
-	case "redirect":
+	case HandlerTypeRedirect:
 		if route.RedirectTo == nil {
 			logWarn(fmt.Sprintf("router: found route %+v with nil redirect_to, skipping!", route))
 			return nil
 		}
 		handler := handlers.NewRedirectHandler(incomingURL.Path, *route.RedirectTo, shouldPreserveSegments(*route.RouteType, route.segmentsMode()))
 		mux.Handle(incomingURL.Path, prefix, handler)
-	case "gone":
+	case HandlerTypeGone:
 		mux.Handle(incomingURL.Path, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "410 Gone", http.StatusGone)
 		}))

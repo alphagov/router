@@ -364,7 +364,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		}
 
 		switch route.Handler {
-		case "backend":
+		case HandlerTypeBackend:
 			handler, ok := backends[route.BackendID]
 			if !ok {
 				logWarn(fmt.Sprintf("router: found route %+v which references unknown backend "+
@@ -374,12 +374,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
 				incomingURL.Path, prefix, route.BackendID))
-		case "redirect":
+		case HandlerTypeRedirect:
 			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route.RouteType, route.SegmentsMode))
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				incomingURL.Path, prefix, route.RedirectTo))
-		case "gone":
+		case HandlerTypeGone:
 			mux.Handle(incomingURL.Path, prefix, goneHandler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", incomingURL.Path, prefix))
 		case "boom":

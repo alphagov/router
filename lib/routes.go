@@ -4,6 +4,12 @@ import (
 	"encoding/json"
 )
 
+const (
+	HandlerTypeBackend  = "backend"
+	HandlerTypeRedirect = "redirect"
+	HandlerTypeGone     = "gone"
+)
+
 type CsRoute struct {
 	IncomingPath *string
 	RouteType    *string
@@ -27,12 +33,13 @@ func (route *CsRoute) backend() *string {
 }
 
 func (route *CsRoute) handlerType() string {
-	if route.redirect() {
-		return "redirect"
-	} else if route.gone() {
-		return "gone"
-	} else {
-		return "backend"
+	switch {
+	case route.redirect():
+		return HandlerTypeRedirect
+	case route.gone():
+		return HandlerTypeGone
+	default:
+		return HandlerTypeBackend
 	}
 }
 
