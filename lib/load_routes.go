@@ -9,6 +9,9 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/jackc/pgxlisten"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/alphagov/router/handlers"
@@ -108,6 +111,47 @@ func loadRoutesFromCS(pool PgxIface, mux *triemux.Mux, backends map[string]http.
 		return err
 	}
 	return nil
+}
+
+func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
+	listener := &pgxlisten.Listener{
+		Connect: func(ctx context.Context) (*pgx.Conn, error) {
+			c, err := rt.pool.Acquire(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return c.Conn(), nil
+		},
+	}
+
+	listener.Handle("route_changes", pgxlisten.HandlerFunc(
+		func(ctx context.Context, notification *pgconn.Notification, conn *pgx.Conn) error {
+			rt.CsReloadChan <- true
+			return nil
+		}),
+	)
+
+	err := listener.Listen(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rt *Router) waitForReload() {
+	for range rt.CsReloadChan {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logWarn(r)
+				}
+			}()
+
+			rt.reloadCsRoutes(rt.pool)
+		}()
+	}
 }
 
 func (rt *Router) reloadCsRoutes(pool PgxIface) {

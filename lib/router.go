@@ -50,6 +50,7 @@ type Router struct {
 	logger            logger.Logger
 	opts              Options
 	ReloadChan        chan bool
+	CsReloadChan      chan bool
 	csMuxSampleRate   float64
 	pool              *pgxpool.Pool
 }
@@ -136,6 +137,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 	}
 
 	reloadChan := make(chan bool, 1)
+	csReloadChan := make(chan bool, 1)
 	rt = &Router{
 		backends:          backends,
 		mux:               triemux.NewMux(),
@@ -144,12 +146,21 @@ func NewRouter(o Options) (rt *Router, err error) {
 		logger:            l,
 		opts:              o,
 		ReloadChan:        reloadChan,
+		CsReloadChan:      csReloadChan,
 		pool:              pool,
 		csMuxSampleRate:   csMuxSampleRate,
 	}
 
 	if csMuxSampleRate != 0.0 {
 		rt.reloadCsRoutes(pool)
+
+		go func() {
+			if err := rt.listenForContentStoreUpdates(context.Background()); err != nil {
+				logWarn(fmt.Sprintf("router: error in listenForContentStoreUpdates: %v", err))
+			}
+		}()
+
+		go rt.waitForReload()
 	}
 
 	go rt.pollAndReload()
