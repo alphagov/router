@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -19,7 +20,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("connecting to the backend", func() {
 		It("should return a 502 if the connection to the backend is refused", func() {
-			addBackend("not-running", "http://127.0.0.1:3164/")
+			os.Setenv("BACKEND_URL_not-running", "http://127.0.0.1:3164/")
+			defer os.Unsetenv("BACKEND_URL_not-running")
+
 			addRoute("/not-running", NewBackendRoute("not-running"))
 			reloadRoutes(apiPort)
 
@@ -45,7 +48,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			Expect(err).NotTo(HaveOccurred())
 			defer stopRouter(3167)
 
-			addBackend("black-hole", "http://240.0.0.0:1234/")
+			os.Setenv("BACKEND_URL_black-hole", "http://240.0.0.0:1234/")
+			defer os.Unsetenv("BACKEND_URL_black-hole")
+
 			addRoute("/should-time-out", NewBackendRoute("black-hole"))
 			reloadRoutes(3166)
 
@@ -78,14 +83,16 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				Expect(err).NotTo(HaveOccurred())
 				tarpit1 = startTarpitBackend(time.Second)
 				tarpit2 = startTarpitBackend(100*time.Millisecond, 500*time.Millisecond)
-				addBackend("tarpit1", tarpit1.URL)
-				addBackend("tarpit2", tarpit2.URL)
+				os.Setenv("BACKEND_URL_tarpit1", tarpit1.URL)
+				os.Setenv("BACKEND_URL_tarpit2", tarpit2.URL)
 				addRoute("/tarpit1", NewBackendRoute("tarpit1"))
 				addRoute("/tarpit2", NewBackendRoute("tarpit2"))
 				reloadRoutes(3166)
 			})
 
 			AfterEach(func() {
+				os.Unsetenv("BACKEND_URL_tarpit1")
+				os.Unsetenv("BACKEND_URL_tarpit2")
 				tarpit1.Close()
 				tarpit2.Close()
 				stopRouter(3167)
@@ -119,12 +126,13 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	Describe("header handling", func() {
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL())
+			os.Setenv("BACKEND_URL_backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend")
 			recorder.Close()
 		})
 
@@ -243,12 +251,13 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	Describe("request verb, path, query and body handling", func() {
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL())
+			os.Setenv("BACKEND_URL_backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend")
 			recorder.Close()
 		})
 
@@ -299,12 +308,13 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	Describe("handling a backend with a non '/' path", func() {
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL()+"/something")
+			os.Setenv("BACKEND_URL_backend", recorder.URL()+"/something")
 			addRoute("/foo/bar", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend")
 			recorder.Close()
 		})
 
@@ -330,12 +340,13 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 	Describe("handling HTTP/1.0 requests", func() {
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL())
+			os.Setenv("BACKEND_URL_backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend")
 			recorder.Close()
 		})
 
@@ -365,12 +376,13 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			err := startRouter(3167, 3166, []string{"ROUTER_TLS_SKIP_VERIFY=1"})
 			Expect(err).NotTo(HaveOccurred())
 			recorder = startRecordingTLSBackend()
-			addBackend("backend", recorder.URL())
+			os.Setenv("BACKEND_URL_backend", recorder.URL())
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(3166)
 		})
 
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend")
 			recorder.Close()
 			stopRouter(3167)
 		})

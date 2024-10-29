@@ -2,6 +2,7 @@ package integration
 
 import (
 	"net/http/httptest"
+	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -19,14 +20,16 @@ var _ = Describe("Route selection", func() {
 		BeforeEach(func() {
 			backend1 = startSimpleBackend("backend 1")
 			backend2 = startSimpleBackend("backend 2")
-			addBackend("backend-1", backend1.URL)
-			addBackend("backend-2", backend2.URL)
+			os.Setenv("BACKEND_URL_backend-1", backend1.URL)
+			os.Setenv("BACKEND_URL_backend-2", backend2.URL)
 			addRoute("/foo", NewBackendRoute("backend-1"))
 			addRoute("/bar", NewBackendRoute("backend-2"))
 			addRoute("/baz", NewBackendRoute("backend-1"))
 			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend-1")
+			os.Unsetenv("BACKEND_URL_backend-2")
 			backend1.Close()
 			backend2.Close()
 		})
@@ -68,14 +71,16 @@ var _ = Describe("Route selection", func() {
 		BeforeEach(func() {
 			backend1 = startSimpleBackend("backend 1")
 			backend2 = startSimpleBackend("backend 2")
-			addBackend("backend-1", backend1.URL)
-			addBackend("backend-2", backend2.URL)
+			os.Setenv("BACKEND_URL_backend-1", backend1.URL)
+			os.Setenv("BACKEND_URL_backend-2", backend2.URL)
 			addRoute("/foo", NewBackendRoute("backend-1", "prefix"))
 			addRoute("/bar", NewBackendRoute("backend-2", "prefix"))
 			addRoute("/baz", NewBackendRoute("backend-1", "prefix"))
 			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend-1")
+			os.Unsetenv("BACKEND_URL_backend-2")
 			backend1.Close()
 			backend2.Close()
 		})
@@ -123,12 +128,14 @@ var _ = Describe("Route selection", func() {
 		BeforeEach(func() {
 			outer = startSimpleBackend("outer")
 			inner = startSimpleBackend("inner")
-			addBackend("outer-backend", outer.URL)
-			addBackend("inner-backend", inner.URL)
+			os.Setenv("BACKEND_URL_outer-backend", outer.URL)
+			os.Setenv("BACKEND_URL_inner-backend", inner.URL)
 			addRoute("/foo", NewBackendRoute("outer-backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_outer-backend")
+			os.Unsetenv("BACKEND_URL_inner-backend")
 			outer.Close()
 			inner.Close()
 		})
@@ -191,12 +198,13 @@ var _ = Describe("Route selection", func() {
 			)
 			BeforeEach(func() {
 				innerer = startSimpleBackend("innerer")
-				addBackend("innerer-backend", innerer.URL)
+				os.Setenv("BACKEND_URL_innerer-backend", innerer.URL)
 				addRoute("/foo/bar", NewBackendRoute("inner-backend"))
 				addRoute("/foo/bar/baz", NewBackendRoute("innerer-backend", "prefix"))
 				reloadRoutes(apiPort)
 			})
 			AfterEach(func() {
+				os.Unsetenv("BACKEND_URL_innerer-backend")
 				innerer.Close()
 			})
 
@@ -245,13 +253,15 @@ var _ = Describe("Route selection", func() {
 		BeforeEach(func() {
 			backend1 = startSimpleBackend("backend 1")
 			backend2 = startSimpleBackend("backend 2")
-			addBackend("backend-1", backend1.URL)
-			addBackend("backend-2", backend2.URL)
+			os.Setenv("BACKEND_URL_backend-1", backend1.URL)
+			os.Setenv("BACKEND_URL_backend-2", backend2.URL)
 			addRoute("/foo", NewBackendRoute("backend-1", "prefix"))
 			addRoute("/foo", NewBackendRoute("backend-2"))
 			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend-1")
+			os.Unsetenv("BACKEND_URL_backend-2")
 			backend1.Close()
 			backend2.Close()
 		})
@@ -276,11 +286,13 @@ var _ = Describe("Route selection", func() {
 		BeforeEach(func() {
 			root = startSimpleBackend("root backend")
 			other = startSimpleBackend("other backend")
-			addBackend("root", root.URL)
-			addBackend("other", other.URL)
+			os.Setenv("BACKEND_URL_root", root.URL)
+			os.Setenv("BACKEND_URL_other", other.URL)
 			addRoute("/foo", NewBackendRoute("other"))
 		})
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_root")
+			os.Unsetenv("BACKEND_URL_other")
 			root.Close()
 			other.Close()
 		})
@@ -323,13 +335,15 @@ var _ = Describe("Route selection", func() {
 		BeforeEach(func() {
 			root = startSimpleBackend("fallthrough")
 			recorder = startRecordingBackend()
-			addBackend("root", root.URL)
-			addBackend("other", recorder.URL())
+			os.Setenv("BACKEND_URL_root", root.URL)
+			os.Setenv("BACKEND_URL_other", recorder.URL())
 			addRoute("/", NewBackendRoute("root", "prefix"))
 			addRoute("/foo/bar", NewBackendRoute("other", "prefix"))
 			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_root")
+			os.Unsetenv("BACKEND_URL_other")
 			root.Close()
 			recorder.Close()
 		})
@@ -359,9 +373,10 @@ var _ = Describe("Route selection", func() {
 
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL())
+			os.Setenv("BACKEND_URL_backend", recorder.URL())
 		})
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_backend")
 			recorder.Close()
 		})
 

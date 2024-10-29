@@ -1,0 +1,41 @@
+package router
+
+import (
+	"os"
+	"time"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+var _ = Describe("Backends", func() {
+	Context("When calling loadBackendsFromEnv", func() {
+		It("should load backends from environment variables", func() {
+			os.Setenv("BACKEND_URL_testBackend", "http://example.com")
+			defer os.Unsetenv("BACKEND_URL_testBackend")
+
+			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, nil)
+
+			Expect(backends).To(HaveKey("testBackend"))
+			Expect(backends["testBackend"]).ToNot(BeNil())
+		})
+
+		It("should skip backends with empty URLs", func() {
+			os.Setenv("BACKEND_URL_emptyBackend", "")
+			defer os.Unsetenv("BACKEND_URL_emptyBackend")
+
+			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, nil)
+
+			Expect(backends).ToNot(HaveKey("emptyBackend"))
+		})
+
+		It("should skip backends with invalid URLs", func() {
+			os.Setenv("BACKEND_URL_invalidBackend", "://invalid-url")
+			defer os.Unsetenv("BACKEND_URL_invalidBackend")
+
+			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, nil)
+
+			Expect(backends).ToNot(HaveKey("invalidBackend"))
+		})
+	})
+})

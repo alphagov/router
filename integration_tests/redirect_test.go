@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -223,13 +224,14 @@ var _ = Describe("Redirection", func() {
 
 		BeforeEach(func() {
 			recorder = startRecordingBackend()
-			addBackend("be", recorder.URL())
+			os.Setenv("BACKEND_URL_be", recorder.URL())
 			addRoute("/guidance/keeping-a-pet-pig-or-micropig", NewBackendRoute("be", "exact"))
 			addRoute("/GUIDANCE/keeping-a-pet-pig-or-micropig", NewBackendRoute("be", "exact"))
 			reloadRoutes(apiPort)
 		})
 
 		AfterEach(func() {
+			os.Unsetenv("BACKEND_URL_be")
 			recorder.Close()
 		})
 
