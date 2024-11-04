@@ -322,7 +322,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
 				incomingURL.Path, prefix, route.BackendID))
 		case "redirect":
-			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route))
+			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route.RouteType, route.SegmentsMode))
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				incomingURL.Path, prefix, route.RedirectTo))
@@ -347,12 +347,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	}
 }
 
-func shouldPreserveSegments(route *Route) bool {
-	switch route.RouteType {
+func shouldPreserveSegments(routeType, segmentsMode string) bool {
+	switch routeType {
 	case RouteTypeExact:
-		return route.SegmentsMode == SegmentsModePreserve
+		return segmentsMode == SegmentsModePreserve
 	case RouteTypePrefix:
-		return route.SegmentsMode != SegmentsModeIgnore
+		return segmentsMode != SegmentsModeIgnore
 	default:
 		return false
 	}
