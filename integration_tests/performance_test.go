@@ -2,7 +2,6 @@ package integration
 
 import (
 	"net/http/httptest"
-	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -21,17 +20,15 @@ var _ = Describe("Performance", func() {
 		)
 
 		BeforeEach(func() {
-			backend1 = startSimpleBackend("backend 1")
-			backend2 = startSimpleBackend("backend 2")
-			os.Setenv("BACKEND_URL_backend-1", backend1.URL)
-			os.Setenv("BACKEND_URL_backend-2", backend2.URL)
+			backend1 = startSimpleBackend("backend 1", backends["backend-1"])
+			backend2 = startSimpleBackend("backend 2", backends["backend-2"])
 			addRoute("/one", NewBackendRoute("backend-1"))
 			addRoute("/two", NewBackendRoute("backend-2"))
 			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
-			os.Unsetenv("BACKEND_URL_backend-1")
-			os.Unsetenv("BACKEND_URL_backend-2")
+			backend1.Close()
+			backend2.Close()
 		})
 
 		It("Router should not cause errors or much latency", func() {
@@ -59,11 +56,9 @@ var _ = Describe("Performance", func() {
 
 		Describe("with one slow backend hit separately", func() {
 			It("Router should not cause errors or much latency", func() {
-				slowBackend := startTarpitBackend(time.Second)
+				slowBackend := startTarpitBackend(backends["slow-1"], time.Second)
 				defer slowBackend.Close()
-				os.Setenv("BACKEND_URL_backend-slow", slowBackend.URL)
-				defer os.Unsetenv("BACKEND_URL_backend-slow")
-				addRoute("/slow", NewBackendRoute("backend-slow"))
+				addRoute("/slow", NewBackendRoute("slow-1"))
 				reloadRoutes(apiPort)
 
 				_, gen := generateLoad([]string{routerURL(routerPort, "/slow")}, 50)
@@ -75,10 +70,7 @@ var _ = Describe("Performance", func() {
 
 		Describe("with one downed backend hit separately", func() {
 			It("Router should not cause errors or much latency", func() {
-				os.Setenv("BACKEND_URL_backend-down", "http://127.0.0.1:3162/")
-				defer os.Unsetenv("BACKEND_URL_backend-down")
-
-				addRoute("/down", NewBackendRoute("backend-down"))
+				addRoute("/down", NewBackendRoute("down"))
 				reloadRoutes(apiPort)
 
 				_, gen := generateLoad([]string{routerURL(routerPort, "/down")}, 50)
@@ -100,17 +92,13 @@ var _ = Describe("Performance", func() {
 		var backend2 *httptest.Server
 
 		BeforeEach(func() {
-			backend1 = startTarpitBackend(time.Second)
-			backend2 = startTarpitBackend(time.Second)
-			os.Setenv("BACKEND_URL_backend-1", backend1.URL)
-			os.Setenv("BACKEND_URL_backend-2", backend2.URL)
-			addRoute("/one", NewBackendRoute("backend-1"))
-			addRoute("/two", NewBackendRoute("backend-2"))
+			backend1 = startTarpitBackend(backends["slow-1"], time.Second)
+			backend2 = startTarpitBackend(backends["slow-2"], time.Second)
+			addRoute("/one", NewBackendRoute("slow-1"))
+			addRoute("/two", NewBackendRoute("slow-2"))
 			reloadRoutes(apiPort)
 		})
 		AfterEach(func() {
-			os.Unsetenv("BACKEND_URL_backend-1")
-			os.Unsetenv("BACKEND_URL_backend-2")
 			backend1.Close()
 			backend2.Close()
 		})

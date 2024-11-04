@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -12,14 +13,39 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-func startSimpleBackend(identifier string) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var backends = map[string]string{
+	"backend-1":   "127.0.0.1:6789",
+	"backend-2":   "127.0.0.1:6790",
+	"outer":       "127.0.0.1:6792",
+	"inner":       "127.0.0.1:6793",
+	"innerer":     "127.0.0.1:6794",
+	"root":        "127.0.0.1:6795",
+	"other":       "127.0.0.1:6796",
+	"fallthrough": "127.0.0.1:6797",
+	"down":        "127.0.0.1:6798",
+	"slow-1":      "127.0.0.1:6799",
+	"slow-2":      "127.0.0.1:6800",
+	"backend":     "127.0.0.1:6801",
+	"be":          "127.0.0.1:6802",
+	"not-running": "127.0.0.1:6803",
+	"with-path":   "127.0.0.1:6804",
+}
+
+func startSimpleBackend(identifier, host string) *httptest.Server {
+	l, err := net.Listen("tcp", host)
+	Expect(err).NotTo(HaveOccurred())
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte(identifier))
 		Expect(err).NotTo(HaveOccurred())
 	}))
+	ts.Listener.Close()
+	ts.Listener = l
+	ts.Start()
+	return ts
 }
 
-func startTarpitBackend(delays ...time.Duration) *httptest.Server {
+func startTarpitBackend(host string, delays ...time.Duration) *httptest.Server {
 	responseDelay := 2 * time.Second
 	if len(delays) > 0 {
 		responseDelay = delays[0]
@@ -28,7 +54,11 @@ func startTarpitBackend(delays ...time.Duration) *httptest.Server {
 	if len(delays) > 1 {
 		bodyDelay = delays[1]
 	}
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	l, err := net.Listen("tcp", host)
+	Expect(err).NotTo(HaveOccurred())
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body := "Tarpit\n"
 
 		if responseDelay > 0 {
@@ -44,24 +74,26 @@ func startTarpitBackend(delays ...time.Duration) *httptest.Server {
 		_, err := w.Write([]byte(body))
 		Expect(err).NotTo(HaveOccurred())
 	}))
+	ts.Listener.Close()
+	ts.Listener = l
+	ts.Start()
+	return ts
 }
 
-func startRecordingBackend() *ghttp.Server {
-	return startRecordingServer(false)
-}
+func startRecordingBackend(tls bool, host string) *ghttp.Server {
+	l, err := net.Listen("tcp", host)
+	Expect(err).NotTo(HaveOccurred())
 
-func startRecordingTLSBackend() *ghttp.Server {
-	return startRecordingServer(true)
-}
-
-func startRecordingServer(tls bool) (server *ghttp.Server) {
+	ts := ghttp.NewUnstartedServer()
+	ts.HTTPTestServer.Listener.Close()
+	ts.HTTPTestServer.Listener = l
 	if tls {
-		server = ghttp.NewTLSServer()
+		ts.HTTPTestServer.StartTLS()
 	} else {
-		server = ghttp.NewServer()
+		ts.Start()
 	}
 
-	server.AllowUnhandledRequests = true
-	server.UnhandledRequestStatusCode = http.StatusOK
-	return server
+	ts.AllowUnhandledRequests = true
+	ts.UnhandledRequestStatusCode = http.StatusOK
+	return ts
 }

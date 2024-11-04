@@ -2,7 +2,6 @@ package integration
 
 import (
 	"net/http/httptest"
-	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,14 +14,10 @@ var _ = Describe("loading routes from the db", func() {
 	)
 
 	BeforeEach(func() {
-		backend1 = startSimpleBackend("backend 1")
-		backend2 = startSimpleBackend("backend 2")
-		os.Setenv("BACKEND_URL_backend-1", backend1.URL)
-		os.Setenv("BACKEND_URL_backend-2", backend2.URL)
+		backend1 = startSimpleBackend("backend 1", backends["backend-1"])
+		backend2 = startSimpleBackend("backend 2", backends["backend-2"])
 	})
 	AfterEach(func() {
-		os.Unsetenv("BACKEND_URL_backend-1")
-		os.Unsetenv("BACKEND_URL_backend-2")
 		backend1.Close()
 		backend2.Close()
 	})
