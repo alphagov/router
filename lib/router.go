@@ -217,7 +217,7 @@ type mongoDatabase interface {
 func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimestamp) {
 	var success bool
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
-		labels := prometheus.Labels{"success": strconv.FormatBool(success)}
+		labels := prometheus.Labels{"success": strconv.FormatBool(success), "source": "mongo"}
 		routeReloadDurationMetric.With(labels).Observe(v)
 	}))
 	defer func() {
@@ -246,7 +246,7 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 	rt.lock.Unlock()
 
 	logInfo(fmt.Sprintf("router: reloaded %d routes", routeCount))
-	routesCountMetric.Set(float64(routeCount))
+	routesCountMetric.WithLabelValues("mongo").Set(float64(routeCount))
 }
 
 func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMember, error) {
