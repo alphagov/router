@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 
 	// revive:disable:dot-imports
 	. "github.com/onsi/ginkgo/v2"
@@ -89,11 +88,6 @@ func initRouteHelper() error {
 
 	routerDB = sess.DB("router_test")
 	return nil
-}
-
-func addBackend(id, url string) {
-	err := routerDB.C("backends").Insert(bson.M{"backend_id": id, "backend_url": url})
-	Expect(err).NotTo(HaveOccurred())
 }
 
 func addRoute(path string, route Route) {

@@ -20,7 +20,14 @@ var _ = BeforeSuite(func() {
 	if err != nil {
 		Fail(err.Error())
 	}
-	err = startRouter(routerPort, apiPort, nil)
+
+	backendEnvVars := []string{}
+	for id, host := range backends {
+		envVar := "BACKEND_URL_" + id + "=http://" + host
+		backendEnvVars = append(backendEnvVars, envVar)
+	}
+
+	err = startRouter(routerPort, apiPort, backendEnvVars)
 	if err != nil {
 		Fail(err.Error())
 	}

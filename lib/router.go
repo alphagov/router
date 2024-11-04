@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -39,6 +38,7 @@ const (
 // come from, Route and Backend should not contain bson fields.
 // MongoReplicaSet, MongoReplicaSetMember etc. should move out of this module.
 type Router struct {
+	backends          map[string]http.Handler
 	mux               *triemux.Mux
 	lock              sync.RWMutex
 	mongoReadToOptime bson.MongoTimestamp
@@ -106,8 +106,11 @@ func NewRouter(o Options) (rt *Router, err error) {
 		return nil, err
 	}
 
+	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, l)
+
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
+		backends:          backends,
 		mux:               triemux.NewMux(),
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
@@ -235,8 +238,7 @@ func (rt *Router) reloadRoutes(db *mgo.Database, currentOptime bson.MongoTimesta
 	logInfo("router: reloading routes")
 	newmux := triemux.NewMux()
 
-	backends := rt.loadBackends(db.C("backends"))
-	loadRoutes(db.C("routes"), newmux, backends)
+	loadRoutes(db.C("routes"), newmux, rt.backends)
 	routeCount := newmux.RouteCount()
 
 	rt.lock.Lock()
@@ -284,39 +286,6 @@ func (rt *Router) getCurrentMongoInstance(db mongoDatabase) (MongoReplicaSetMemb
 
 func (rt *Router) shouldReload(currentMongoInstance MongoReplicaSetMember) bool {
 	return currentMongoInstance.Optime > rt.mongoReadToOptime
-}
-
-// loadBackends is a helper function which loads backends from the
-// passed mongo collection, constructs a Handler for each one, and returns
-// them in map keyed on the backend_id
-func (rt *Router) loadBackends(c *mgo.Collection) (backends map[string]http.Handler) {
-	backend := &Backend{}
-	backends = make(map[string]http.Handler)
-
-	iter := c.Find(nil).Iter()
-
-	for iter.Next(&backend) {
-		backendURL, err := backend.ParseURL()
-		if err != nil {
-			logWarn(fmt.Errorf("router: couldn't parse URL %s for backend %s "+
-				"(error: %w), skipping", backend.BackendURL, backend.BackendID, err))
-			continue
-		}
-
-		backends[backend.BackendID] = handlers.NewBackendHandler(
-			backend.BackendID,
-			backendURL,
-			rt.opts.BackendConnTimeout,
-			rt.opts.BackendHeaderTimeout,
-			rt.logger,
-		)
-	}
-
-	if err := iter.Err(); err != nil {
-		panic(err)
-	}
-
-	return
 }
 
 // loadRoutes is a helper function which loads routes from the passed mongo
@@ -376,14 +345,6 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 	if err := iter.Err(); err != nil {
 		panic(err)
 	}
-}
-
-func (be *Backend) ParseURL() (*url.URL, error) {
-	backendURL := os.Getenv(fmt.Sprintf("BACKEND_URL_%s", be.BackendID))
-	if backendURL == "" {
-		backendURL = be.BackendURL
-	}
-	return url.Parse(backendURL)
 }
 
 func shouldPreserveSegments(route *Route) bool {

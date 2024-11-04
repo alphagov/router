@@ -19,7 +19,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("connecting to the backend", func() {
 		It("should return a 502 if the connection to the backend is refused", func() {
-			addBackend("not-running", "http://127.0.0.1:3164/")
 			addRoute("/not-running", NewBackendRoute("not-running"))
 			reloadRoutes(apiPort)
 
@@ -31,21 +30,20 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			logDetails := lastRouterErrorLogEntry()
 			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-				"error":          "dial tcp 127.0.0.1:3164: connect: connection refused",
+				"error":          "dial tcp 127.0.0.1:6803: connect: connection refused",
 				"request":        "GET /not-running HTTP/1.1",
 				"request_method": "GET",
 				"status":         float64(502), // All numbers in JSON are floating point
-				"upstream_addr":  "127.0.0.1:3164",
+				"upstream_addr":  "127.0.0.1:6803",
 			}))
 			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
 
 		It("should log and return a 504 if the connection times out in the configured time", func() {
-			err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_CONNECT_TIMEOUT=0.3s"})
+			err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_CONNECT_TIMEOUT=0.3s", "BACKEND_URL_black-hole=http://240.0.0.0:1234/"})
 			Expect(err).NotTo(HaveOccurred())
 			defer stopRouter(3167)
 
-			addBackend("black-hole", "http://240.0.0.0:1234/")
 			addRoute("/should-time-out", NewBackendRoute("black-hole"))
 			reloadRoutes(3166)
 
@@ -74,14 +72,12 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			var tarpit1, tarpit2 *httptest.Server
 
 			BeforeEach(func() {
-				err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_HEADER_TIMEOUT=0.3s"})
+				err := startRouter(3167, 3166, []string{"ROUTER_BACKEND_HEADER_TIMEOUT=0.3s", "BACKEND_URL_slow-1=http://127.0.0.1:6256/", "BACKEND_URL_slow-2=http://127.0.0.1:6253/"})
 				Expect(err).NotTo(HaveOccurred())
-				tarpit1 = startTarpitBackend(time.Second)
-				tarpit2 = startTarpitBackend(100*time.Millisecond, 500*time.Millisecond)
-				addBackend("tarpit1", tarpit1.URL)
-				addBackend("tarpit2", tarpit2.URL)
-				addRoute("/tarpit1", NewBackendRoute("tarpit1"))
-				addRoute("/tarpit2", NewBackendRoute("tarpit2"))
+				tarpit1 = startTarpitBackend("127.0.0.1:6256", time.Second)
+				tarpit2 = startTarpitBackend("127.0.0.1:6253", 100*time.Millisecond, 500*time.Millisecond)
+				addRoute("/tarpit1", NewBackendRoute("slow-1"))
+				addRoute("/tarpit2", NewBackendRoute("slow-2"))
 				reloadRoutes(3166)
 			})
 
@@ -118,8 +114,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("header handling", func() {
 		BeforeEach(func() {
-			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL())
+			recorder = startRecordingBackend(false, backends["backend"])
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
@@ -242,8 +237,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("request verb, path, query and body handling", func() {
 		BeforeEach(func() {
-			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL())
+			recorder = startRecordingBackend(false, backends["backend"])
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
@@ -298,18 +292,20 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("handling a backend with a non '/' path", func() {
 		BeforeEach(func() {
-			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL()+"/something")
-			addRoute("/foo/bar", NewBackendRoute("backend", "prefix"))
-			reloadRoutes(apiPort)
+			err := startRouter(3167, 3166, []string{"ROUTER_TLS_SKIP_VERIFY=1", "BACKEND_URL_with-path=http://127.0.0.1:6804/something"})
+			Expect(err).NotTo(HaveOccurred())
+			recorder = startRecordingBackend(false, backends["with-path"])
+			addRoute("/foo/bar", NewBackendRoute("with-path", "prefix"))
+			reloadRoutes(3166)
 		})
 
 		AfterEach(func() {
 			recorder.Close()
+			stopRouter(3167)
 		})
 
 		It("should merge the 2 paths", func() {
-			resp := routerRequest(routerPort, "/foo/bar")
+			resp := routerRequest(3167, "/foo/bar")
 			Expect(resp.StatusCode).To(Equal(200))
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
@@ -318,7 +314,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		})
 
 		It("should preserve the request query string", func() {
-			resp := routerRequest(routerPort, "/foo/bar?baz=qux")
+			resp := routerRequest(3167, "/foo/bar?baz=qux")
 			Expect(resp.StatusCode).To(Equal(200))
 
 			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
@@ -329,8 +325,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("handling HTTP/1.0 requests", func() {
 		BeforeEach(func() {
-			recorder = startRecordingBackend()
-			addBackend("backend", recorder.URL())
+			recorder = startRecordingBackend(false, backends["backend"])
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(apiPort)
 		})
@@ -362,10 +357,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 	Describe("handling requests to a HTTPS backend", func() {
 		BeforeEach(func() {
-			err := startRouter(3167, 3166, []string{"ROUTER_TLS_SKIP_VERIFY=1"})
+			err := startRouter(3167, 3166, []string{"ROUTER_TLS_SKIP_VERIFY=1", "BACKEND_URL_backend=https://127.0.0.1:2486"})
 			Expect(err).NotTo(HaveOccurred())
-			recorder = startRecordingTLSBackend()
-			addBackend("backend", recorder.URL())
+			recorder = startRecordingBackend(true, "127.0.0.1:2486")
 			addRoute("/foo", NewBackendRoute("backend", "prefix"))
 			reloadRoutes(3166)
 		})
