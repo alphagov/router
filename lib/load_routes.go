@@ -51,14 +51,14 @@ func addHandler(mux *triemux.Mux, route *CsRoute, backends map[string]http.Handl
 		}
 		handler, ok := backends[*backend]
 		if !ok {
-			logWarn(fmt.Sprintf("router: found route %+v which references unknown backend "+
-				"%s, skipping!", route, *route.BackendID))
+			logWarn(fmt.Sprintf("router: found route %+v with unknown backend "+
+				"%s, skipping!", *route.IncomingPath, *route.BackendID))
 			return nil
 		}
 		mux.Handle(incomingURL.Path, prefix, handler)
 	case HandlerTypeRedirect:
 		if route.RedirectTo == nil {
-			logWarn(fmt.Sprintf("router: found route %+v with nil redirect_to, skipping!", route))
+			logWarn(fmt.Sprintf("router: found route %+v with nil redirect_to, skipping!", *route.IncomingPath))
 			return nil
 		}
 		handler := handlers.NewRedirectHandler(incomingURL.Path, *route.RedirectTo, shouldPreserveSegments(*route.RouteType, route.segmentsMode()))
