@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -138,6 +139,15 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (rt *Router) PeriodicCSRouteUpdates() {
+	tick := time.Tick(time.Minute)
+	for range tick {
+		if time.Since(rt.csLastReloadTime) > time.Minute {
+			rt.CsReloadChan <- true
+		}
+	}
 }
 
 func (rt *Router) waitForReload() {

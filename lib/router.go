@@ -52,6 +52,7 @@ type Router struct {
 	ReloadChan        chan bool
 	CsReloadChan      chan bool
 	csMuxSampleRate   float64
+	csLastReloadTime  time.Time
 	pool              *pgxpool.Pool
 }
 
