@@ -125,11 +125,18 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 		},
 	}
 
-	listener.Handle("route_changes", pgxlisten.HandlerFunc(
-		func(ctx context.Context, notification *pgconn.Notification, conn *pgx.Conn) error {
-			rt.CsReloadChan <- true
-			return nil
-		}),
+	listener.Handle(
+		"route_changes",
+		pgxlisten.HandlerFunc(
+			func(ctx context.Context, notification *pgconn.Notification, conn *pgx.Conn) error {
+				// This is a non-blocking send, if there is already a notification to reload we don't need to send another one
+				select {
+				case rt.CsReloadChan <- true:
+				default:
+				}
+				return nil
+			},
+		),
 	)
 
 	err := listener.Listen(ctx)
@@ -145,7 +152,11 @@ func (rt *Router) PeriodicCSRouteUpdates() {
 	tick := time.Tick(time.Minute)
 	for range tick {
 		if time.Since(rt.csLastReloadTime) > time.Minute {
-			rt.CsReloadChan <- true
+			// This is a non-blocking send, if there is already a notification to reload we don't need to send another one
+			select {
+			case rt.CsReloadChan <- true:
+			default:
+			}
 		}
 	}
 }
