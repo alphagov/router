@@ -16,11 +16,11 @@ import (
 )
 
 func routerRequest(port int, path string) *http.Response {
-	return doRequest(newRequest("GET", routerURL(port, path)))
+	return doRequest(newRequest(http.MethodGet, routerURL(port, path)))
 }
 
 func routerRequestWithHeaders(port int, path string, headers map[string]string) *http.Response {
-	return doRequest(newRequestWithHeaders("GET", routerURL(port, path), headers))
+	return doRequest(newRequestWithHeaders(http.MethodGet, routerURL(port, path), headers))
 }
 
 func newRequest(method, url string) *http.Request {
@@ -55,7 +55,7 @@ func doHTTP10Request(req *http.Request) *http.Response {
 	defer conn.Close()
 
 	if req.Method == "" {
-		req.Method = "GET"
+		req.Method = http.MethodGet
 	}
 	req.Proto = "HTTP/1.0"
 	req.ProtoMinor = 0

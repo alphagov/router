@@ -18,8 +18,7 @@ func TestEverything(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	var err error
-	err = setupTempLogfile()
+	err := setupTempLogfile()
 	if err != nil {
 		Fail(err.Error())
 	}
@@ -38,12 +37,10 @@ var _ = BeforeSuite(func() {
 		backendEnvVars = append(backendEnvVars, envVar)
 	}
 
-	err = startRouter(routerPort, apiPort, backendEnvVars)
-	if err != nil {
+	if err := startRouter(routerPort, apiPort, backendEnvVars); err != nil {
 		Fail(err.Error())
 	}
-	err = initRouteHelper()
-	if err != nil {
+	if err := initRouteHelper(); err != nil {
 		Fail(err.Error())
 	}
 })

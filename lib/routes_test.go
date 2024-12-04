@@ -86,6 +86,15 @@ var _ = Describe("CsRoute", func() {
 			})
 		})
 
+		Context("when schema is 'gone' and details is invalid json", func() {
+			It("should return true", func() {
+				route.SchemaName = stringPtr("gone")
+				details := "{invalid}"
+				route.Details = &details
+				Expect(route.gone()).To(BeTrue())
+			})
+		})
+
 		Context("when schema is not 'gone'", func() {
 			It("should return false", func() {
 				Expect(route.gone()).To(BeFalse())

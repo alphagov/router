@@ -163,15 +163,7 @@ func (rt *Router) PeriodicCSRouteUpdates() {
 
 func (rt *Router) waitForReload() {
 	for range rt.CsReloadChan {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					logWarn(r)
-				}
-			}()
-
-			rt.reloadCsRoutes(rt.pool)
-		}()
+		rt.reloadCsRoutes(rt.pool)
 	}
 }
 

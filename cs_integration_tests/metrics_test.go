@@ -7,16 +7,10 @@ import (
 
 var _ = Describe("/metrics API endpoint", func() {
 	Context("response body", func() {
-		var responseBody string
-
-		BeforeEach(func() {
+		It("should contain at least one metric", func() {
 			resp := doRequest(newRequest("GET", routerURL(apiPort, "/metrics")))
 			Expect(resp.StatusCode).To(Equal(200))
-			responseBody = readBody(resp)
-		})
-
-		It("should contain at least one metric", func() {
-			Expect(responseBody).To(ContainSubstring("router_"))
+			Expect(readBody(resp)).To(ContainSubstring("router_"))
 		})
 	})
 })
