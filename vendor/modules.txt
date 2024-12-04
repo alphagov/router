@@ -87,13 +87,6 @@ github.com/getsentry/sentry-go/internal/otel/baggage
 github.com/getsentry/sentry-go/internal/otel/baggage/internal/baggage
 github.com/getsentry/sentry-go/internal/ratelimit
 github.com/getsentry/sentry-go/internal/traceparser
-# github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
-## explicit
-github.com/globalsign/mgo
-github.com/globalsign/mgo/bson
-github.com/globalsign/mgo/internal/json
-github.com/globalsign/mgo/internal/sasl
-github.com/globalsign/mgo/internal/scram
 # github.com/go-logr/logr v1.4.2
 ## explicit; go 1.18
 github.com/go-logr/logr
