@@ -1,13 +1,17 @@
 package router
 
 import (
+	"context"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/alphagov/router/handlers"
@@ -40,11 +44,16 @@ const (
 type Router struct {
 	backends          map[string]http.Handler
 	mux               *triemux.Mux
+	csMux             *triemux.Mux
 	lock              sync.RWMutex
 	mongoReadToOptime bson.MongoTimestamp
 	logger            logger.Logger
 	opts              Options
 	ReloadChan        chan bool
+	CsReloadChan      chan bool
+	csMuxSampleRate   float64
+	csLastReloadTime  time.Time
+	pool              *pgxpool.Pool
 }
 
 type Options struct {
@@ -108,14 +117,51 @@ func NewRouter(o Options) (rt *Router, err error) {
 
 	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, l)
 
+	csMuxSampleRate, err := strconv.ParseFloat(os.Getenv("CSMUX_SAMPLE_RATE"), 64)
+
+	if err != nil {
+		csMuxSampleRate = 0.0
+	}
+
+	logInfo("router: content store mux sample rate set at", csMuxSampleRate)
+
+	var pool *pgxpool.Pool
+
+	if csMuxSampleRate != 0.0 {
+		pool, err = pgxpool.New(context.Background(), os.Getenv("CONTENT_STORE_DATABASE_URL"))
+		if err != nil {
+			return nil, err
+		}
+		logInfo("router: postgres connection pool created")
+	} else {
+		logInfo("router: not using content store postgres")
+	}
+
 	reloadChan := make(chan bool, 1)
+	csReloadChan := make(chan bool, 1)
 	rt = &Router{
 		backends:          backends,
 		mux:               triemux.NewMux(),
+		csMux:             triemux.NewMux(),
 		mongoReadToOptime: mongoReadToOptime,
 		logger:            l,
 		opts:              o,
 		ReloadChan:        reloadChan,
+		CsReloadChan:      csReloadChan,
+		pool:              pool,
+		csMuxSampleRate:   csMuxSampleRate,
+	}
+
+	if csMuxSampleRate != 0.0 {
+		rt.reloadCsRoutes(pool)
+
+		go func() {
+			if err := rt.listenForContentStoreUpdates(context.Background()); err != nil {
+				logWarn(fmt.Sprintf("router: error in listenForContentStoreUpdates: %v", err))
+			}
+		}()
+
+		go rt.waitForReload()
 	}
 
 	go rt.pollAndReload()
@@ -144,8 +190,16 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			internalServerErrorCountMetric.With(prometheus.Labels{"host": req.Host}).Inc()
 		}
 	}()
+
+	useContentStoreMux := rt.csMuxSampleRate > 0 && rand.Float64() < rt.csMuxSampleRate //nolint:gosec
+	var mux *triemux.Mux
+
 	rt.lock.RLock()
-	mux := rt.mux
+	if useContentStoreMux {
+		mux = rt.csMux
+	} else {
+		mux = rt.mux
+	}
 	rt.lock.RUnlock()
 
 	mux.ServeHTTP(w, req)
@@ -311,7 +365,7 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 		}
 
 		switch route.Handler {
-		case "backend":
+		case HandlerTypeBackend:
 			handler, ok := backends[route.BackendID]
 			if !ok {
 				logWarn(fmt.Sprintf("router: found route %+v which references unknown backend "+
@@ -321,12 +375,12 @@ func loadRoutes(c *mgo.Collection, mux *triemux.Mux, backends map[string]http.Ha
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) for %s",
 				incomingURL.Path, prefix, route.BackendID))
-		case "redirect":
+		case HandlerTypeRedirect:
 			handler := handlers.NewRedirectHandler(incomingURL.Path, route.RedirectTo, shouldPreserveSegments(route.RouteType, route.SegmentsMode))
 			mux.Handle(incomingURL.Path, prefix, handler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> %s",
 				incomingURL.Path, prefix, route.RedirectTo))
-		case "gone":
+		case HandlerTypeGone:
 			mux.Handle(incomingURL.Path, prefix, goneHandler)
 			logDebug(fmt.Sprintf("router: registered %s (prefix: %v) -> Gone", incomingURL.Path, prefix))
 		case "boom":

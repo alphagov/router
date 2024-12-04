@@ -25,6 +25,11 @@ func NewAPIHandler(rout *Router) (api http.Handler, err error) {
 		case rout.ReloadChan <- true:
 		default:
 		}
+
+		select {
+		case rout.CsReloadChan <- true:
+		default:
+		}
 		logInfo("router: reload queued")
 		w.WriteHeader(http.StatusAccepted)
 		_, err := w.Write([]byte("Reload queued"))

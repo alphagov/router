@@ -29,6 +29,7 @@ unit_tests:
 
 integration_tests: build start_mongo
 	go test -race -v ./integration_tests
+	go test -race -v ./cs_integration_tests
 
 start_mongo:
 	./mongo.sh start

@@ -123,6 +123,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	go rout.PeriodicCSRouteUpdates()
 	go rout.SelfUpdateRoutes()
 
 	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
