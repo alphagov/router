@@ -10,7 +10,7 @@ const (
 	HandlerTypeGone     = "gone"
 )
 
-type CsRoute struct {
+type Route struct {
 	IncomingPath *string
 	RouteType    *string
 	BackendID    *string
@@ -23,7 +23,7 @@ type CsRoute struct {
 // returns the backend which should be used for this route
 // if the route is a gone route, but has an explaination in the details field,
 // then route to the backend, or by default to government-frontend
-func (route *CsRoute) backend() *string {
+func (route *Route) backend() *string {
 	if route.SchemaName != nil && *route.SchemaName == "gone" && !route.gone() {
 		if route.BackendID != nil {
 			return route.BackendID
@@ -35,7 +35,7 @@ func (route *CsRoute) backend() *string {
 	return route.BackendID
 }
 
-func (route *CsRoute) handlerType() string {
+func (route *Route) handlerType() string {
 	switch {
 	case route.redirect():
 		return HandlerTypeRedirect
@@ -46,7 +46,7 @@ func (route *CsRoute) handlerType() string {
 	}
 }
 
-func (route *CsRoute) gone() bool {
+func (route *Route) gone() bool {
 	if route.SchemaName != nil && *route.SchemaName == "gone" {
 		if route.Details == nil {
 			// if the details field is empty, use a standard gone route
@@ -72,11 +72,11 @@ func (route *CsRoute) gone() bool {
 	return false
 }
 
-func (route *CsRoute) redirect() bool {
+func (route *Route) redirect() bool {
 	return route.SchemaName != nil && *route.SchemaName == "redirect"
 }
 
-func (route *CsRoute) segmentsMode() string {
+func (route *Route) segmentsMode() string {
 	if route.SegmentsMode == nil && route.SchemaName != nil && *route.SchemaName == "redirect" {
 		if *route.RouteType == "prefix" {
 			return "preserve"

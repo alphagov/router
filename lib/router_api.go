@@ -22,7 +22,7 @@ func NewAPIHandler(rout *Router) (api http.Handler, err error) {
 		// If the channel is already full, no message will be sent and the request
 		// won't be blocked.
 		select {
-		case rout.CsReloadChan <- true:
+		case rout.ReloadChan <- true:
 		default:
 		}
 		logInfo("router: reload queued")
