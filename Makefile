@@ -1,4 +1,4 @@
-.PHONY: all clean build test lint unit_tests integration_tests start_mongo stop_mongo update_deps
+.PHONY: all clean build test lint unit_tests integration_tests update_deps
 .NOTPARALLEL:
 
 TARGET_MODULE := router
@@ -27,15 +27,8 @@ lint:
 unit_tests:
 	go test -race $$(go list ./... | grep -v integration_tests)
 
-integration_tests: build start_mongo
-	go test -race -v ./integration_tests
+integration_tests: build
 	go test -race -v ./cs_integration_tests
-
-start_mongo:
-	./mongo.sh start
-
-stop_mongo:
-	./mongo.sh stop
 
 update_deps:
 	go get -t -u ./... && go mod tidy && go mod vendor

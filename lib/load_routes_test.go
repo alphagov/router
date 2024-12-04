@@ -219,8 +219,7 @@ var _ = Describe("Router", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			router = &Router{
-				ReloadChan: make(chan bool, 1),
-				lock:       sync.RWMutex{},
+				lock: sync.RWMutex{},
 				backends: map[string]http.Handler{
 					"backend1": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						http.Redirect(w, r, "http://example.com", http.StatusFound)
