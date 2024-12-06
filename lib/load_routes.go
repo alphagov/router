@@ -149,9 +149,9 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 }
 
 func (rt *Router) PeriodicCSRouteUpdates() {
-	tick := time.Tick(time.Minute)
+	tick := time.Tick(5 * time.Second)
 	for range tick {
-		if time.Since(rt.csLastReloadTime) > time.Minute {
+		if time.Since(rt.csLastAttemptReloadTime) > time.Minute {
 			// This is a non-blocking send, if there is already a notification to reload we don't need to send another one
 			select {
 			case rt.CsReloadChan <- true:
@@ -187,6 +187,8 @@ func (rt *Router) reloadCsRoutes(pool PgxIface) {
 		timer.ObserveDuration()
 	}()
 
+	rt.csLastAttemptReloadTime = time.Now()
+
 	logInfo("router: reloading routes from content store")
 	newmux := triemux.NewMux()
 
@@ -204,5 +206,4 @@ func (rt *Router) reloadCsRoutes(pool PgxIface) {
 
 	logInfo(fmt.Sprintf("router: reloaded %d routes from content store", routeCount))
 	routesCountMetric.WithLabelValues("content-store").Set(float64(routeCount))
-
 }

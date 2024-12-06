@@ -42,18 +42,18 @@ const (
 // come from, Route and Backend should not contain bson fields.
 // MongoReplicaSet, MongoReplicaSetMember etc. should move out of this module.
 type Router struct {
-	backends          map[string]http.Handler
-	mux               *triemux.Mux
-	csMux             *triemux.Mux
-	lock              sync.RWMutex
-	mongoReadToOptime bson.MongoTimestamp
-	logger            logger.Logger
-	opts              Options
-	ReloadChan        chan bool
-	CsReloadChan      chan bool
-	csMuxSampleRate   float64
-	csLastReloadTime  time.Time
-	pool              *pgxpool.Pool
+	backends                map[string]http.Handler
+	mux                     *triemux.Mux
+	csMux                   *triemux.Mux
+	lock                    sync.RWMutex
+	mongoReadToOptime       bson.MongoTimestamp
+	logger                  logger.Logger
+	opts                    Options
+	ReloadChan              chan bool
+	CsReloadChan            chan bool
+	csMuxSampleRate         float64
+	csLastAttemptReloadTime time.Time
+	pool                    *pgxpool.Pool
 }
 
 type Options struct {
