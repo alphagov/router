@@ -63,6 +63,7 @@ type Options struct {
 	BackendConnTimeout   time.Duration
 	BackendHeaderTimeout time.Duration
 	LogFileName          string
+	RouteReloadInterval  time.Duration
 }
 
 type Backend struct {
