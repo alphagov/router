@@ -151,7 +151,7 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 func (rt *Router) PeriodicCSRouteUpdates() {
 	tick := time.Tick(5 * time.Second)
 	for range tick {
-		if time.Since(rt.csLastAttemptReloadTime) > time.Minute {
+		if time.Since(rt.csLastAttemptReloadTime) > rt.opts.RouteReloadInterval {
 			// This is a non-blocking send, if there is already a notification to reload we don't need to send another one
 			select {
 			case rt.CsReloadChan <- true:
