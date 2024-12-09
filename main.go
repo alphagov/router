@@ -117,7 +117,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go rout.PeriodicCSRouteUpdates()
+	go rout.PeriodicRouteUpdates()
 
 	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
 	log.Printf("router: listening for requests on %v", pubAddr)

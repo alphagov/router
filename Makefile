@@ -28,7 +28,7 @@ unit_tests:
 	go test -race $$(go list ./... | grep -v integration_tests)
 
 integration_tests: build
-	go test -race -v ./cs_integration_tests
+	go test -race -v ./integration_tests
 
 update_deps:
 	go get -t -u ./... && go mod tidy && go mod vendor
