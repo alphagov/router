@@ -34,6 +34,7 @@ ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
 ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
 ROUTER_FRONTEND_READ_TIMEOUT=60s   See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:ReadTimeout
 ROUTER_FRONTEND_WRITE_TIMEOUT=60s  See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:WriteTimeout
+ROUTER_ROUTE_RELOAD_INTERVAL=1m  Interval for periodic route reloads
 `
 	fmt.Fprintf(os.Stderr, helpstring, router.VersionInfo(), os.Args[0])
 	const ErrUsage = 64
@@ -84,14 +85,15 @@ func main() {
 
 	router.EnableDebugOutput = os.Getenv("ROUTER_DEBUG") != ""
 	var (
-		pubAddr         = getenv("ROUTER_PUBADDR", ":8080")
-		apiAddr         = getenv("ROUTER_APIADDR", ":8081")
-		errorLogFile    = getenv("ROUTER_ERROR_LOG", "STDERR")
-		tlsSkipVerify   = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
-		beConnTimeout   = getenvDuration("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
-		beHeaderTimeout = getenvDuration("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
-		feReadTimeout   = getenvDuration("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
-		feWriteTimeout  = getenvDuration("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
+		pubAddr             = getenv("ROUTER_PUBADDR", ":8080")
+		apiAddr             = getenv("ROUTER_APIADDR", ":8081")
+		errorLogFile        = getenv("ROUTER_ERROR_LOG", "STDERR")
+		tlsSkipVerify       = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
+		beConnTimeout       = getenvDuration("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
+		beHeaderTimeout     = getenvDuration("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
+		feReadTimeout       = getenvDuration("ROUTER_FRONTEND_READ_TIMEOUT", "60s")
+		feWriteTimeout      = getenvDuration("ROUTER_FRONTEND_WRITE_TIMEOUT", "60s")
+		routeReloadInterval = getenvDuration("ROUTER_ROUTE_RELOAD_INTERVAL", "1m")
 	)
 
 	log.Printf("using frontend read timeout: %v", feReadTimeout)
@@ -110,6 +112,7 @@ func main() {
 		BackendConnTimeout:   beConnTimeout,
 		BackendHeaderTimeout: beHeaderTimeout,
 		LogFileName:          errorLogFile,
+		RouteReloadInterval:  routeReloadInterval,
 	})
 	if err != nil {
 		log.Fatal(err)

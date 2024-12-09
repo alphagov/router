@@ -28,19 +28,21 @@ const (
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
 // routes from a postgres database.
 type Router struct {
-	backends     map[string]http.Handler
-	csMux        *triemux.Mux
-	lock         sync.RWMutex
-	logger       logger.Logger
-	opts         Options
-	CsReloadChan chan bool
-	pool         *pgxpool.Pool
+	backends                map[string]http.Handler
+	csMux                   *triemux.Mux
+	lock                    sync.RWMutex
+	logger                  logger.Logger
+	opts                    Options
+	CsReloadChan            chan bool
+	pool                    *pgxpool.Pool
+	csLastAttemptReloadTime time.Time
 }
 
 type Options struct {
 	BackendConnTimeout   time.Duration
 	BackendHeaderTimeout time.Duration
 	LogFileName          string
+	RouteReloadInterval  time.Duration
 }
 
 // RegisterMetrics registers Prometheus metrics from the router module and the
