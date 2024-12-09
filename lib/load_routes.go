@@ -27,7 +27,7 @@ type PgxIface interface {
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 }
 
-func addHandler(mux *triemux.Mux, route *CsRoute, backends map[string]http.Handler) error {
+func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler) error {
 	if route.IncomingPath == nil || route.RouteType == nil {
 		logWarn(fmt.Sprintf("router: found route %+v with nil fields, skipping!", route))
 		return nil
@@ -76,7 +76,7 @@ func addHandler(mux *triemux.Mux, route *CsRoute, backends map[string]http.Handl
 	return nil
 }
 
-func loadRoutesFromCS(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handler) error {
+func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handler) error {
 	rows, err := pool.Query(context.Background(), loadRoutesQuery)
 
 	if err != nil {
@@ -86,7 +86,7 @@ func loadRoutesFromCS(pool PgxIface, mux *triemux.Mux, backends map[string]http.
 	defer rows.Close()
 
 	for rows.Next() {
-		route := &CsRoute{}
+		route := &Route{}
 		scans := []any{
 			&route.BackendID,
 			&route.IncomingPath,
@@ -131,7 +131,7 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 			func(ctx context.Context, notification *pgconn.Notification, conn *pgx.Conn) error {
 				// This is a non-blocking send, if there is already a notification to reload we don't need to send another one
 				select {
-				case rt.CsReloadChan <- true:
+				case rt.ReloadChan <- true:
 				default:
 				}
 				return nil
@@ -148,13 +148,13 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 	return nil
 }
 
-func (rt *Router) PeriodicCSRouteUpdates() {
+func (rt *Router) PeriodicRouteUpdates() {
 	tick := time.Tick(5 * time.Second)
 	for range tick {
-		if time.Since(rt.csLastAttemptReloadTime) > rt.opts.RouteReloadInterval {
+		if time.Since(rt.lastAttemptReloadTime) > rt.opts.RouteReloadInterval {
 			// This is a non-blocking send, if there is already a notification to reload we don't need to send another one
 			select {
-			case rt.CsReloadChan <- true:
+			case rt.ReloadChan <- true:
 			default:
 			}
 		}
@@ -162,12 +162,12 @@ func (rt *Router) PeriodicCSRouteUpdates() {
 }
 
 func (rt *Router) waitForReload() {
-	for range rt.CsReloadChan {
-		rt.reloadCsRoutes(rt.pool)
+	for range rt.ReloadChan {
+		rt.reloadRoutes(rt.pool)
 	}
 }
 
-func (rt *Router) reloadCsRoutes(pool PgxIface) {
+func (rt *Router) reloadRoutes(pool PgxIface) {
 	var success bool
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
 		labels := prometheus.Labels{"success": strconv.FormatBool(success), "source": "content-store"}
@@ -178,7 +178,7 @@ func (rt *Router) reloadCsRoutes(pool PgxIface) {
 		success = true
 		if r := recover(); r != nil {
 			success = false
-			logWarn("router: recovered from panic in reloadCsRoutes:", r)
+			logWarn("router: recovered from panic in reloadRoutes:", r)
 			logInfo("router: original content store routes have not been modified")
 			errorMessage := fmt.Sprintf("panic: %v", r)
 			err := logger.RecoveredError{ErrorMessage: errorMessage}
@@ -187,12 +187,12 @@ func (rt *Router) reloadCsRoutes(pool PgxIface) {
 		timer.ObserveDuration()
 	}()
 
-	rt.csLastAttemptReloadTime = time.Now()
+	rt.lastAttemptReloadTime = time.Now()
 
 	logInfo("router: reloading routes from content store")
 	newmux := triemux.NewMux()
 
-	err := loadRoutesFromCS(pool, newmux, rt.backends)
+	err := loadRoutes(pool, newmux, rt.backends)
 	if err != nil {
 		logWarn(fmt.Sprintf("router: error reloading routes from content store: %v", err))
 		return
@@ -201,7 +201,7 @@ func (rt *Router) reloadCsRoutes(pool PgxIface) {
 	routeCount := newmux.RouteCount()
 
 	rt.lock.Lock()
-	rt.csMux = newmux
+	rt.mux = newmux
 	rt.lock.Unlock()
 
 	logInfo(fmt.Sprintf("router: reloaded %d routes from content store", routeCount))

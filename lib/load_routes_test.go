@@ -12,7 +12,7 @@ import (
 	"github.com/pashagolub/pgxmock/v4"
 )
 
-var _ = Describe("loadRoutesFromCS", func() {
+var _ = Describe("loadRoutes", func() {
 	var (
 		mockPool pgxmock.PgxPoolIface
 		mux      *triemux.Mux
@@ -53,7 +53,7 @@ var _ = Describe("loadRoutesFromCS", func() {
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutesFromCS(mockPool, mux, backends)
+			err := loadRoutes(mockPool, mux, backends)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -88,7 +88,7 @@ var _ = Describe("loadRoutesFromCS", func() {
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutesFromCS(mockPool, mux, backends)
+			err := loadRoutes(mockPool, mux, backends)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -146,7 +146,7 @@ var _ = Describe("loadRoutesFromCS", func() {
 				AddRow(nil, stringPtr("/redirect-prefix-preserve"), stringPtr("prefix"), stringPtr("/redirected-prefix-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil)
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutesFromCS(mockPool, mux, backends)
+			err := loadRoutes(mockPool, mux, backends)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -207,7 +207,7 @@ var _ = Describe("loadRoutesFromCS", func() {
 })
 
 var _ = Describe("Router", func() {
-	Describe("reloadCsRoutes", func() {
+	Describe("reloadRoutes", func() {
 		var (
 			mockPool pgxmock.PgxPoolIface
 			router   *Router
@@ -242,9 +242,9 @@ var _ = Describe("Router", func() {
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			router.reloadCsRoutes(mockPool)
+			router.reloadRoutes(mockPool)
 
-			Expect(router.csMux.RouteCount()).To(Equal(2))
+			Expect(router.mux.RouteCount()).To(Equal(2))
 		})
 
 		It("should handle panic and log error", func() {
@@ -252,7 +252,7 @@ var _ = Describe("Router", func() {
 
 			mockPool.ExpectQuery("WITH").WillReturnError(fmt.Errorf("some error"))
 
-			Expect(func() { router.reloadCsRoutes(mockPool) }).NotTo(Panic())
+			Expect(func() { router.reloadRoutes(mockPool) }).NotTo(Panic())
 		})
 	})
 })

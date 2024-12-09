@@ -28,14 +28,14 @@ const (
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
 // routes from a postgres database.
 type Router struct {
-	backends                map[string]http.Handler
-	csMux                   *triemux.Mux
-	lock                    sync.RWMutex
-	logger                  logger.Logger
-	opts                    Options
-	CsReloadChan            chan bool
-	pool                    *pgxpool.Pool
-	csLastAttemptReloadTime time.Time
+	backends              map[string]http.Handler
+	mux                   *triemux.Mux
+	lock                  sync.RWMutex
+	logger                logger.Logger
+	opts                  Options
+	ReloadChan            chan bool
+	pool                  *pgxpool.Pool
+	lastAttemptReloadTime time.Time
 }
 
 type Options struct {
@@ -69,17 +69,17 @@ func NewRouter(o Options) (rt *Router, err error) {
 	}
 	logInfo("router: postgres connection pool created")
 
-	csReloadChan := make(chan bool, 1)
+	reloadChan := make(chan bool, 1)
 	rt = &Router{
-		backends:     backends,
-		csMux:        triemux.NewMux(),
-		logger:       l,
-		opts:         o,
-		CsReloadChan: csReloadChan,
-		pool:         pool,
+		backends:   backends,
+		mux:        triemux.NewMux(),
+		logger:     l,
+		opts:       o,
+		ReloadChan: reloadChan,
+		pool:       pool,
 	}
 
-	rt.reloadCsRoutes(pool)
+	rt.reloadRoutes(pool)
 
 	go func() {
 		if err := rt.listenForContentStoreUpdates(context.Background()); err != nil {
@@ -117,7 +117,7 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var mux *triemux.Mux
 
 	rt.lock.RLock()
-	mux = rt.csMux
+	mux = rt.mux
 	rt.lock.RUnlock()
 
 	mux.ServeHTTP(w, req)

@@ -5,11 +5,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("CsRoute", func() {
-	var route *CsRoute
+var _ = Describe("Route", func() {
+	var route *Route
 
 	BeforeEach(func() {
-		route = &CsRoute{}
+		route = &Route{}
 	})
 
 	Describe("backend", func() {
