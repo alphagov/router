@@ -25,9 +25,6 @@ The following environment variables and defaults are available:
 
 ROUTER_PUBADDR=:8080             Address on which to serve public requests
 ROUTER_APIADDR=:8081             Address on which to receive reload requests
-ROUTER_MONGO_URL=127.0.0.1       Address of mongo cluster (e.g. 'mongo1,mongo2,mongo3')
-ROUTER_MONGO_DB=router           Name of mongo database to use
-ROUTER_MONGO_POLL_INTERVAL=2s    Interval to poll mongo for route changes
 ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
 ROUTER_DEBUG=                    Enable debug output if non-empty
 
@@ -90,9 +87,6 @@ func main() {
 	var (
 		pubAddr             = getenv("ROUTER_PUBADDR", ":8080")
 		apiAddr             = getenv("ROUTER_APIADDR", ":8081")
-		mongoURL            = getenv("ROUTER_MONGO_URL", "127.0.0.1")
-		mongoDBName         = getenv("ROUTER_MONGO_DB", "router")
-		mongoPollInterval   = getenvDuration("ROUTER_MONGO_POLL_INTERVAL", "2s")
 		errorLogFile        = getenv("ROUTER_ERROR_LOG", "STDERR")
 		tlsSkipVerify       = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
 		beConnTimeout       = getenvDuration("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
@@ -115,9 +109,6 @@ func main() {
 	router.RegisterMetrics(prometheus.DefaultRegisterer)
 
 	rout, err := router.NewRouter(router.Options{
-		MongoURL:             mongoURL,
-		MongoDBName:          mongoDBName,
-		MongoPollInterval:    mongoPollInterval,
 		BackendConnTimeout:   beConnTimeout,
 		BackendHeaderTimeout: beHeaderTimeout,
 		LogFileName:          errorLogFile,
@@ -127,7 +118,6 @@ func main() {
 		log.Fatal(err)
 	}
 	go rout.PeriodicCSRouteUpdates()
-	go rout.SelfUpdateRoutes()
 
 	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
 	log.Printf("router: listening for requests on %v", pubAddr)

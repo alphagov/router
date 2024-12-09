@@ -24,8 +24,6 @@ jobs:
       - run: make unit_tests
       - run: make integration_tests
         timeout-minutes: 15
-        env:
-          ROUTER_MONGO_URL: 127.0.0.1
   golangci-lint:
     runs-on: ubuntu-latest
     steps:
@@ -35,4 +33,4 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8  # v6.1.1
+      - uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1

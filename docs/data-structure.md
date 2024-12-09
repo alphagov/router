@@ -1,17 +1,14 @@
 # Data structure
 
-The Router requires two MongoDB collections: `routes` and `backends`.
-
 ## Routes
 
-The `routes` collection uses the following data structure:
+The `routes` uses the following data structure:
 
 ```json
 {
-  "_id"           : ObjectId(),
-  "route_type"    : ["prefix","exact"],
-  "incoming_path" : "/url-path/here",
-  "handler"       : ["backend", "redirect", "gone"],
+  "route_type": ["prefix", "exact"],
+  "incoming_path": "/url-path/here",
+  "handler": ["backend", "redirect", "gone"]
 }
 ```
 
@@ -28,7 +25,7 @@ The `backend` handler causes the Router to reverse proxy to a named
 
 ```json
 {
-  "backend_id" : "backend-id-corresponding-to-backends-collection"
+  "backend_id": "backend-id-corresponding-to-backends-collection"
 }
 ```
 
@@ -40,22 +37,10 @@ extra fields are supported:
 
 ```json
 {
-  "redirect_to"   : "/target-of-redirect"
+  "redirect_to": "/target-of-redirect"
 }
 ```
 
 ### `gone` handler
 
 The `gone` handler causes the Router to return a 410 response.
-
-## Backends
-
-The `backends` collection uses the following data structure:
-
-```json
-{
-  "_id"         : ObjectId(),
-  "backend_id"  : "arbitrary-slug-or-name",
-  "backend_url" : "https://example.com:port/"
-}
-```

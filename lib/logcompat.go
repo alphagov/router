@@ -13,9 +13,3 @@ func logWarn(msg ...interface{}) {
 func logInfo(msg ...interface{}) {
 	log.Println(msg...)
 }
-
-func logDebug(msg ...interface{}) {
-	if EnableDebugOutput {
-		log.Println(msg...)
-	}
-}
