@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 
-	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
 )
 
@@ -31,17 +31,17 @@ type Router struct {
 	backends              map[string]http.Handler
 	mux                   *triemux.Mux
 	lock                  sync.RWMutex
-	logger                logger.Logger
 	opts                  Options
 	ReloadChan            chan bool
 	pool                  *pgxpool.Pool
 	lastAttemptReloadTime time.Time
+	Logger                zerolog.Logger
 }
 
 type Options struct {
 	BackendConnTimeout   time.Duration
 	BackendHeaderTimeout time.Duration
-	LogFileName          string
+	Logger               zerolog.Logger
 	RouteReloadInterval  time.Duration
 }
 
@@ -53,13 +53,7 @@ func RegisterMetrics(r prometheus.Registerer) {
 }
 
 func NewRouter(o Options) (rt *Router, err error) {
-	l, err := logger.New(o.LogFileName)
-	if err != nil {
-		return nil, err
-	}
-	logInfo("router: logging errors as JSON to", o.LogFileName)
-
-	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, l)
+	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, o.Logger)
 
 	var pool *pgxpool.Pool
 
@@ -67,13 +61,13 @@ func NewRouter(o Options) (rt *Router, err error) {
 	if err != nil {
 		return nil, err
 	}
-	logInfo("router: postgres connection pool created")
+	o.Logger.Info().Msg("postgres connection pool created")
 
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		backends:   backends,
-		mux:        triemux.NewMux(),
-		logger:     l,
+		mux:        triemux.NewMux(o.Logger),
+		Logger:     o.Logger,
 		opts:       o,
 		ReloadChan: reloadChan,
 		pool:       pool,
@@ -83,7 +77,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 
 	go func() {
 		if err := rt.listenForContentStoreUpdates(context.Background()); err != nil {
-			logWarn(fmt.Sprintf("router: error in listenForContentStoreUpdates: %v", err))
+			rt.Logger.Error().Err(err).Msg("failed to listen for content store updates")
 		}
 	}()
 
@@ -97,16 +91,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			logWarn("router: recovered from panic in ServeHTTP:", r)
-
-			errorMessage := fmt.Sprintf("panic: %v", r)
-			err := logger.RecoveredError{ErrorMessage: errorMessage}
-
-			logger.NotifySentry(logger.ReportableError{Error: err, Request: req})
-			rt.logger.LogFromClientRequest(map[string]interface{}{
-				"error":  errorMessage,
-				"status": http.StatusInternalServerError,
-			}, req)
+			rt.Logger.Err(fmt.Errorf("%v", r)).Msgf("recovered from panic in ServeHTTP")
 
 			w.WriteHeader(http.StatusInternalServerError)
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/rs/zerolog"
 )
 
 func TestSplitPath(t *testing.T) {
@@ -204,7 +205,8 @@ func TestLookup(t *testing.T) {
 }
 
 func testLookup(t *testing.T, ex LookupExample) {
-	mux := NewMux()
+	zerologger := zerolog.New(os.Stdout)
+	mux := NewMux(zerologger)
 	for _, r := range ex.registrations {
 		t.Logf("Register(path:%v, prefix:%v, handler:%v)", r.path, r.prefix, r.handler)
 		mux.Handle(r.path, r.prefix, r.handler)
@@ -227,7 +229,8 @@ var statsExample = []Registration{
 }
 
 func TestRouteCount(t *testing.T) {
-	mux := NewMux()
+	zerologger := zerolog.New(os.Stdout)
+	mux := NewMux(zerologger)
 	for _, reg := range statsExample {
 		mux.Handle(reg.path, reg.prefix, reg.handler)
 	}
@@ -247,8 +250,8 @@ func loadStrings(filename string) []string {
 
 func benchSetup() *Mux {
 	routes := loadStrings("testdata/routes")
-
-	tm := NewMux()
+	zerologger := zerolog.New(os.Stdout)
+	tm := NewMux(zerologger)
 	tm.Handle("/government", true, a)
 
 	for _, l := range routes {

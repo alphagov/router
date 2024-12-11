@@ -11,12 +11,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-
 	"github.com/jackc/pgxlisten"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 
 	"github.com/alphagov/router/handlers"
-	"github.com/alphagov/router/logger"
 	"github.com/alphagov/router/triemux"
 )
 
@@ -27,19 +26,17 @@ type PgxIface interface {
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 }
 
-func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler) error {
+func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler, logger zerolog.Logger) error {
 	if route.IncomingPath == nil || route.RouteType == nil {
-		logWarn(fmt.Sprintf("router: found route %+v with nil fields, skipping!", route))
+		logger.Warn().Interface("route", route).Msg("ignoring route with nil fields")
 		return nil
 	}
 
 	prefix := (*route.RouteType == RouteTypePrefix)
 
-	// the database contains paths with % encoded routes.
-	// Unescape them here because the http.Request objects we match against contain the unescaped variants.
 	incomingURL, err := url.Parse(*route.IncomingPath)
 	if err != nil {
-		logWarn(fmt.Sprintf("router: found route %+v with invalid incoming path '%s', skipping!", route, *route.IncomingPath))
+		logger.Warn().Interface("route", route).Str("incoming_path", *route.IncomingPath).Msg("ignoring route with invalid incoming path")
 		return nil //nolint:nilerr
 	}
 
@@ -47,42 +44,38 @@ func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler
 	case HandlerTypeBackend:
 		backend := route.backend()
 		if backend == nil {
-			logWarn(fmt.Sprintf("router: found route %+v with nil backend_id, skipping!", *route.IncomingPath))
+			logger.Warn().Str("incoming_path", *route.IncomingPath).Msg("ignoring route with nil backend_id")
 			return nil
 		}
 		handler, ok := backends[*backend]
 		if !ok {
-			logWarn(fmt.Sprintf("router: found route %+v with unknown backend "+
-				"%s, skipping!", *route.IncomingPath, *route.BackendID))
+			logger.Warn().Str("incoming_path", *route.IncomingPath).Str("backend_id", *route.BackendID).Msg("ignoring route with unknown backend")
 			return nil
 		}
 		mux.Handle(incomingURL.Path, prefix, handler)
 	case HandlerTypeRedirect:
 		if route.RedirectTo == nil {
-			logWarn(fmt.Sprintf("router: found route %+v with nil redirect_to, skipping!", *route.IncomingPath))
+			logger.Warn().Str("incoming_path", *route.IncomingPath).Msg("ignoring route with nil redirect_to")
 			return nil
 		}
-		handler := handlers.NewRedirectHandler(incomingURL.Path, *route.RedirectTo, shouldPreserveSegments(*route.RouteType, route.segmentsMode()))
+		handler := handlers.NewRedirectHandler(incomingURL.Path, *route.RedirectTo, shouldPreserveSegments(*route.RouteType, route.segmentsMode()), logger)
 		mux.Handle(incomingURL.Path, prefix, handler)
 	case HandlerTypeGone:
 		mux.Handle(incomingURL.Path, prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "410 Gone", http.StatusGone)
 		}))
 	default:
-		logWarn(fmt.Sprintf("router: found route %+v with unknown handler type "+
-			"%s, skipping!", route, route.handlerType()))
+		logger.Warn().Interface("route", route).Str("handler_type", route.handlerType()).Msg("ignoring route with unknown handler type")
 		return nil
 	}
 	return nil
 }
 
-func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handler) error {
+func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handler, logger zerolog.Logger) error {
 	rows, err := pool.Query(context.Background(), loadRoutesQuery)
-
 	if err != nil {
 		return err
 	}
-
 	defer rows.Close()
 
 	for rows.Next() {
@@ -102,7 +95,7 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 			return err
 		}
 
-		err = addHandler(mux, route, backends)
+		err = addHandler(mux, route, backends, logger)
 		if err != nil {
 			return err
 		}
@@ -178,23 +171,20 @@ func (rt *Router) reloadRoutes(pool PgxIface) {
 		success = true
 		if r := recover(); r != nil {
 			success = false
-			logWarn("router: recovered from panic in reloadRoutes:", r)
-			logInfo("router: original content store routes have not been modified")
-			errorMessage := fmt.Sprintf("panic: %v", r)
-			err := logger.RecoveredError{ErrorMessage: errorMessage}
-			logger.NotifySentry(logger.ReportableError{Error: err})
+			rt.Logger.Err(fmt.Errorf("%v", r)).Msgf("recovered from panic in reloadRoutes")
+			rt.Logger.Info().Msg("reload failed and existing routes have not been modified")
 		}
 		timer.ObserveDuration()
 	}()
 
 	rt.lastAttemptReloadTime = time.Now()
 
-	logInfo("router: reloading routes from content store")
-	newmux := triemux.NewMux()
+	rt.Logger.Info().Msg("reloading routes from content store")
+	newmux := triemux.NewMux(rt.Logger)
 
-	err := loadRoutes(pool, newmux, rt.backends)
+	err := loadRoutes(pool, newmux, rt.backends, rt.Logger)
 	if err != nil {
-		logWarn(fmt.Sprintf("router: error reloading routes from content store: %v", err))
+		rt.Logger.Warn().Err(err).Msg("error reloading routes")
 		return
 	}
 
@@ -204,6 +194,6 @@ func (rt *Router) reloadRoutes(pool PgxIface) {
 	rt.mux = newmux
 	rt.lock.Unlock()
 
-	logInfo(fmt.Sprintf("router: reloaded %d routes from content store", routeCount))
+	rt.Logger.Info().Int("route_count", routeCount).Msg("reloaded routes")
 	routesCountMetric.WithLabelValues("content-store").Set(float64(routeCount))
 }
