@@ -5,23 +5,23 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
+	"github.com/rs/zerolog"
 
 	"github.com/prometheus/client_golang/prometheus"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	prommodel "github.com/prometheus/client_model/go"
-
-	log "github.com/alphagov/router/logger"
 )
 
 var _ = Describe("Backend handler", func() {
 	var (
 		timeout = 1 * time.Second
-		logger  log.Logger
+		logger  zerolog.Logger
 
 		backend    *ghttp.Server
 		backendURL *url.URL
@@ -33,8 +33,7 @@ var _ = Describe("Backend handler", func() {
 	BeforeEach(func() {
 		var err error
 
-		logger, err = log.New(GinkgoWriter)
-		Expect(err).NotTo(HaveOccurred(), "Could not create logger")
+		logger = zerolog.New(os.Stdout)
 
 		backend = ghttp.NewServer()
 
