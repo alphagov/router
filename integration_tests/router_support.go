@@ -92,7 +92,6 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_ERROR_LOG=%s", tempLogfile.Name()))
 	cmd.Env = append(cmd.Env, "CONTENT_STORE_DATABASE_URL="+postgresContainer.MustConnectionString(context.Background()))
 	cmd.Env = append(cmd.Env, extraEnv...)
 

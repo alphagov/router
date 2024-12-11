@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rs/zerolog"
 
 	"github.com/prometheus/client_golang/prometheus"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
@@ -17,16 +19,18 @@ var _ = Describe("A redirect handler", func() {
 	var handler http.Handler
 	var rr *httptest.ResponseRecorder
 	const url = "https://source.example.com/source/path/subpath?q1=a&q2=b"
+	var logger zerolog.Logger
 
 	BeforeEach(func() {
 		rr = httptest.NewRecorder()
+		logger = zerolog.New(os.Stdout)
 	})
 
 	// These behaviours apply to all combinations of both NewRedirectHandler flags.
 	for _, preserve := range []bool{true, false} {
 		Context(fmt.Sprintf("where preserve=%t", preserve), func() {
 			BeforeEach(func() {
-				handler = NewRedirectHandler("/source", "/target", preserve)
+				handler = NewRedirectHandler("/source", "/target", preserve, logger)
 				handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 			})
 
@@ -49,7 +53,7 @@ var _ = Describe("A redirect handler", func() {
 
 	Context("where preserve=true", func() {
 		BeforeEach(func() {
-			handler = NewRedirectHandler("/source", "/target", true)
+			handler = NewRedirectHandler("/source", "/target", true, logger)
 			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 		})
 
@@ -60,7 +64,7 @@ var _ = Describe("A redirect handler", func() {
 
 	Context("where preserve=false", func() {
 		BeforeEach(func() {
-			handler = NewRedirectHandler("/source", "/target", false)
+			handler = NewRedirectHandler("/source", "/target", false, logger)
 		})
 
 		It("returns only the configured path in the location header", func() {
@@ -80,7 +84,7 @@ var _ = Describe("A redirect handler", func() {
 		Entry(nil, false, http.StatusMovedPermanently),
 		Entry(nil, true, http.StatusMovedPermanently),
 		func(preserve bool, expectedStatus int) {
-			handler = NewRedirectHandler("/source", "/target", preserve)
+			handler = NewRedirectHandler("/source", "/target", preserve, logger)
 			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 			Expect(rr.Result().StatusCode).To(Equal(expectedStatus))
 		})
@@ -95,7 +99,7 @@ var _ = Describe("A redirect handler", func() {
 			lbls := prometheus.Labels{"redirect_type": typeLabel}
 			before := promtest.ToFloat64(redirectCountMetric.With(lbls))
 
-			handler = NewRedirectHandler("/source", "/target", preserve)
+			handler = NewRedirectHandler("/source", "/target", preserve, logger)
 			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 
 			after := promtest.ToFloat64(redirectCountMetric.With(lbls))

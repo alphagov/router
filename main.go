@@ -11,9 +11,11 @@ import (
 
 	"github.com/alphagov/router/handlers"
 	router "github.com/alphagov/router/lib"
-	"github.com/alphagov/router/logger"
-	sentry "github.com/getsentry/sentry-go"
+
+	"github.com/getsentry/sentry-go"
+	sentryzerolog "github.com/getsentry/sentry-go/zerolog"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 )
 
 func usage() {
@@ -83,11 +85,34 @@ func main() {
 		os.Exit(0)
 	}
 
-	router.EnableDebugOutput = os.Getenv("ROUTER_DEBUG") != ""
+	// Initialize Sentry
+	if err := sentry.Init(sentry.ClientOptions{}); err != nil {
+		panic(err)
+	}
+
+	defer sentry.Flush(2 * time.Second)
+
+	// Configure Sentry Zerolog Writer
+	writer, err := sentryzerolog.New(sentryzerolog.Config{
+		ClientOptions: sentry.ClientOptions{},
+		Options: sentryzerolog.Options{
+			Levels:          []zerolog.Level{zerolog.ErrorLevel, zerolog.FatalLevel},
+			FlushTimeout:    3 * time.Second,
+			WithBreadcrumbs: true,
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer writer.Close()
+
+	// Initialize Zerolog
+	m := zerolog.MultiLevelWriter(os.Stderr, writer)
+	logger := zerolog.New(m).With().Timestamp().Logger()
+
 	var (
 		pubAddr             = getenv("ROUTER_PUBADDR", ":8080")
 		apiAddr             = getenv("ROUTER_APIADDR", ":8081")
-		errorLogFile        = getenv("ROUTER_ERROR_LOG", "STDERR")
 		tlsSkipVerify       = os.Getenv("ROUTER_TLS_SKIP_VERIFY") != ""
 		beConnTimeout       = getenvDuration("ROUTER_BACKEND_CONNECT_TIMEOUT", "1s")
 		beHeaderTimeout     = getenvDuration("ROUTER_BACKEND_HEADER_TIMEOUT", "20s")
@@ -96,14 +121,13 @@ func main() {
 		routeReloadInterval = getenvDuration("ROUTER_ROUTE_RELOAD_INTERVAL", "1m")
 	)
 
-	log.Printf("using frontend read timeout: %v", feReadTimeout)
-	log.Printf("using frontend write timeout: %v", feWriteTimeout)
-	log.Printf("using GOMAXPROCS value of %d", runtime.GOMAXPROCS(0))
+	logger.Info().Msgf("frontend read timeout: %v", feReadTimeout)
+	logger.Info().Msgf("frontend write timeout: %v", feWriteTimeout)
+	logger.Info().Msgf("GOMAXPROCS value of %d", runtime.GOMAXPROCS(0))
 
 	if tlsSkipVerify {
 		handlers.TLSSkipVerify = true
-		log.Printf("skipping verification of TLS certificates; " +
-			"Do not use this option in a production environment.")
+		logger.Warn().Msg("skipping verification of TLS certificates; Do not use this option in a production environment.")
 	}
 
 	router.RegisterMetrics(prometheus.DefaultRegisterer)
@@ -111,25 +135,22 @@ func main() {
 	rout, err := router.NewRouter(router.Options{
 		BackendConnTimeout:   beConnTimeout,
 		BackendHeaderTimeout: beHeaderTimeout,
-		LogFileName:          errorLogFile,
 		RouteReloadInterval:  routeReloadInterval,
+		Logger:               logger,
 	})
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal().Err(err).Msg("failed to create router")
 	}
 	go rout.PeriodicRouteUpdates()
 
 	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
-	log.Printf("router: listening for requests on %v", pubAddr)
+	logger.Info().Msgf("listening for requests on %v", pubAddr)
 
 	api, err := router.NewAPIHandler(rout)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal().Err(err).Msg("failed to create API handler")
 	}
 
-	logger.InitSentry()
-	defer sentry.Flush(2 * time.Second)
-
-	log.Printf("router: listening for API requests on %v", apiAddr)
+	logger.Info().Msgf("listening for API requests on %v", apiAddr)
 	listenAndServeOrFatal(apiAddr, api, feReadTimeout, feWriteTimeout)
 }

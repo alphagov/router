@@ -17,19 +17,15 @@ func NewAPIHandler(rout *Router) (api http.Handler, err error) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		// Send a message to the Router goroutine which will check the latest
-		// oplog optime and start a reload if necessary.
-		// If the channel is already full, no message will be sent and the request
-		// won't be blocked.
 		select {
 		case rout.ReloadChan <- true:
 		default:
 		}
-		logInfo("router: reload queued")
+		rout.Logger.Info().Msg("reload queued")
 		w.WriteHeader(http.StatusAccepted)
 		_, err := w.Write([]byte("Reload queued"))
 		if err != nil {
-			logWarn(err)
+			rout.Logger.Warn().Err(err).Msg("failed to write response")
 		}
 	})
 
@@ -42,7 +38,7 @@ func NewAPIHandler(rout *Router) (api http.Handler, err error) {
 
 		_, err := w.Write([]byte("OK"))
 		if err != nil {
-			logWarn(err)
+			rout.Logger.Warn().Err(err).Msg("failed to write response")
 		}
 	})
 
@@ -58,12 +54,13 @@ func NewAPIHandler(rout *Router) (api http.Handler, err error) {
 		jsonData, err := json.MarshalIndent(memStats, "", "  ")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			rout.Logger.Error().Err(err).Msg("failed to marshal memory stats")
 			return
 		}
 
 		_, err = w.Write(jsonData)
 		if err != nil {
-			logWarn(err)
+			rout.Logger.Warn().Err(err).Msg("failed to write response")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
