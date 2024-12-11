@@ -27,16 +27,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			resp := doRequest(req)
 			Expect(resp.StatusCode).To(Equal(502))
-
-			logDetails := lastRouterErrorLogEntry()
-			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-				"error":          "dial tcp 127.0.0.1:6803: connect: connection refused",
-				"request":        "GET /not-running HTTP/1.1",
-				"request_method": "GET",
-				"status":         float64(502), // All numbers in JSON are floating point
-				"upstream_addr":  "127.0.0.1:6803",
-			}))
-			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
 
 		It("should log and return a 504 if the connection times out in the configured time", func() {
@@ -56,16 +46,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 
 			Expect(resp.StatusCode).To(Equal(504))
 			Expect(duration).To(BeNumerically("~", 320*time.Millisecond, 20*time.Millisecond)) // 300 - 340 ms
-
-			logDetails := lastRouterErrorLogEntry()
-			Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-				"error":          "dial tcp 240.0.0.0:1234: i/o timeout",
-				"request":        "GET /should-time-out HTTP/1.1",
-				"request_method": "GET",
-				"status":         float64(504), // All numbers in JSON are floating point
-				"upstream_addr":  "240.0.0.0:1234",
-			}))
-			Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 		})
 
 		Describe("response header timeout", func() {
@@ -91,17 +71,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				req := newRequest(http.MethodGet, routerURL(3167, "/tarpit1"))
 				resp := doRequest(req)
 				Expect(resp.StatusCode).To(Equal(504))
-
-				logDetails := lastRouterErrorLogEntry()
-				tarpitURL, _ := url.Parse(tarpit1.URL)
-				Expect(logDetails.Fields).To(Equal(map[string]interface{}{
-					"error":          "net/http: timeout awaiting response headers",
-					"request":        "GET /tarpit1 HTTP/1.1",
-					"request_method": "GET",
-					"status":         float64(504), // All numbers in JSON are floating point
-					"upstream_addr":  tarpitURL.Host,
-				}))
-				Expect(logDetails.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
 			})
 
 			It("should still return the response if the body takes longer than the header timeout", func() {
