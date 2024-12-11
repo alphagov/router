@@ -18,10 +18,7 @@ func TestEverything(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	err := setupTempLogfile()
-	if err != nil {
-		Fail(err.Error())
-	}
+	var err error
 
 	ctx := context.Background()
 
@@ -45,12 +42,7 @@ var _ = BeforeSuite(func() {
 	}
 })
 
-var _ = BeforeEach(func() {
-	resetTempLogfile()
-})
-
 var _ = AfterSuite(func() {
 	stopRouter(routerPort)
 	cleanupPostgresContainer()
-	cleanupTempLogfile()
 })
