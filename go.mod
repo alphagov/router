@@ -5,7 +5,7 @@ go 1.22.5
 require (
 	github.com/getsentry/sentry-go v0.30.0
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/onsi/ginkgo/v2 v2.22.1
+	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/pashagolub/pgxmock/v4 v4.3.0
 	github.com/prometheus/client_golang v1.20.5
