@@ -3,7 +3,7 @@ module github.com/alphagov/router
 go 1.22.5
 
 require (
-	github.com/getsentry/sentry-go v0.30.0
+	github.com/getsentry/sentry-go v0.31.1
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
@@ -61,6 +61,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.32.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.21.0 // indirect
 	go.opentelemetry.io/otel/trace v1.32.0 // indirect
+	golang.org/x/time v0.8.0 // indirect
 )
 
 require (
