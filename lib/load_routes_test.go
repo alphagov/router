@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 
 	"github.com/alphagov/router/triemux"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pashagolub/pgxmock/v4"
+	"github.com/rs/zerolog"
 )
 
 var _ = Describe("loadRoutes", func() {
@@ -17,6 +19,7 @@ var _ = Describe("loadRoutes", func() {
 		mockPool pgxmock.PgxPoolIface
 		mux      *triemux.Mux
 		backends map[string]http.Handler
+		logger   zerolog.Logger
 	)
 
 	BeforeEach(func() {
@@ -24,7 +27,9 @@ var _ = Describe("loadRoutes", func() {
 		mockPool, err = pgxmock.NewPool()
 		Expect(err).NotTo(HaveOccurred())
 
-		mux = triemux.NewMux()
+		logger := zerolog.New(os.Stdout)
+
+		mux = triemux.NewMux(logger)
 		backends = map[string]http.Handler{
 			"backend1": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -53,7 +58,7 @@ var _ = Describe("loadRoutes", func() {
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutes(mockPool, mux, backends)
+			err := loadRoutes(mockPool, mux, backends, logger)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -88,7 +93,7 @@ var _ = Describe("loadRoutes", func() {
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutes(mockPool, mux, backends)
+			err := loadRoutes(mockPool, mux, backends, logger)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -146,7 +151,7 @@ var _ = Describe("loadRoutes", func() {
 				AddRow(nil, stringPtr("/redirect-prefix-preserve"), stringPtr("prefix"), stringPtr("/redirected-prefix-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil)
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutes(mockPool, mux, backends)
+			err := loadRoutes(mockPool, mux, backends, logger)
 			Expect(err).NotTo(HaveOccurred())
 		})
 

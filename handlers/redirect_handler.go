@@ -9,7 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/alphagov/router/logger"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -20,12 +20,12 @@ const (
 	downcaseRedirectHandlerType       = "downcase-redirect-handler"
 )
 
-func NewRedirectHandler(source, target string, preserve bool) http.Handler {
+func NewRedirectHandler(source, target string, preserve bool, logger zerolog.Logger) http.Handler {
 	status := http.StatusMovedPermanently
 	if preserve {
-		return &pathPreservingRedirectHandler{source, target, status}
+		return &pathPreservingRedirectHandler{source, target, status, logger}
 	}
-	return &redirectHandler{target, status}
+	return &redirectHandler{target, status, logger}
 }
 
 func addCacheHeaders(w http.ResponseWriter) {
@@ -33,30 +33,34 @@ func addCacheHeaders(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, public", cacheDuration/time.Second))
 }
 
-func addGAQueryParam(target string, r *http.Request) string {
+func addGAQueryParam(target string, r *http.Request) (string, error) {
 	if ga := r.URL.Query().Get("_ga"); ga != "" {
 		u, err := url.Parse(target)
 		if err != nil {
-			defer logger.NotifySentry(logger.ReportableError{Error: err, Request: r})
-			return target
+			return target, err
 		}
 		values := u.Query()
 		values.Set("_ga", ga)
 		u.RawQuery = values.Encode()
-		return u.String()
+		return u.String(), nil
 	}
-	return target
+	return target, nil
 }
 
 type redirectHandler struct {
-	url  string
-	code int
+	url    string
+	code   int
+	logger zerolog.Logger
 }
 
 func (handler *redirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	addCacheHeaders(w)
 
-	target := addGAQueryParam(handler.url, r)
+	target, err := addGAQueryParam(handler.url, r)
+	if err != nil {
+		handler.logger.Error().Err(err).Msg("failed to add GA query param")
+	}
+
 	http.Redirect(w, r, target, handler.code)
 
 	redirectCountMetric.With(prometheus.Labels{
@@ -68,6 +72,7 @@ type pathPreservingRedirectHandler struct {
 	sourcePrefix string
 	targetPrefix string
 	code         int
+	logger       zerolog.Logger
 }
 
 func (handler *pathPreservingRedirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
