@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	_ "embed"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,6 +19,9 @@ const (
 	defaultPassword     = "postgres"
 	defaultSnapshotName = "migrated_template"
 )
+
+//go:embed resources/customEntrypoint.sh
+var embeddedCustomEntrypoint string
 
 // PostgresContainer represents the postgres container type used in the module
 type PostgresContainer struct {
@@ -136,7 +141,7 @@ func WithUsername(user string) testcontainers.CustomizeRequestOption {
 // Deprecated: use Run instead
 // RunContainer creates an instance of the Postgres container type
 func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*PostgresContainer, error) {
-	return Run(ctx, "docker.io/postgres:16-alpine", opts...)
+	return Run(ctx, "postgres:16-alpine", opts...)
 }
 
 // Run creates an instance of the Postgres container type
@@ -204,6 +209,43 @@ func WithSnapshotName(name string) SnapshotOption {
 	}
 }
 
+// WithSSLSettings configures the Postgres server to run with the provided CA Chain
+// This will not function if the corresponding postgres conf is not correctly configured.
+// Namely the paths below must match what is set in the conf file
+func WithSSLCert(caCertFile string, certFile string, keyFile string) testcontainers.CustomizeRequestOption {
+	const defaultPermission = 0o600
+
+	return func(req *testcontainers.GenericContainerRequest) error {
+		const entrypointPath = "/usr/local/bin/docker-entrypoint-ssl.bash"
+
+		req.Files = append(req.Files,
+			testcontainers.ContainerFile{
+				HostFilePath:      caCertFile,
+				ContainerFilePath: "/tmp/testcontainers-go/postgres/ca_cert.pem",
+				FileMode:          defaultPermission,
+			},
+			testcontainers.ContainerFile{
+				HostFilePath:      certFile,
+				ContainerFilePath: "/tmp/testcontainers-go/postgres/server.cert",
+				FileMode:          defaultPermission,
+			},
+			testcontainers.ContainerFile{
+				HostFilePath:      keyFile,
+				ContainerFilePath: "/tmp/testcontainers-go/postgres/server.key",
+				FileMode:          defaultPermission,
+			},
+			testcontainers.ContainerFile{
+				Reader:            strings.NewReader(embeddedCustomEntrypoint),
+				ContainerFilePath: entrypointPath,
+				FileMode:          defaultPermission,
+			},
+		)
+		req.Entrypoint = []string{"sh", entrypointPath}
+
+		return nil
+	}
+}
+
 // Snapshot takes a snapshot of the current state of the database as a template, which can then be restored using
 // the Restore method. By default, the snapshot will be created under a database called migrated_template, you can
 // customize the snapshot name with the options.
@@ -262,7 +304,7 @@ func (c *PostgresContainer) checkSnapshotConfig(opts []SnapshotOption) (string, 
 	}
 
 	if c.dbName == "postgres" {
-		return "", fmt.Errorf("cannot restore the postgres system database as it cannot be dropped to be restored")
+		return "", errors.New("cannot restore the postgres system database as it cannot be dropped to be restored")
 	}
 	return snapshotName, nil
 }
