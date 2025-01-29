@@ -104,7 +104,7 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 Engineering](https://github.com/orgs/alphagov/teams/gov-uk-platform-engineering)
 team looks after this repo. If you're inside GDS, you can find us in
 [#govuk-platform-engineering] or view our [kanban
-board](https://trello.com/b/u4FCzm53/).
+board](https://github.com/orgs/alphagov/projects/71).
 
 ## Licence
 
