@@ -8,9 +8,6 @@ loads a routing table into memory from a MongoDB database and:
 - serves HTTP `301` and `302` redirects for moved content and short URLs
 - serves `410 Gone` responses for resources that no longer exist
 
-The sister project [`router-api`][router-api] provides a read/write
-interface to the underlying database.
-
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
