@@ -8,9 +8,6 @@ loads a routing table into memory from a MongoDB database and:
 - serves HTTP `301` and `302` redirects for moved content and short URLs
 - serves `410 Gone` responses for resources that no longer exist
 
-The sister project [`router-api`][router-api] provides a read/write
-interface to the underlying database.
-
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
@@ -107,7 +104,7 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 Engineering](https://github.com/orgs/alphagov/teams/gov-uk-platform-engineering)
 team looks after this repo. If you're inside GDS, you can find us in
 [#govuk-platform-engineering] or view our [kanban
-board](https://trello.com/b/u4FCzm53/).
+board](https://github.com/orgs/alphagov/projects/71).
 
 ## Licence
 
