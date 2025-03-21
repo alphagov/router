@@ -6,7 +6,7 @@ require (
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/getsentry/sentry-go/zerolog v0.31.1
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/onsi/ginkgo/v2 v2.23.1
+	github.com/onsi/ginkgo/v2 v2.23.2
 	github.com/onsi/gomega v1.36.2
 	github.com/pashagolub/pgxmock/v4 v4.5.0
 	github.com/prometheus/client_golang v1.21.1
