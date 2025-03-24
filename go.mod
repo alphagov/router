@@ -11,7 +11,7 @@ require (
 	github.com/pashagolub/pgxmock/v4 v4.5.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/prometheus/client_model v0.6.1
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0
 	github.com/tsenart/vegeta/v12 v12.12.0
