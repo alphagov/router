@@ -1,11 +1,12 @@
 module github.com/alphagov/router
 
 go 1.23.5
+toolchain go1.24.1
 
 require (
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/getsentry/sentry-go/zerolog v0.31.1
-	github.com/jackc/pgx/v5 v5.7.2
+	github.com/jackc/pgx/v5 v5.7.4
 	github.com/onsi/ginkgo/v2 v2.23.3
 	github.com/onsi/gomega v1.36.3
 	github.com/pashagolub/pgxmock/v4 v4.5.0
