@@ -5,7 +5,7 @@ go 1.23.5
 toolchain go1.24.1
 
 require (
-	github.com/getsentry/sentry-go v0.31.1
+	github.com/getsentry/sentry-go v0.32.0
 	github.com/getsentry/sentry-go/zerolog v0.31.1
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/onsi/ginkgo/v2 v2.23.4
