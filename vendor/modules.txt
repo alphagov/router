@@ -93,7 +93,7 @@ github.com/getsentry/sentry-go/internal/debug
 github.com/getsentry/sentry-go/internal/otel/baggage
 github.com/getsentry/sentry-go/internal/otel/baggage/internal/baggage
 github.com/getsentry/sentry-go/internal/ratelimit
-# github.com/getsentry/sentry-go/zerolog v0.31.1
+# github.com/getsentry/sentry-go/zerolog v0.32.0
 ## explicit; go 1.21
 github.com/getsentry/sentry-go/zerolog
 # github.com/go-logr/logr v1.4.2
