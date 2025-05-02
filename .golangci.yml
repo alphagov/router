@@ -1,4 +1,4 @@
----
+version: "2"
 linters:
   enable:
     - asciicheck
@@ -20,19 +20,17 @@ linters:
     - promlinter
     - reassign
     - revive
-    - stylecheck
-    - tenv
     - tparallel
     - unconvert
     - usestdlibvars
     - wastedassign
     - zerologlint
-linters-settings:
-  revive:
-    rules:
-      - name: dot-imports
-        disabled: true  # Covered by stylecheck.
-  stylecheck:
-    dot-import-whitelist:
-      - github.com/onsi/ginkgo/v2
-      - github.com/onsi/gomega
+  settings:
+    revive:
+      rules:
+        - name: dot-imports
+          disabled: true
+    staticcheck:
+      dot-import-whitelist:
+        - github.com/onsi/ginkgo/v2
+        - github.com/onsi/gomega
