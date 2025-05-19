@@ -10,6 +10,10 @@ on:
       - docs
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   test-go:
     name: Test Go
