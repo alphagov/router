@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/getsentry/sentry-go v0.33.0
 	github.com/getsentry/sentry-go/zerolog v0.33.0
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.7.5
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	github.com/pashagolub/pgxmock/v4 v4.7.0
