@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -245,7 +246,9 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		It("should pass through the body unmodified", func() {
 			recorder.AppendHandlers(func(w http.ResponseWriter, req *http.Request) {
 				body, err := io.ReadAll(req.Body)
-				req.Body.Close()
+				if closeErr := req.Body.Close(); closeErr != nil {
+					fmt.Println("Failed to close the request body", err)
+				}
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("I am the request body.  Woohoo!"))
 			})

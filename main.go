@@ -79,7 +79,7 @@ func main() {
 	returnVersion := flag.Bool("version", false, "")
 	flag.Usage = usage
 	flag.Parse()
-
+	
 	fmt.Printf("GOV.UK Router %s\n", router.VersionInfo())
 	if *returnVersion {
 		os.Exit(0)
@@ -104,7 +104,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer writer.Close()
+	defer func() {
+		if err = writer.Close(); err != nil {
+			fmt.Println("Failed to close the sentry zerolog writer", err)
+		}
+	}()
 
 	// Initialize Zerolog
 	m := zerolog.MultiLevelWriter(os.Stderr, writer)

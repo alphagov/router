@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -16,8 +17,15 @@ var _ = Describe("Backends", func() {
 
 	Context("When calling loadBackendsFromEnv", func() {
 		It("should load backends from environment variables", func() {
-			os.Setenv("BACKEND_URL_testBackend", "http://example.com")
-			defer os.Unsetenv("BACKEND_URL_testBackend")
+			if err := os.Setenv("BACKEND_URL_testBackend", "http://example.com"); err != nil {
+				Fail(fmt.Sprintf("Couldn't set up test, failed to Setenv, %v", err))
+			}
+
+			defer func() {
+				if err := os.Unsetenv("BACKEND_URL_testBackend"); err != nil {
+					fmt.Println("Failed to unset env", err)
+				}
+			}()
 
 			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, logger)
 
@@ -26,8 +34,14 @@ var _ = Describe("Backends", func() {
 		})
 
 		It("should skip backends with empty URLs", func() {
-			os.Setenv("BACKEND_URL_emptyBackend", "")
-			defer os.Unsetenv("BACKEND_URL_emptyBackend")
+			if err := os.Setenv("BACKEND_URL_emptyBackend", ""); err != nil {
+				Fail(fmt.Sprintf("Couldn't set up test, failed to Setenv, %v", err))
+			}
+			defer func() {
+				if err := os.Unsetenv("BACKEND_URL_emptyBackend"); err != nil {
+					fmt.Println("Failed to unset env", err)
+				}
+			}()
 
 			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, logger)
 
@@ -35,8 +49,14 @@ var _ = Describe("Backends", func() {
 		})
 
 		It("should skip backends with invalid URLs", func() {
-			os.Setenv("BACKEND_URL_invalidBackend", "://invalid-url")
-			defer os.Unsetenv("BACKEND_URL_invalidBackend")
+			if err := os.Setenv("BACKEND_URL_invalidBackend", "://invalid-url"); err != nil {
+				Fail(fmt.Sprintf("Couldn't set up test, failed to Setenv, %v", err))
+			}
+			defer func() {
+				if err := os.Unsetenv("BACKEND_URL_invalidBackend"); err != nil {
+					fmt.Println("Failed to unset env", err)
+				}
+			}()
 
 			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, logger)
 

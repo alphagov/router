@@ -52,17 +52,26 @@ func doRequest(req *http.Request) *http.Response {
 func doHTTP10Request(req *http.Request) *http.Response {
 	conn, err := net.Dial("tcp", req.URL.Host)
 	Expect(err).NotTo(HaveOccurred())
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Println("Failed to close the connection", err)
+		}
+	}()
 
 	if req.Method == "" {
 		req.Method = http.MethodGet
 	}
 	req.Proto = "HTTP/1.0"
 	req.ProtoMinor = 0
-	fmt.Fprintf(conn, "%s %s %s\r\n", req.Method, req.URL.RequestURI(), req.Proto)
+	if _, err := fmt.Fprintf(conn, "%s %s %s\r\n", req.Method, req.URL.RequestURI(), req.Proto); err != nil {
+		fmt.Println("Failed sending data to the TCP connection", err)
+	}
 	err = req.Header.Write(conn)
 	Expect(err).NotTo(HaveOccurred())
-	fmt.Fprintf(conn, "\r\n")
+
+	if _, err := fmt.Fprintf(conn, "\r\n"); err != nil {
+		fmt.Println("Failed sending carriage return & newline to the TCP connection", err)
+	}
 
 	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
 	Expect(err).NotTo(HaveOccurred())

@@ -241,7 +241,7 @@ func TestRouteCount(t *testing.T) {
 }
 
 func loadStrings(filename string) []string {
-	content, err := os.ReadFile(filename)
+	content, err := os.ReadFile(filename) //gosec:disable G304 -- We intentionally want to read a file from a variable
 	if err != nil {
 		panic(err)
 	}
