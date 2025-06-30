@@ -21,10 +21,10 @@ linters:
     - reassign
     - revive
     - stylecheck
-    - tenv
     - tparallel
     - unconvert
     - usestdlibvars
+    - usetesting
     - wastedassign
     - zerologlint
 linters-settings:
