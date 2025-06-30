@@ -1,5 +1,5 @@
 ARG go_registry=""
-ARG go_version=1.23.5
+ARG go_version=1.24.4
 ARG go_tag_suffix=-alpine
 
 FROM --platform=$TARGETPLATFORM ${go_registry}golang:${go_version}${go_tag_suffix} AS builder

@@ -1,8 +1,6 @@
 module github.com/alphagov/router
 
-go 1.23.5
-
-toolchain go1.24.1
+go 1.24.4
 
 require (
 	github.com/getsentry/sentry-go v0.34.0
