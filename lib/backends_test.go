@@ -22,9 +22,7 @@ var _ = Describe("Backends", func() {
 			}
 
 			defer func() {
-				if err := os.Unsetenv("BACKEND_URL_testBackend"); err != nil {
-					fmt.Println("Failed to unset env", err)
-				}
+				_ = os.Unsetenv("BACKEND_URL_testBackend")
 			}()
 
 			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, logger)
@@ -38,9 +36,7 @@ var _ = Describe("Backends", func() {
 				Fail(fmt.Sprintf("Couldn't set up test, failed to Setenv, %v", err))
 			}
 			defer func() {
-				if err := os.Unsetenv("BACKEND_URL_emptyBackend"); err != nil {
-					fmt.Println("Failed to unset env", err)
-				}
+				_ = os.Unsetenv("BACKEND_URL_emptyBackend")
 			}()
 
 			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, logger)
@@ -53,9 +49,7 @@ var _ = Describe("Backends", func() {
 				Fail(fmt.Sprintf("Couldn't set up test, failed to Setenv, %v", err))
 			}
 			defer func() {
-				if err := os.Unsetenv("BACKEND_URL_invalidBackend"); err != nil {
-					fmt.Println("Failed to unset env", err)
-				}
+				_ = os.Unsetenv("BACKEND_URL_invalidBackend")
 			}()
 
 			backends := loadBackendsFromEnv(1*time.Second, 20*time.Second, logger)

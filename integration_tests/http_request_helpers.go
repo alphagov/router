@@ -52,10 +52,9 @@ func doRequest(req *http.Request) *http.Response {
 func doHTTP10Request(req *http.Request) *http.Response {
 	conn, err := net.Dial("tcp", req.URL.Host)
 	Expect(err).NotTo(HaveOccurred())
+
 	defer func() {
-		if err := conn.Close(); err != nil {
-			fmt.Println("Failed to close the connection", err)
-		}
+		_ = conn.Close()
 	}()
 
 	if req.Method == "" {

@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -40,9 +39,7 @@ func startSimpleBackend(identifier, host string) *httptest.Server {
 		_, err := w.Write([]byte(identifier))
 		Expect(err).NotTo(HaveOccurred())
 	}))
-	if err = ts.Listener.Close(); err != nil {
-		fmt.Println("Error when trying to close httptest server listener", err)
-	}
+	_ = ts.Listener.Close()
 	ts.Listener = l
 	ts.Start()
 	return ts
@@ -77,9 +74,7 @@ func startTarpitBackend(host string, delays ...time.Duration) *httptest.Server {
 		_, err := w.Write([]byte(body))
 		Expect(err).NotTo(HaveOccurred())
 	}))
-	if err = ts.Listener.Close(); err != nil {
-		fmt.Println("Error when trying to close httptest server listener", err)
-	}
+	_ = ts.Listener.Close()
 	ts.Listener = l
 	ts.Start()
 	return ts
@@ -90,9 +85,7 @@ func startRecordingBackend(tls bool, host string) *ghttp.Server {
 	Expect(err).NotTo(HaveOccurred())
 
 	ts := ghttp.NewUnstartedServer()
-	if err := ts.HTTPTestServer.Listener.Close(); err != nil {
-		fmt.Println("Failed to close the test http server default listener", err)
-	}
+	_ = ts.HTTPTestServer.Listener.Close()
 	ts.HTTPTestServer.Listener = l
 	if tls {
 		ts.HTTPTestServer.StartTLS()

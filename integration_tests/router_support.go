@@ -71,9 +71,7 @@ func reloadRoutes(port int) {
 	resp, err := http.DefaultClient.Do(req)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(resp.StatusCode).To(Equal(202))
-	if err := resp.Body.Close(); err != nil {
-		fmt.Println("Failed to close response body when calling to reload routes", err)
-	}
+	_ = resp.Body.Close()
 	// Now that reloading is done asynchronously, we need a small sleep to ensure
 	// it has actually been performed.
 	time.Sleep(time.Millisecond * 50)
@@ -128,9 +126,7 @@ func waitForServerUp(addr string) {
 	for i := 0; i < 20; i++ {
 		conn, err := net.Dial("tcp", addr)
 		if err == nil {
-			if err := conn.Close(); err != nil {
-				fmt.Println("Failed to close connection when waiting for server to come up", err)
-			}
+			_ = conn.Close()
 			return
 		}
 		time.Sleep(100 * time.Millisecond)

@@ -125,9 +125,7 @@ func newBackendTransport(
 
 func closeBody(resp *http.Response) {
 	if resp != nil && resp.Body != nil {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Println("error closing response body", err)
-		}
+		_ = resp.Body.Close()
 	}
 }
 
