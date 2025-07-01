@@ -245,7 +245,7 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 		It("should pass through the body unmodified", func() {
 			recorder.AppendHandlers(func(w http.ResponseWriter, req *http.Request) {
 				body, err := io.ReadAll(req.Body)
-				req.Body.Close()
+				_ = req.Body.Close()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(body)).To(Equal("I am the request body.  Woohoo!"))
 			})

@@ -39,7 +39,7 @@ func startSimpleBackend(identifier, host string) *httptest.Server {
 		_, err := w.Write([]byte(identifier))
 		Expect(err).NotTo(HaveOccurred())
 	}))
-	ts.Listener.Close()
+	_ = ts.Listener.Close()
 	ts.Listener = l
 	ts.Start()
 	return ts
@@ -74,7 +74,7 @@ func startTarpitBackend(host string, delays ...time.Duration) *httptest.Server {
 		_, err := w.Write([]byte(body))
 		Expect(err).NotTo(HaveOccurred())
 	}))
-	ts.Listener.Close()
+	_ = ts.Listener.Close()
 	ts.Listener = l
 	ts.Start()
 	return ts
@@ -85,7 +85,7 @@ func startRecordingBackend(tls bool, host string) *ghttp.Server {
 	Expect(err).NotTo(HaveOccurred())
 
 	ts := ghttp.NewUnstartedServer()
-	ts.HTTPTestServer.Listener.Close()
+	_ = ts.HTTPTestServer.Listener.Close()
 	ts.HTTPTestServer.Listener = l
 	if tls {
 		ts.HTTPTestServer.StartTLS()

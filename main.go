@@ -104,7 +104,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer writer.Close()
+	defer func() {
+		_ = writer.Close()
+	}()
 
 	// Initialize Zerolog
 	m := zerolog.MultiLevelWriter(os.Stderr, writer)

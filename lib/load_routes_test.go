@@ -33,15 +33,21 @@ var _ = Describe("loadRoutes", func() {
 		backends = map[string]http.Handler{
 			"backend1": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("backend1")) //nolint:errcheck
+				if _, err := w.Write([]byte("backend1")); err != nil {
+					fmt.Println("Failed to write to the response", err)
+				}
 			}),
 			"backend2": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("backend2")) //nolint:errcheck
+				if _, err:= w.Write([]byte("backend2")); err != nil {
+					fmt.Println("Failed to write to the response", err)
+				}
 			}),
 			"government-frontend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("government-frontend")) //nolint:errcheck
+				if _, err:= w.Write([]byte("government-frontend")); err != nil {
+					fmt.Println("Failed to write to the response", err)
+				}
 			}),
 		}
 	})
