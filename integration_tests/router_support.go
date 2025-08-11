@@ -88,7 +88,8 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 	if bin == "" {
 		bin = "../router"
 	}
-	cmd := exec.Command(bin) //gosec:disable G204 -- We intentionally want to exec a sub process with a var
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, bin) //gosec:disable G204 -- We intentionally want to exec a sub process with a var
 
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
@@ -105,7 +106,7 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 		return err
 	}
 
-	waitForServerUp(pubAddr)
+	waitForServerUp(ctx, pubAddr)
 
 	runningRouters[port] = cmd
 	return nil
@@ -122,9 +123,10 @@ func stopRouter(port int) {
 	delete(runningRouters, port)
 }
 
-func waitForServerUp(addr string) {
+func waitForServerUp(ctx context.Context, addr string) {
 	for i := 0; i < 20; i++ {
-		conn, err := net.Dial("tcp", addr)
+		dialer := net.Dialer{}
+		conn, err := dialer.DialContext(ctx, "tcp", addr)
 		if err == nil {
 			_ = conn.Close()
 			return

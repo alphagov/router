@@ -50,7 +50,8 @@ func doRequest(req *http.Request) *http.Response {
 }
 
 func doHTTP10Request(req *http.Request) *http.Response {
-	conn, err := net.Dial("tcp", req.URL.Host)
+	dialer := net.Dialer{}
+	conn, err := dialer.DialContext(req.Context(), "tcp", req.URL.Host)
 	Expect(err).NotTo(HaveOccurred())
 
 	defer func() {
