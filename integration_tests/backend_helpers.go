@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,8 @@ var backends = map[string]string{
 }
 
 func startSimpleBackend(identifier, host string) *httptest.Server {
-	l, err := net.Listen("tcp", host)
+	listenConfig := net.ListenConfig{}
+	l, err := listenConfig.Listen(context.Background(), "tcp", host)
 	Expect(err).NotTo(HaveOccurred())
 
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +57,8 @@ func startTarpitBackend(host string, delays ...time.Duration) *httptest.Server {
 		bodyDelay = delays[1]
 	}
 
-	l, err := net.Listen("tcp", host)
+	listenConfig := net.ListenConfig{}
+	l, err := listenConfig.Listen(context.Background(), "tcp", host)
 	Expect(err).NotTo(HaveOccurred())
 
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +84,8 @@ func startTarpitBackend(host string, delays ...time.Duration) *httptest.Server {
 }
 
 func startRecordingBackend(tls bool, host string) *ghttp.Server {
-	l, err := net.Listen("tcp", host)
+	listenConfig := net.ListenConfig{}
+	l, err := listenConfig.Listen(context.Background(), "tcp", host)
 	Expect(err).NotTo(HaveOccurred())
 
 	ts := ghttp.NewUnstartedServer()
