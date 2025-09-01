@@ -22,13 +22,13 @@ type Route struct {
 
 // returns the backend which should be used for this route
 // if the route is a gone route, but has an explaination in the details field,
-// then route to the backend, or by default to government-frontend
+// then route to the backend, or by default to frontend
 func (route *Route) backend() *string {
 	if route.SchemaName != nil && *route.SchemaName == "gone" && !route.gone() {
 		if route.BackendID != nil {
 			return route.BackendID
 		} else {
-			defaultBackend := "government-frontend"
+			defaultBackend := "frontend"
 			return &defaultBackend
 		}
 	}

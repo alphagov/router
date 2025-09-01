@@ -22,10 +22,10 @@ var _ = Describe("Route", func() {
 				Expect(route.backend()).To(Equal(&backendID))
 			})
 
-			It("should return 'government-frontend' if backend is nil", func() {
+			It("should return 'frontend' if backend is nil", func() {
 				route.SchemaName = stringPtr("gone")
 				route.Details = stringPtr(`{"key": "value"}`)
-				Expect(*route.backend()).To(Equal("government-frontend"))
+				Expect(*route.backend()).To(Equal("frontend"))
 			})
 		})
 
