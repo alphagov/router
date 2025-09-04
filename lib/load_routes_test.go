@@ -43,9 +43,9 @@ var _ = Describe("loadRoutes", func() {
 					fmt.Println("Failed to write to the response", err)
 				}
 			}),
-			"government-frontend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			"frontend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				if _, err:= w.Write([]byte("government-frontend")); err != nil {
+				if _, err:= w.Write([]byte("frontend")); err != nil {
 					fmt.Println("Failed to write to the response", err)
 				}
 			}),
@@ -90,7 +90,7 @@ var _ = Describe("loadRoutes", func() {
 	Context("when content store has gone routes", func() {
 		BeforeEach(func() {
 			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(nil, stringPtr("/government-frontend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
+				AddRow(nil, stringPtr("/frontend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
 				AddRow(stringPtr("backend2"), stringPtr("/backend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
 				AddRow(stringPtr("backend1"), stringPtr("/guidance"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
 				AddRow(nil, stringPtr("/gone-empty-attributes"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": null, \"alternative_path\": null}")).
@@ -136,13 +136,13 @@ var _ = Describe("loadRoutes", func() {
 			Expect(rr.Body.String()).To(Equal("backend2"))
 		})
 
-		It("should load government-frontend backend route with description and without backend", func() {
-			req, _ := http.NewRequest(http.MethodGet, "/government-frontend-gone", nil)
+		It("should load frontend backend route with description and without backend", func() {
+			req, _ := http.NewRequest(http.MethodGet, "/frontend-gone", nil)
 			rr := httptest.NewRecorder()
 			mux.ServeHTTP(rr, req)
 
 			Expect(rr.Code).To(Equal(http.StatusOK))
-			Expect(rr.Body.String()).To(Equal("government-frontend"))
+			Expect(rr.Body.String()).To(Equal("frontend"))
 		})
 	})
 
