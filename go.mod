@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	github.com/getsentry/sentry-go v0.35.2
-	github.com/getsentry/sentry-go/zerolog v0.35.1
+	github.com/getsentry/sentry-go/zerolog v0.35.2
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.38.2
