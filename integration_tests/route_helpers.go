@@ -125,7 +125,4 @@ func addRoute(path string, route Route) {
 func clearRoutes() {
 	_, err := pgConn.Exec(context.Background(), "TRUNCATE content_items")
 	Expect(err).NotTo(HaveOccurred())
-
-	_, err = pgConn.Exec(context.Background(), "TRUNCATE publish_intents")
-	Expect(err).NotTo(HaveOccurred())
 }
