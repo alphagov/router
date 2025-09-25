@@ -94,27 +94,25 @@ func addRoute(path string, route Route) {
 	basePath := path + "-" + route.RouteType
 
 	query := `
-        INSERT INTO content_items (base_path, details, schema_name, rendering_app, routes, redirects) VALUES (@base_path, @details, @schema_name, @rendering_app, @routes, @redirects)
+        INSERT INTO content_items (base_path, details, schema_name, routes, redirects) VALUES (@base_path, @details, @schema_name, @routes, @redirects)
     `
 	// Define the named arguments for the query.
 	var args pgx.NamedArgs
 	if route.Handler == "redirect" {
 		args = pgx.NamedArgs{
-			"base_path":     basePath,
-			"details":       "{}",
-			"schema_name":   route.Handler,
-			"rendering_app": route.BackendID,
-			"routes":        "[]",
-			"redirects":     "[{\"path\":\"" + route.IncomingPath + "\",\"type\":\"" + route.RouteType + "\",\"destination\":\"" + route.RedirectTo + "\",\"segments_mode\":\"" + route.SegmentsMode + "\"}]",
+			"base_path":   basePath,
+			"details":     "{}",
+			"schema_name": route.Handler,
+			"routes":      "[]",
+			"redirects":   "[{\"path\":\"" + route.IncomingPath + "\",\"type\":\"" + route.RouteType + "\",\"destination\":\"" + route.RedirectTo + "\",\"segments_mode\":\"" + route.SegmentsMode + "\"}]",
 		}
 	} else {
 		args = pgx.NamedArgs{
-			"base_path":     basePath,
-			"details":       "{}",
-			"schema_name":   route.Handler,
-			"rendering_app": route.BackendID,
-			"routes":        "[{\"path\":\"" + route.IncomingPath + "\",\"type\":\"" + route.RouteType + "\"}]",
-			"redirects":     "[]",
+			"base_path":   basePath,
+			"details":     "{}",
+			"schema_name": route.Handler,
+			"routes":      "[{\"path\":\"" + route.IncomingPath + "\",\"type\":\"" + route.RouteType + "\"}]",
+			"redirects":   "[]",
 		}
 	}
 	// Execute the query with named arguments to insert the book details into the database.
