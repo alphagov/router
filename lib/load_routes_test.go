@@ -31,21 +31,21 @@ var _ = Describe("loadRoutes", func() {
 
 		mux = triemux.NewMux(logger)
 		backends = map[string]http.Handler{
-			"backend1": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			"feedback": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				if _, err := w.Write([]byte("backend1")); err != nil {
-					fmt.Println("Failed to write to the response", err)
-				}
-			}),
-			"backend2": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				if _, err:= w.Write([]byte("backend2")); err != nil {
+				if _, err := w.Write([]byte("feedback")); err != nil {
 					fmt.Println("Failed to write to the response", err)
 				}
 			}),
 			"frontend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				if _, err:= w.Write([]byte("frontend")); err != nil {
+				if _, err := w.Write([]byte("frontend")); err != nil {
+					fmt.Println("Failed to write to the response", err)
+				}
+			}),
+			"government-frontend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				if _, err := w.Write([]byte("government-frontend")); err != nil {
 					fmt.Println("Failed to write to the response", err)
 				}
 			}),
@@ -58,13 +58,13 @@ var _ = Describe("loadRoutes", func() {
 
 	Context("when content store has backend routes", func() {
 		BeforeEach(func() {
-			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(stringPtr("backend1"), stringPtr("/path1"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
-				AddRow(stringPtr("backend2"), stringPtr("/path2"), stringPtr("prefix"), nil, nil, stringPtr("guidance"), stringPtr(""))
+			rows := pgxmock.NewRows([]string{"path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+				AddRow(stringPtr("/path1"), stringPtr("exact"), nil, nil, stringPtr("answer"), stringPtr("")).
+				AddRow(stringPtr("/path2"), stringPtr("prefix"), nil, nil, stringPtr("completed_transaction"), stringPtr(""))
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutes(mockPool, mux, backends, logger)
+			err := loadRoutes(mockPool, mux, schemaMap(), backends, logger)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -74,7 +74,7 @@ var _ = Describe("loadRoutes", func() {
 			mux.ServeHTTP(rr, req)
 
 			Expect(rr.Code).To(Equal(http.StatusOK))
-			Expect(rr.Body.String()).To(Equal("backend1"))
+			Expect(rr.Body.String()).To(Equal("frontend"))
 		})
 
 		It("should load backend prefix routes correctly", func() {
@@ -83,23 +83,22 @@ var _ = Describe("loadRoutes", func() {
 			mux.ServeHTTP(rr, req)
 
 			Expect(rr.Code).To(Equal(http.StatusOK))
-			Expect(rr.Body.String()).To(Equal("backend2"))
+			Expect(rr.Body.String()).To(Equal("feedback"))
 		})
 	})
 
 	Context("when content store has gone routes", func() {
 		BeforeEach(func() {
-			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(nil, stringPtr("/frontend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
-				AddRow(stringPtr("backend2"), stringPtr("/backend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
-				AddRow(stringPtr("backend1"), stringPtr("/guidance"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
-				AddRow(nil, stringPtr("/gone-empty-attributes"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": null, \"alternative_path\": null}")).
-				AddRow(nil, stringPtr("/gone-empty-details"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{}")).
-				AddRow(nil, stringPtr("/gone-nil-details"), stringPtr("exact"), nil, nil, stringPtr("gone"), nil)
+			rows := pgxmock.NewRows([]string{"path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+				AddRow(stringPtr("/frontend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
+				AddRow(stringPtr("/guidance"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
+				AddRow(stringPtr("/gone-empty-attributes"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": null, \"alternative_path\": null}")).
+				AddRow(stringPtr("/gone-empty-details"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{}")).
+				AddRow(stringPtr("/gone-nil-details"), stringPtr("exact"), nil, nil, stringPtr("gone"), nil)
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutes(mockPool, mux, backends, logger)
+			err := loadRoutes(mockPool, mux, schemaMap(), backends, logger)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -127,15 +126,6 @@ var _ = Describe("loadRoutes", func() {
 			Expect(rr.Code).To(Equal(http.StatusGone))
 		})
 
-		It("should load backend route with description and backend", func() {
-			req, _ := http.NewRequest(http.MethodGet, "/backend-gone", nil)
-			rr := httptest.NewRecorder()
-			mux.ServeHTTP(rr, req)
-
-			Expect(rr.Code).To(Equal(http.StatusOK))
-			Expect(rr.Body.String()).To(Equal("backend2"))
-		})
-
 		It("should load frontend backend route with description and without backend", func() {
 			req, _ := http.NewRequest(http.MethodGet, "/frontend-gone", nil)
 			rr := httptest.NewRecorder()
@@ -148,16 +138,16 @@ var _ = Describe("loadRoutes", func() {
 
 	Context("when content store has redirect routes", func() {
 		BeforeEach(func() {
-			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(nil, stringPtr("/redirect-exact"), stringPtr("exact"), stringPtr("/redirected-exact"), nil, stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-prefix"), stringPtr("prefix"), stringPtr("/redirected-prefix"), nil, stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-exact-ignore"), stringPtr("exact"), stringPtr("/redirected-exact-ignore"), stringPtr("ignore"), stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-prefix-ignore"), stringPtr("prefix"), stringPtr("/redirected-prefix-ignore"), stringPtr("ignore"), stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-exact-preserve"), stringPtr("exact"), stringPtr("/redirected-exact-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-prefix-preserve"), stringPtr("prefix"), stringPtr("/redirected-prefix-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil)
+			rows := pgxmock.NewRows([]string{"path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+				AddRow(stringPtr("/redirect-exact"), stringPtr("exact"), stringPtr("/redirected-exact"), nil, stringPtr("redirect"), nil).
+				AddRow(stringPtr("/redirect-prefix"), stringPtr("prefix"), stringPtr("/redirected-prefix"), nil, stringPtr("redirect"), nil).
+				AddRow(stringPtr("/redirect-exact-ignore"), stringPtr("exact"), stringPtr("/redirected-exact-ignore"), stringPtr("ignore"), stringPtr("redirect"), nil).
+				AddRow(stringPtr("/redirect-prefix-ignore"), stringPtr("prefix"), stringPtr("/redirected-prefix-ignore"), stringPtr("ignore"), stringPtr("redirect"), nil).
+				AddRow(stringPtr("/redirect-exact-preserve"), stringPtr("exact"), stringPtr("/redirected-exact-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil).
+				AddRow(stringPtr("/redirect-prefix-preserve"), stringPtr("prefix"), stringPtr("/redirected-prefix-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil)
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutes(mockPool, mux, backends, logger)
+			err := loadRoutes(mockPool, mux, schemaMap(), backends, logger)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -232,13 +222,14 @@ var _ = Describe("Router", func() {
 			router = &Router{
 				lock: sync.RWMutex{},
 				backends: map[string]http.Handler{
-					"backend1": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					"feedback": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						http.Redirect(w, r, "http://example.com", http.StatusFound)
 					}),
-					"backend2": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					"frontend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						http.Redirect(w, r, "http://example.com", http.StatusFound)
 					}),
 				},
+				schema_map: schemaMap(),
 			}
 		})
 
@@ -247,9 +238,9 @@ var _ = Describe("Router", func() {
 		})
 
 		It("should reload routes from content store successfully", func() {
-			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(stringPtr("backend1"), stringPtr("/path1"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
-				AddRow(stringPtr("backend2"), stringPtr("/path2"), stringPtr("prefix"), nil, nil, stringPtr("guidance"), stringPtr(""))
+			rows := pgxmock.NewRows([]string{"path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+				AddRow(stringPtr("/path1"), stringPtr("exact"), nil, nil, stringPtr("answer"), stringPtr("")).
+				AddRow(stringPtr("/path2"), stringPtr("prefix"), nil, nil, stringPtr("completed_transaction"), stringPtr(""))
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 

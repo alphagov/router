@@ -4,7 +4,6 @@ WITH
         FROM content_items AS c, LATERAL jsonb_array_elements(c.routes || c.redirects) AS route
     )
 SELECT
-    content_items.rendering_app AS backend,
     route ->> 'path' AS path,
     route ->> 'type' AS match_type,
     route ->> 'destination' AS destination,
