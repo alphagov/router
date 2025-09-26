@@ -26,7 +26,7 @@ type PgxIface interface {
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 }
 
-func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler, logger zerolog.Logger) error {
+func addHandler(mux *triemux.Mux, route *Route, backendHandler http.Handler, logger zerolog.Logger) error {
 	if route.IncomingPath == nil || route.RouteType == nil {
 		logger.Warn().Interface("route", route).Msg("ignoring route with nil fields")
 		return nil
@@ -42,17 +42,11 @@ func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler
 
 	switch route.handlerType() {
 	case HandlerTypeBackend:
-		backend := route.backend()
-		if backend == nil {
+		if backendHandler == nil {
 			logger.Warn().Str("incoming_path", *route.IncomingPath).Msg("ignoring route with nil backend_id")
 			return nil
 		}
-		handler, ok := backends[*backend]
-		if !ok {
-			logger.Warn().Str("incoming_path", *route.IncomingPath).Str("backend_id", *route.BackendID).Msg("ignoring route with unknown backend")
-			return nil
-		}
-		mux.Handle(incomingURL.Path, prefix, handler)
+		mux.Handle(incomingURL.Path, prefix, backendHandler)
 	case HandlerTypeRedirect:
 		if route.RedirectTo == nil {
 			logger.Warn().Str("incoming_path", *route.IncomingPath).Msg("ignoring route with nil redirect_to")
@@ -71,7 +65,7 @@ func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler
 	return nil
 }
 
-func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handler, logger zerolog.Logger) error {
+func loadRoutes(pool PgxIface, mux *triemux.Mux, schema_map map[string]string, backends map[string]http.Handler, logger zerolog.Logger) error {
 	rows, err := pool.Query(context.Background(), loadRoutesQuery)
 	if err != nil {
 		return err
@@ -81,7 +75,6 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 	for rows.Next() {
 		route := &Route{}
 		scans := []any{
-			&route.BackendID,
 			&route.IncomingPath,
 			&route.RouteType,
 			&route.RedirectTo,
@@ -95,7 +88,7 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 			return err
 		}
 
-		err = addHandler(mux, route, backends, logger)
+		err = addHandler(mux, route, backends[schema_map[*route.SchemaName]], logger)
 		if err != nil {
 			return err
 		}
@@ -182,7 +175,7 @@ func (rt *Router) reloadRoutes(pool PgxIface) {
 	rt.Logger.Info().Msg("reloading routes from content store")
 	newmux := triemux.NewMux(rt.Logger)
 
-	err := loadRoutes(pool, newmux, rt.backends, rt.Logger)
+	err := loadRoutes(pool, newmux, rt.schema_map, rt.backends, rt.Logger)
 	if err != nil {
 		rt.Logger.Warn().Err(err).Msg("error reloading routes")
 		return

@@ -29,6 +29,7 @@ const (
 // routes from a postgres database.
 type Router struct {
 	backends              map[string]http.Handler
+	schema_map            map[string]string
 	mux                   *triemux.Mux
 	lock                  sync.RWMutex
 	opts                  Options
@@ -66,6 +67,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 	reloadChan := make(chan bool, 1)
 	rt = &Router{
 		backends:   backends,
+		schema_map: schemaMap(),
 		mux:        triemux.NewMux(o.Logger),
 		Logger:     o.Logger,
 		opts:       o,
