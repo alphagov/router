@@ -41,17 +41,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
         "scheduled_publishing_delay_seconds" BIGINT
     );
 
-    CREATE TABLE "publish_intents" (
-        "id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-        "base_path" VARCHAR UNIQUE,
-        "publish_time" TIMESTAMP,
-        "publishing_app" VARCHAR,
-        "rendering_app" VARCHAR,
-        "routes" JSONB DEFAULT '[]'::jsonb,
-        "created_at" TIMESTAMP,
-        "updated_at" TIMESTAMP
-    );
-
     CREATE INDEX "index_content_items_on_content_id" ON "content_items" ("content_id");
     CREATE INDEX "index_content_items_on_created_at" ON "content_items" ("created_at");
     CREATE INDEX "index_content_items_on_redirects" ON "content_items" USING gin("redirects");
@@ -59,12 +48,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     CREATE INDEX "index_content_items_on_routes" ON "content_items" USING gin("routes");
     CREATE INDEX "ix_ci_routes_jsonb_path_ops" ON "content_items" USING gin("routes" jsonb_path_ops);
     CREATE INDEX "index_content_items_on_updated_at" ON "content_items" ("updated_at");
-
-    CREATE INDEX "index_publish_intents_on_created_at" ON "publish_intents" ("created_at");
-    CREATE INDEX "index_publish_intents_on_publish_time" ON "publish_intents" ("publish_time");
-    CREATE INDEX "index_publish_intents_on_routes" ON "publish_intents" USING gin("routes");
-    CREATE INDEX "ix_pi_routes_jsonb_path_ops" ON "publish_intents" USING gin("routes" jsonb_path_ops);
-    CREATE INDEX "index_publish_intents_on_updated_at" ON "publish_intents" ("updated_at");
 
     CREATE OR REPLACE FUNCTION notify_route_change() RETURNS trigger AS \$$
     BEGIN
@@ -75,9 +58,5 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
     CREATE TRIGGER content_item_change_trigger
     AFTER INSERT OR UPDATE OR DELETE ON content_items
-    FOR EACH ROW EXECUTE PROCEDURE notify_route_change();
-
-    CREATE TRIGGER publish_intent_change_trigger
-    AFTER INSERT OR UPDATE OR DELETE ON publish_intents
     FOR EACH ROW EXECUTE PROCEDURE notify_route_change();
 EOSQL
