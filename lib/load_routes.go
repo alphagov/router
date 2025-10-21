@@ -142,6 +142,11 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 }
 
 func (rt *Router) PeriodicRouteUpdates() {
+	// Skip periodic updates if ReloadChan is nil (e.g., when using flat file)
+	if rt.ReloadChan == nil {
+		return
+	}
+
 	tick := time.Tick(5 * time.Second)
 	for range tick {
 		if time.Since(rt.lastAttemptReloadTime) > rt.opts.RouteReloadInterval {
