@@ -29,6 +29,7 @@ ROUTER_PUBADDR=:8080             Address on which to serve public requests
 ROUTER_APIADDR=:8081             Address on which to receive reload requests
 ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
 ROUTER_DEBUG=                    Enable debug output if non-empty
+ROUTER_ROUTES_FILE=              Load routes from a JSONL file instead of PostgreSQL if non-empty
 
 Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration)
 

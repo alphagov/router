@@ -1,0 +1,5 @@
+{"BackendID":"backend-1","IncomingPath":"/","RouteType":"exact","RedirectTo":null,"SegmentsMode":null,"SchemaName":null,"Details":null}
+{"BackendID":"backend-1","IncomingPath":"/foo","RouteType":"prefix","RedirectTo":null,"SegmentsMode":null,"SchemaName":null,"Details":null}
+{"BackendID":null,"IncomingPath":"/old-path","RouteType":"exact","RedirectTo":"/new-path","SegmentsMode":"ignore","SchemaName":"redirect","Details":null}
+{"BackendID":null,"IncomingPath":"/moved","RouteType":"prefix","RedirectTo":"/destination","SegmentsMode":"preserve","SchemaName":"redirect","Details":null}
+{"BackendID":null,"IncomingPath":"/gone","RouteType":"exact","RedirectTo":null,"SegmentsMode":null,"SchemaName":"gone","Details":null}

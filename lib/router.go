@@ -55,6 +55,33 @@ func RegisterMetrics(r prometheus.Registerer) {
 func NewRouter(o Options) (rt *Router, err error) {
 	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, o.Logger)
 
+	// Load routes from a flat file
+	routesFile := os.Getenv("ROUTER_ROUTES_FILE")
+	if routesFile != "" {
+		o.Logger.Info().Str("file", routesFile).Msg("loading routes from flat file")
+
+		mux := triemux.NewMux(o.Logger)
+		err = loadRoutesFromFile(routesFile, mux, backends, o.Logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load routes from file: %w", err)
+		}
+
+		routeCount := mux.RouteCount()
+		o.Logger.Info().Int("route_count", routeCount).Msg("loaded routes from file")
+		routesCountMetric.WithLabelValues("file").Set(float64(routeCount))
+
+		rt = &Router{
+			backends: backends,
+			mux:      mux,
+			Logger:   o.Logger,
+			opts:     o,
+			// No ReloadChan or pool when using flat file
+		}
+
+		return rt, nil
+	}
+
+	// Load routes from PostgreSQL
 	var pool *pgxpool.Pool
 
 	pool, err = pgxpool.New(context.Background(), os.Getenv("CONTENT_STORE_DATABASE_URL"))
