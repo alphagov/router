@@ -10,7 +10,7 @@ loads a routing table into memory from a PostgreSQL database and:
 
 ## How it works
 
-Router loads its routing table from a PostgreSQL database (or optionally from a flat file). It uses a trie data structure for fast path lookups, maintaining two separate tries: one for exact path matches and one for prefix matches. When a request comes in, Router first checks for an exact match, then falls back to the longest prefix match.
+Router loads its routing table from [Content Store's](https://github.com/alphagov/content-store/) PostgreSQL database (or optionally from a flat file). It uses a trie data structure for fast path lookups, maintaining two separate tries: one for exact path matches and one for prefix matches. When a request comes in, Router first checks for an exact match, then falls back to the longest prefix match.
 
 Router can reload routes without restarting, either automatically via PostgreSQL's `LISTEN/NOTIFY`, on a periodic schedule, or manually via the API.
 
