@@ -21,7 +21,11 @@ import (
 func usage() {
 	helpstring := `
 GOV.UK Router %s
-Usage: %s [-version]
+Usage: %s [-version] [-export-routes]
+
+Flags:
+  -version          Print version and exit
+  -export-routes    Dump routes from database to stdout in JSONL format and exit
 
 The following environment variables and defaults are available:
 
@@ -77,12 +81,22 @@ func listenAndServeOrFatal(addr string, handler http.Handler, rTimeout time.Dura
 }
 
 func main() {
-	returnVersion := flag.Bool("version", false, "")
+	returnVersion := flag.Bool("version", false, "Print version and exit")
+	exportRoutes := flag.Bool("export-routes", false, "Export routes from database to JSONL format and exit")
 	flag.Usage = usage
 	flag.Parse()
 
-	fmt.Printf("GOV.UK Router %s\n", router.VersionInfo())
+	fmt.Fprintf(os.Stderr, "GOV.UK Router %s\n", router.VersionInfo())
 	if *returnVersion {
+		os.Exit(0)
+	}
+
+	if *exportRoutes {
+		// Configure logger for export mode (logs to stderr, routes to stdout)
+		logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+		if err := router.ExportRoutes(os.Stdout, logger); err != nil {
+			logger.Fatal().Err(err).Msg("failed to export routes")
+		}
 		os.Exit(0)
 	}
 
