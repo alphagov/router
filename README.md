@@ -8,6 +8,23 @@ loads a routing table into memory from a PostgreSQL database and:
 - serves HTTP `301` and `302` redirects for moved content and short URLs
 - serves `410 Gone` responses for resources that no longer exist
 
+## How it works
+
+Router uses a trie data structure for fast path lookups. It maintains two separate tries: one for exact path matches and one for prefix matches. When a request comes in, the router first checks for an exact match, then falls back to the longest prefix match.
+
+Routes can be one of two types:
+- **exact**: The path must match exactly (e.g., `/government` matches only `/government`)
+- **prefix**: The path prefix must match (e.g., `/government` matches `/government`, `/government/policies`, etc.)
+
+Each matched route is handled by one of three handler types:
+- **backend**: Reverse proxies the request to a backend application server
+- **redirect**: Returns an HTTP 301 redirect to a new location
+- **gone**: Returns an HTTP 410 Gone response for deleted content
+
+The router runs two HTTP servers: a public server (default `:8080`) for handling requests, and an API server (default `:8081`) for admin operations like reloading routes and exposing metrics.
+
+For details on the route data structure and handler configuration, see [docs/data-structure.md](docs/data-structure.md).
+
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
