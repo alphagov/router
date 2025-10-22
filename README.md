@@ -27,6 +27,36 @@ Router runs two HTTP servers: a public server (default `:8080`) for handling req
 
 For details on the route data structure and handler configuration, see [docs/data-structure.md](docs/data-structure.md).
 
+## Configuration
+
+Router is configured via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ROUTER_PUBADDR` | `:8080` | Public request server address |
+| `ROUTER_APIADDR` | `:8081` | API/admin server address |
+| `ROUTER_BACKEND_CONNECT_TIMEOUT` | `1s` | Backend connection timeout |
+| `ROUTER_BACKEND_HEADER_TIMEOUT` | `20s` | Backend response header timeout |
+| `ROUTER_FRONTEND_READ_TIMEOUT` | `60s` | Client request read timeout |
+| `ROUTER_FRONTEND_WRITE_TIMEOUT` | `60s` | Client response write timeout |
+| `ROUTER_ROUTE_RELOAD_INTERVAL` | `1m` | Periodic route reload interval |
+| `ROUTER_TLS_SKIP_VERIFY` | unset | Skip TLS verification |
+| `ROUTER_DEBUG` | unset | Enable debug logging |
+| `ROUTER_ERROR_LOG` | `STDERR` | Error log file path |
+| `ROUTER_ROUTES_FILE` | unset | Load routes from JSONL file instead of PostgreSQL |
+| `CONTENT_STORE_DATABASE_URL` | unset | PostgreSQL connection string |
+| `SENTRY_DSN` | unset | Sentry error tracking DSN |
+| `SENTRY_ENVIRONMENT` | unset | Sentry environment tag |
+
+Backend applications are configured with `BACKEND_URL_<backend_id>` environment variables:
+
+```bash
+export BACKEND_URL_frontend=http://localhost:3000
+export BACKEND_URL_publisher=http://localhost:3001
+```
+
+Routes reference these backends by their ID (e.g., "frontend", "publisher").
+
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)

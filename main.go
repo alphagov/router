@@ -34,7 +34,7 @@ ROUTER_ROUTES_FILE=              Load routes from a JSONL file instead of Postgr
 Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration)
 
 ROUTER_BACKEND_CONNECT_TIMEOUT=1s  Connect timeout when connecting to backends
-ROUTER_BACKEND_HEADER_TIMEOUT=15s  Timeout for backend response headers to be returned
+ROUTER_BACKEND_HEADER_TIMEOUT=20s  Timeout for backend response headers to be returned
 ROUTER_FRONTEND_READ_TIMEOUT=60s   See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:ReadTimeout
 ROUTER_FRONTEND_WRITE_TIMEOUT=60s  See https://cs.opensource.google/go/go/+/master:src/net/http/server.go?q=symbol:WriteTimeout
 ROUTER_ROUTE_RELOAD_INTERVAL=1m  Interval for periodic route reloads
