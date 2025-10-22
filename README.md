@@ -1,7 +1,7 @@
 # Router
 
 GOV.UK Router is an HTTP reverse proxy built on top of [`triemux`][tm]. It
-loads a routing table into memory from a MongoDB database and:
+loads a routing table into memory from a PostgreSQL database and:
 
 - forwards requests to backend application servers according to the path in the
   request URL
@@ -39,7 +39,7 @@ The `trie` and `triemux` packages have unit tests. To run these on their own:
 go test -bench=. ./trie ./triemux
 ```
 
-The integration tests need Docker in order to run MongoDB. They are intended
+The integration tests need Docker in order to run PostgreSQL. They are intended
 to cover Router's overall request handling, error reporting and performance.
 
 You can use `--ginkgo.focus <partial regex>` to run a subset of the integration
