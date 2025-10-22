@@ -10,7 +10,9 @@ loads a routing table into memory from a PostgreSQL database and:
 
 ## How it works
 
-Router uses a trie data structure for fast path lookups. It maintains two separate tries: one for exact path matches and one for prefix matches. When a request comes in, the router first checks for an exact match, then falls back to the longest prefix match.
+Router loads its routing table from a PostgreSQL database (or optionally from a flat file). It uses a trie data structure for fast path lookups, maintaining two separate tries: one for exact path matches and one for prefix matches. When a request comes in, Router first checks for an exact match, then falls back to the longest prefix match.
+
+Router can reload routes without restarting, either automatically via PostgreSQL's `LISTEN/NOTIFY`, on a periodic schedule, or manually via the API.
 
 Routes can be one of two types:
 - **exact**: The path must match exactly (e.g., `/government` matches only `/government`)
@@ -21,7 +23,7 @@ Each matched route is handled by one of three handler types:
 - **redirect**: Returns an HTTP 301 redirect to a new location
 - **gone**: Returns an HTTP 410 Gone response for deleted content
 
-The router runs two HTTP servers: a public server (default `:8080`) for handling requests, and an API server (default `:8081`) for admin operations like reloading routes and exposing metrics.
+Router runs two HTTP servers: a public server (default `:8080`) for handling requests, and an API server (default `:8081`) for admin operations like reloading routes and exposing metrics.
 
 For details on the route data structure and handler configuration, see [docs/data-structure.md](docs/data-structure.md).
 
