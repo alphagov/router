@@ -49,7 +49,7 @@ func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler
 		}
 		handler, ok := backends[*backend]
 		if !ok {
-			logger.Warn().Str("incoming_path", *route.IncomingPath).Str("backend_id", *route.BackendID).Msg("ignoring route with unknown backend")
+			logger.Warn().Str("incoming_path", *route.IncomingPath).Str("backend_id", *backend).Msg("ignoring route with unknown backend")
 			return nil
 		}
 		mux.Handle(incomingURL.Path, prefix, handler)
