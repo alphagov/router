@@ -1,12 +1,61 @@
 # Router
 
 GOV.UK Router is an HTTP reverse proxy built on top of [`triemux`][tm]. It
-loads a routing table into memory from a MongoDB database and:
+loads a routing table into memory from a PostgreSQL database and:
 
 - forwards requests to backend application servers according to the path in the
   request URL
 - serves HTTP `301` and `302` redirects for moved content and short URLs
 - serves `410 Gone` responses for resources that no longer exist
+
+## How it works
+
+Router loads its routing table from [Content Store's](https://github.com/alphagov/content-store/) PostgreSQL database (or optionally from a flat file). It uses a [trie data structure](https://en.wikipedia.org/wiki/Trie) for fast path lookups, maintaining two separate tries: one for exact path matches and one for prefix matches. When a request comes in, Router first checks for an exact match, then falls back to the longest prefix match.
+
+Router can reload routes without restarting, either automatically via PostgreSQL's `LISTEN/NOTIFY`, on a periodic schedule, or manually via the API.
+
+Routes can be one of two types:
+- **exact**: The path must match exactly (e.g., `/government` matches only `/government`)
+- **prefix**: The path prefix must match (e.g., `/government` matches `/government`, `/government/policies`, etc.)
+
+Each matched route is handled by one of three handler types:
+- **backend**: Reverse proxies the request to a backend application server
+- **redirect**: Returns an HTTP 301 redirect to a new location
+- **gone**: Returns an HTTP 410 Gone response for deleted content
+
+Router runs two HTTP servers: a public server (default `:8080`) for handling requests, and an API server (default `:8081`) for admin operations like reloading routes and exposing metrics.
+
+For details on the route data structure and handler configuration, see [docs/data-structure.md](docs/data-structure.md).
+
+## Configuration
+
+Router is configured via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ROUTER_PUBADDR` | `:8080` | Public request server address |
+| `ROUTER_APIADDR` | `:8081` | API/admin server address |
+| `ROUTER_BACKEND_CONNECT_TIMEOUT` | `1s` | Backend connection timeout |
+| `ROUTER_BACKEND_HEADER_TIMEOUT` | `20s` | Backend response header timeout |
+| `ROUTER_FRONTEND_READ_TIMEOUT` | `60s` | Client request read timeout |
+| `ROUTER_FRONTEND_WRITE_TIMEOUT` | `60s` | Client response write timeout |
+| `ROUTER_ROUTE_RELOAD_INTERVAL` | `1m` | Periodic route reload interval |
+| `ROUTER_TLS_SKIP_VERIFY` | unset | Skip TLS verification |
+| `ROUTER_DEBUG` | unset | Enable debug logging |
+| `ROUTER_ERROR_LOG` | `STDERR` | Error log file path |
+| `ROUTER_ROUTES_FILE` | unset | Load routes from JSONL file instead of PostgreSQL |
+| `CONTENT_STORE_DATABASE_URL` | unset | PostgreSQL connection string |
+| `SENTRY_DSN` | unset | Sentry error tracking DSN |
+| `SENTRY_ENVIRONMENT` | unset | Sentry environment tag |
+
+Backend applications are configured with `BACKEND_URL_<backend_id>` environment variables:
+
+```bash
+export BACKEND_URL_frontend=http://localhost:3000
+export BACKEND_URL_publisher=http://localhost:3001
+```
+
+Routes reference these backends by their ID (e.g., "frontend", "publisher").
 
 ## Technical documentation
 
@@ -39,7 +88,7 @@ The `trie` and `triemux` packages have unit tests. To run these on their own:
 go test -bench=. ./trie ./triemux
 ```
 
-The integration tests need Docker in order to run MongoDB. They are intended
+The integration tests need Docker in order to run PostgreSQL. They are intended
 to cover Router's overall request handling, error reporting and performance.
 
 You can use `--ginkgo.focus <partial regex>` to run a subset of the integration
