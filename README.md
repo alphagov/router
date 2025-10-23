@@ -57,6 +57,27 @@ export BACKEND_URL_publisher=http://localhost:3001
 
 Routes reference these backends by their ID (e.g., "frontend", "publisher").
 
+### Serving routes from a flat file
+
+When `ROUTER_ROUTES_FILE` is set, Router will load routes from the specified [JSONL file](https://jsonlines.org/) (one JSON object per line).
+Router will also no longer load routes from PostgreSQL, and periodic route updates are disabled.
+
+Example file:
+
+```jsonl
+{"BackendID":"frontend","IncomingPath":"/government","RouteType":"prefix","RedirectTo":null,"SegmentsMode":null,"SchemaName":null,"Details":null}
+{"BackendID":null,"IncomingPath":"/old-page","RouteType":"exact","RedirectTo":"/new-page","SegmentsMode":"ignore","SchemaName":"redirect","Details":null}
+{"BackendID":null,"IncomingPath":"/deleted","RouteType":"exact","RedirectTo":null,"SegmentsMode":null,"SchemaName":"gone","Details":null}
+```
+
+You can export routes from PostgreSQL to JSONL format using:
+
+```bash
+./router -export-routes > routes.jsonl
+```
+
+This can be used to continue serving routes when Content Store's database is down for maintenance.
+
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
