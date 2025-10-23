@@ -59,7 +59,7 @@ Routes reference these backends by their ID (e.g., "frontend", "publisher").
 
 ### Serving routes from a flat file
 
-When `ROUTER_ROUTES_FILE` is set, Router will load routes from the specified JSONL file (one JSON object per line).
+When `ROUTER_ROUTES_FILE` is set, Router will load routes from the specified [JSONL file](https://jsonlines.org/) (one JSON object per line).
 Router will also no longer load routes from PostgreSQL, and periodic route updates are disabled.
 
 Example file:
