@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 )
 
-// ExportRoutes queries the database and writes routes to the provided writer in JSONL format
-func ExportRoutes(writer io.Writer, logger zerolog.Logger) error {
+// ExportRoutes queries the database and writes routes to the specified file in JSONL format
+func ExportRoutes(filePath string, logger zerolog.Logger) error {
 	databaseURL := os.Getenv("CONTENT_STORE_DATABASE_URL")
 	if databaseURL == "" {
 		return fmt.Errorf("CONTENT_STORE_DATABASE_URL environment variable is required")
@@ -31,6 +30,17 @@ func ExportRoutes(writer io.Writer, logger zerolog.Logger) error {
 		return fmt.Errorf("failed to query routes: %w", err)
 	}
 	defer rows.Close()
+
+	// Create the output file
+	file, err := os.Create(filePath) // #nosec G304 - filePath is provided via environment variable
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", filePath, err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			logger.Warn().Err(closeErr).Msg("failed to close output file")
+		}
+	}()
 
 	routeCount := 0
 	for rows.Next() {
@@ -58,7 +68,7 @@ func ExportRoutes(writer io.Writer, logger zerolog.Logger) error {
 		}
 
 		// Write JSON line
-		if _, err := fmt.Fprintf(writer, "%s\n", jsonBytes); err != nil {
+		if _, err := fmt.Fprintf(file, "%s\n", jsonBytes); err != nil {
 			return fmt.Errorf("failed to write route: %w", err)
 		}
 
@@ -69,6 +79,6 @@ func ExportRoutes(writer io.Writer, logger zerolog.Logger) error {
 		return fmt.Errorf("error iterating routes: %w", err)
 	}
 
-	logger.Info().Int("route_count", routeCount).Msg("exported routes")
+	logger.Info().Int("route_count", routeCount).Str("file", filePath).Msg("exported routes")
 	return nil
 }
