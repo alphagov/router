@@ -25,7 +25,7 @@ Usage: %s [-version] [-export-routes]
 
 Flags:
   -version          Print version and exit
-  -export-routes    Dump routes from database to stdout in JSONL format and exit
+  -export-routes    Dump routes from database to JSONL file and exit (requires ROUTER_ROUTES_FILE)
 
 The following environment variables and defaults are available:
 
@@ -92,9 +92,15 @@ func main() {
 	}
 
 	if *exportRoutes {
-		// Configure logger for export mode (logs to stderr, routes to stdout)
 		logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
-		if err := router.ExportRoutes(os.Stdout, logger); err != nil {
+
+		routesFile := os.Getenv("ROUTER_ROUTES_FILE")
+		if routesFile == "" {
+			logger.Error().Msg("ROUTER_ROUTES_FILE environment variable is required when using -export-routes")
+			os.Exit(1)
+		}
+
+		if err := router.ExportRoutes(routesFile, logger); err != nil {
 			logger.Fatal().Err(err).Msg("failed to export routes")
 		}
 		os.Exit(0)

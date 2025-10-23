@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -27,13 +26,25 @@ var _ = Describe("Route Export", func() {
 		err := os.Setenv("CONTENT_STORE_DATABASE_URL", postgresContainer.MustConnectionString(ctx))
 		Expect(err).NotTo(HaveOccurred())
 
-		var buf bytes.Buffer
+		// Create a temporary file for export
+		tmpFile, err := os.CreateTemp("", "routes-*.jsonl")
+		Expect(err).NotTo(HaveOccurred())
+		tmpFileName := tmpFile.Name()
+		Expect(tmpFile.Close()).To(Succeed())
+		defer func() {
+			_ = os.Remove(tmpFileName)
+		}()
+
 		logger := zerolog.Nop()
 
-		err = router.ExportRoutes(&buf, logger)
+		err = router.ExportRoutes(tmpFileName, logger)
 		Expect(err).NotTo(HaveOccurred())
 
-		output := buf.String()
+		// Read the exported file
+		content, err := os.ReadFile(tmpFileName) // #nosec G304 - test uses temp file
+		Expect(err).NotTo(HaveOccurred())
+
+		output := string(content)
 		Expect(output).NotTo(BeEmpty())
 
 		// Verify JSONL format - each line should be valid JSON
@@ -61,14 +72,26 @@ var _ = Describe("Route Export", func() {
 		err := os.Setenv("CONTENT_STORE_DATABASE_URL", postgresContainer.MustConnectionString(ctx))
 		Expect(err).NotTo(HaveOccurred())
 
-		var buf bytes.Buffer
+		// Create a temporary file for export
+		tmpFile, err := os.CreateTemp("", "routes-*.jsonl")
+		Expect(err).NotTo(HaveOccurred())
+		tmpFileName := tmpFile.Name()
+		Expect(tmpFile.Close()).To(Succeed())
+		defer func() {
+			_ = os.Remove(tmpFileName)
+		}()
+
 		logger := zerolog.Nop()
 
 		// Export routes
-		err = router.ExportRoutes(&buf, logger)
+		err = router.ExportRoutes(tmpFileName, logger)
 		Expect(err).NotTo(HaveOccurred())
 
-		output := buf.String()
+		// Read the exported file
+		content, err := os.ReadFile(tmpFileName) // #nosec G304 - test uses temp file
+		Expect(err).NotTo(HaveOccurred())
+
+		output := string(content)
 		lines := strings.Split(strings.TrimSpace(output), "\n")
 
 		// Verify we can parse each exported route

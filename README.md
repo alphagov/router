@@ -70,10 +70,10 @@ Example file:
 {"BackendID":null,"IncomingPath":"/deleted","RouteType":"exact","RedirectTo":null,"SegmentsMode":null,"SchemaName":"gone","Details":null}
 ```
 
-You can export routes from PostgreSQL to JSONL format using:
+You can export routes from PostgreSQL to a JSONL file using:
 
 ```bash
-./router -export-routes > routes.jsonl
+ROUTER_ROUTES_FILE=/path/to/routes.jsonl ./router -export-routes
 ```
 
 This can be used to continue serving routes when Content Store's database is down for maintenance.
