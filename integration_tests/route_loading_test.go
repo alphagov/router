@@ -2,6 +2,7 @@ package integration
 
 import (
 	"net/http/httptest"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -69,4 +70,40 @@ var _ = Describe("loading routes from the db", func() {
 			Expect(readBody(resp)).To(Equal("backend 1"))
 		})
 	})
+
+	Context("when content store listeners are disabled", func() {
+		BeforeEach(func() {
+			err := startRouterWithContentStoreListenersDisabled(3270, 3271)
+			Expect(err).NotTo(HaveOccurred())
+
+			addRoute("/known", NewBackendRoute("backend-1"))
+			reloadRoutes(3271)
+		})
+
+		AfterEach(func() {
+			stopRouter(3270)
+		})
+
+		It("does not load the new route when it is added to the database", func() {
+			addRoute("/listener-disabled", NewBackendRoute("backend-1"))
+
+			// Use a "Consistently" test to ensure we're not
+			// seeing success because of a race condition
+			Consistently(func() int {
+				resp := routerRequest(3270, "/listener-disabled")
+				return resp.StatusCode
+			}).WithTimeout(time.Second * 5).
+				WithPolling(time.Millisecond * 500).
+				Should(Equal(404))
+		})
+	})
 })
+
+func startRouterWithContentStoreListenersDisabled(port, apiPort int) error {
+	extraEnv := []string{
+		"ROUTER_ENABLE_CONTENT_STORE_UPDATES=false",
+		"BACKEND_URL_backend-1=http://" + backends["backend-1"],
+		"ROUTER_ROUTE_RELOAD_INTERVAL=60m",
+	}
+	return startRouter(port, apiPort, extraEnv)
+}
