@@ -39,10 +39,11 @@ type Router struct {
 }
 
 type Options struct {
-	BackendConnTimeout   time.Duration
-	BackendHeaderTimeout time.Duration
-	Logger               zerolog.Logger
-	RouteReloadInterval  time.Duration
+	BackendConnTimeout        time.Duration
+	BackendHeaderTimeout      time.Duration
+	Logger                    zerolog.Logger
+	RouteReloadInterval       time.Duration
+	EnableContentStoreUpdates bool
 }
 
 // RegisterMetrics registers Prometheus metrics from the router module and the
@@ -102,11 +103,16 @@ func NewRouter(o Options) (rt *Router, err error) {
 
 	rt.reloadRoutes(pool)
 
-	go func() {
-		if err := rt.listenForContentStoreUpdates(context.Background()); err != nil {
-			rt.Logger.Error().Err(err).Msg("failed to listen for content store updates")
-		}
-	}()
+	if o.EnableContentStoreUpdates {
+		rt.Logger.Info().Msg("content store updates enabled")
+		go func() {
+			if err := rt.listenForContentStoreUpdates(context.Background()); err != nil {
+				rt.Logger.Error().Err(err).Msg("failed to listen for content store updates")
+			}
+		}()
+	} else {
+		rt.Logger.Info().Msg("content store updates are disabled")
+	}
 
 	go rt.waitForReload()
 

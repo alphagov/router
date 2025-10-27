@@ -156,10 +156,11 @@ func main() {
 	router.RegisterMetrics(prometheus.DefaultRegisterer)
 
 	rout, err := router.NewRouter(router.Options{
-		BackendConnTimeout:   beConnTimeout,
-		BackendHeaderTimeout: beHeaderTimeout,
-		RouteReloadInterval:  routeReloadInterval,
-		Logger:               logger,
+		BackendConnTimeout:        beConnTimeout,
+		BackendHeaderTimeout:      beHeaderTimeout,
+		RouteReloadInterval:       routeReloadInterval,
+		Logger:                    logger,
+		EnableContentStoreUpdates: true,
 	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create router")
