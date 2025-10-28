@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/alphagov/router/handlers"
@@ -29,11 +30,12 @@ Flags:
 
 The following environment variables and defaults are available:
 
-ROUTER_PUBADDR=:8080             Address on which to serve public requests
-ROUTER_APIADDR=:8081             Address on which to receive reload requests
-ROUTER_ERROR_LOG=STDERR          File to log errors to (in JSON format)
-ROUTER_DEBUG=                    Enable debug output if non-empty
-ROUTER_ROUTES_FILE=              Load routes from a JSONL file instead of PostgreSQL if non-empty
+ROUTER_PUBADDR=:8080                    Address on which to serve public requests
+ROUTER_APIADDR=:8081                    Address on which to receive reload requests
+ROUTER_ERROR_LOG=STDERR                 File to log errors to (in JSON format)
+ROUTER_DEBUG=                           Enable debug output if non-empty
+ROUTER_ROUTES_FILE=                     Load routes from a JSONL file instead of PostgreSQL if non-empty
+ROUTER_ENABLE_CONTENT_STORE_UPDATES=    Enable/disable listening for content store updates (default: true)
 
 Timeouts: (values must be parseable by https://pkg.go.dev/time#ParseDuration)
 
@@ -58,6 +60,19 @@ func getenv(key string, defaultVal string) string {
 func getenvDuration(key string, defaultVal string) time.Duration {
 	s := getenv(key, defaultVal)
 	return mustParseDuration(s)
+}
+
+func getenvBool(key string, defaultVal bool) (bool, error) {
+	str := os.Getenv(key)
+	if str == "" {
+		return defaultVal, nil
+	}
+
+	b, err := strconv.ParseBool(str)
+	if err != nil {
+		return false, err
+	}
+	return b, nil
 }
 
 func mustParseDuration(s string) (d time.Duration) {
@@ -104,6 +119,12 @@ func main() {
 			logger.Fatal().Err(err).Msg("failed to export routes")
 		}
 		os.Exit(0)
+	}
+
+	enableContentStoreUpdates, err := getenvBool("ROUTER_ENABLE_CONTENT_STORE_UPDATES", true)
+	if err != nil {
+		logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+		logger.Fatal().Err(err).Msg("environment variable ROUTER_ENABLE_CONTENT_STORE_UPDATES was not a boolean value")
 	}
 
 	// Initialize Sentry
@@ -156,10 +177,11 @@ func main() {
 	router.RegisterMetrics(prometheus.DefaultRegisterer)
 
 	rout, err := router.NewRouter(router.Options{
-		BackendConnTimeout:   beConnTimeout,
-		BackendHeaderTimeout: beHeaderTimeout,
-		RouteReloadInterval:  routeReloadInterval,
-		Logger:               logger,
+		BackendConnTimeout:        beConnTimeout,
+		BackendHeaderTimeout:      beHeaderTimeout,
+		RouteReloadInterval:       routeReloadInterval,
+		Logger:                    logger,
+		EnableContentStoreUpdates: enableContentStoreUpdates,
 	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create router")
