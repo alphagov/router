@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: router-route-export
+spec:
+  template:
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      serviceAccountName: router-routes-load
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: aws
+          emptyDir: {}
+      initContainers:
+        - name: router
+          image: 172025368201.dkr.ecr.eu-west-1.amazonaws.com/github/alphagov/govuk/router:v183
+          command: ["/bin/router", "-export-routes"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          env:
+            - name: ROUTER_ROUTES_FILE
+              value: /tmp/routes.jsonl
+            - name: CONTENT_STORE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  key: DATABASE_URL
+                  name: content-store-postgres
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: upload
+          image: 172025368201.dkr.ecr.eu-west-1.amazonaws.com/github/alphagov/govuk/govuk-toolbox-image:v6
+          # replace <environment> with environment name
+          command: ["sh", "-c", "aws s3 cp /tmp/routes.jsonl s3://govuk-router-routes-<environment>/routes.jsonl"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: aws
+              mountPath: /home/user/.aws
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      restartPolicy: Never
