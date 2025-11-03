@@ -357,7 +357,7 @@ github.com/tklauser/go-sysconf
 # github.com/tklauser/numcpus v0.9.0
 ## explicit; go 1.18
 github.com/tklauser/numcpus
-# github.com/tsenart/vegeta/v12 v12.12.0
+# github.com/tsenart/vegeta/v12 v12.13.0
 ## explicit; go 1.22
 github.com/tsenart/vegeta/v12/lib
 # github.com/yusufpapurcu/wmi v1.2.4
