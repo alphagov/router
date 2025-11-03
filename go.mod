@@ -14,7 +14,7 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/testcontainers/testcontainers-go v0.39.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.39.0
-	github.com/tsenart/vegeta/v12 v12.12.0
+	github.com/tsenart/vegeta/v12 v12.13.0
 )
 
 require (
