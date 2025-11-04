@@ -1,5 +1,8 @@
 # How to configure router to serve routes from a flat file
 
+- [ ] Make fulladmin more explicit
+- [ ] Fix `.aws` mount issue. (explicitly set cache path to `/tmp/.aws`)
+
 Router has the ability to load routes from a JSON Lines file instead of the
 Content Store database. This guide describes the end-to-end process of configuring
 Router to serve routes from a file fetched from S3 in production.
@@ -106,10 +109,8 @@ Update the Router app configuration in the corresponding environment's values fi
   ...
   # Set ROUTER_ROUTES_FILE env var
   extraEnv:
-    - name: router
-      env:
-        - name: ROUTER_ROUTES_FILE
-          value: /tmp/routes.jsonl
+    - name: ROUTER_ROUTES_FILE
+      value: /tmp/routes.jsonl
   ...
   # Set service account
   serviceAccount:
