@@ -16,11 +16,9 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-        - name: aws
-          emptyDir: {}
       initContainers:
         - name: router
-          image: 172025368201.dkr.ecr.eu-west-1.amazonaws.com/github/alphagov/govuk/router:v183
+          image: 172025368201.dkr.ecr.eu-west-1.amazonaws.com/github/alphagov/govuk/router:<router-version>
           command: ["/bin/router", "-export-routes"]
           volumeMounts:
             - name: tmp
@@ -41,13 +39,10 @@ spec:
       containers:
         - name: upload
           image: 172025368201.dkr.ecr.eu-west-1.amazonaws.com/github/alphagov/govuk/govuk-toolbox-image:v6
-          # replace <environment> with environment name
-          command: ["sh", "-c", "aws s3 cp /tmp/routes.jsonl s3://govuk-router-routes-<environment>/routes.jsonl"]
+          command: ["sh", "-c", "HOME=/tmp aws s3 cp /tmp/routes.jsonl s3://govuk-router-routes-<environment>/routes.jsonl"]
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            - name: aws
-              mountPath: /home/user/.aws
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
