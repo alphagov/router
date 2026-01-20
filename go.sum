@@ -50,8 +50,8 @@ github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/getsentry/sentry-go v0.41.0 h1:q/dQZOlEIb4lhxQSjJhQqtRr3vwrJ6Ahe1C9zv+ryRo=
 github.com/getsentry/sentry-go v0.41.0/go.mod h1:eRXCoh3uvmjQLY6qu63BjUZnaBu5L5WhMV1RwYO8W5s=
-github.com/getsentry/sentry-go/zerolog v0.40.0 h1:2HHlCRDHo+gYOJi/+GMyQhGQ55IwbUv7K3QJ3XD+R5k=
-github.com/getsentry/sentry-go/zerolog v0.40.0/go.mod h1:jIy7kXCFlHd7rbcUjfiVLqzlfxd+aMbXJpfTff5zCcU=
+github.com/getsentry/sentry-go/zerolog v0.41.0 h1:vsNktTI7e63xuc3vWI1jtdieFPj6z8nHpXUr28f9/6I=
+github.com/getsentry/sentry-go/zerolog v0.41.0/go.mod h1:AnIAjyCzwnuL4a8RCumDwXJH1BGV3p/8m/HzXb/ofZk=
 github.com/gkampitakis/ciinfo v0.3.2 h1:JcuOPk8ZU7nZQjdUhctuhQofk7BGHuIy0c9Ez8BNhXs=
 github.com/gkampitakis/ciinfo v0.3.2/go.mod h1:1NIwaOcFChN4fa/B0hEBdAb6npDlFL8Bwx4dfRLRqAo=
 github.com/gkampitakis/go-diff v1.3.2 h1:Qyn0J9XJSDTgnsgHRdz9Zp24RaJeKMUHg2+PDZZdC4M=
