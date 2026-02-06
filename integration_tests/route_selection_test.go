@@ -149,6 +149,23 @@ var _ = Describe("Route selection", func() {
 			})
 		})
 
+		Describe("url encoded paths", func() {
+			BeforeEach(func() {
+				addRoute("/foo/bar", NewBackendRoute("inner-backend"))
+				reloadRoutes()
+			})
+
+			It("should route the prefix to the outer backend", func() {
+				resp := routerRequest("/foo")
+				Expect(readBody(resp)).To(Equal("outer"))
+			})
+
+			It("should route the exact child to the inner backend", func() {
+				resp := routerRequest("/foo%2Fbar")
+				Expect(readBody(resp)).To(Equal("inner"))
+			})
+		})
+
 		Describe("with a prefix child", func() {
 			BeforeEach(func() {
 				addRoute("/foo/bar", NewBackendRoute("inner", "prefix"))
