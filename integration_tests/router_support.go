@@ -89,7 +89,7 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 		bin = "../router"
 	}
 	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, bin) //gosec:disable G204 -- We intentionally want to exec a sub process with a var
+	cmd := exec.CommandContext(ctx, bin) //gosec:disable G204 //gosec:disable G702-- We intentionally want to exec a sub process with a var
 
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
