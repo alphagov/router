@@ -26,7 +26,7 @@ func NewBackendHandler(
 	logger zerolog.Logger,
 ) http.Handler {
 
-	proxy := &httputil.ReverseProxy{}
+	proxy := httputil.NewSingleHostReverseProxy(backendURL)
 
 	proxy.Transport = newBackendTransport(
 		backendID,
@@ -34,25 +34,21 @@ func NewBackendHandler(
 		logger,
 	)
 
-	proxy.Rewrite = func(req *httputil.ProxyRequest) {
-		// SetURL routes the outbound request to the scheme, and base path of the backendURL. It also
-		// sets the Host header of the outbound HTTP request to match the hostname of the backend instead of
-		// the Host header from the incoming request.
-		req.SetURL(backendURL)
+	defaultDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		defaultDirector(req)
 
-		// ReverseProxy removes hop-by-hop headers (e.g. X-Forwarded-*) so to preserve it
-		// it has to be explicitly set so we can append the client's IP address to it
-		req.Out.Header["X-Forwarded-For"] = req.In.Header["X-Forwarded-For"]
-		req.SetXForwarded()
+		// Set the Host header to match the backend hostname instead of the one from the incoming request.
+		req.Host = backendURL.Host
 
 		// Setting a blank User-Agent causes the http lib not to output one, whereas if there
 		// is no header, it will output a default one.
 		// See: https://github.com/golang/go/blob/release-branch.go1.5/src/net/http/request.go#L419
-		if _, present := req.Out.Header["User-Agent"]; !present {
-			req.Out.Header.Set("User-Agent", "")
+		if _, present := req.Header["User-Agent"]; !present {
+			req.Header.Set("User-Agent", "")
 		}
 
-		populateViaHeader(req.Out.Header, fmt.Sprintf("%d.%d", req.Out.ProtoMajor, req.Out.ProtoMinor))
+		populateViaHeader(req.Header, fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor))
 	}
 
 	return proxy
