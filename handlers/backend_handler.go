@@ -26,7 +26,7 @@ func NewBackendHandler(
 	logger zerolog.Logger,
 ) http.Handler {
 
-	proxy := httputil.NewSingleHostReverseProxy(backendURL)
+	proxy := &httputil.ReverseProxy{}
 
 	proxy.Transport = newBackendTransport(
 		backendID,
@@ -34,21 +34,33 @@ func NewBackendHandler(
 		logger,
 	)
 
-	defaultDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		defaultDirector(req)
+	proxy.Rewrite = func(req *httputil.ProxyRequest) {
+		// SetURL routes the outbound request to the scheme, and base path of the backendURL. It also
+		// sets the Host header of the outbound HTTP request to match the hostname of the backend instead of
+		// the Host header from the incoming request.
+		req.SetURL(backendURL)
 
-		// Set the Host header to match the backend hostname instead of the one from the incoming request.
-		req.Host = backendURL.Host
+		// ReverseProxy removes X-Forwarded-* headers so to preserve the client's IP address
+		// it has to be explicitly set
+		req.Out.Header["X-Forwarded-For"] = req.In.Header["X-Forwarded-For"]
+		req.SetXForwarded()
+
+		// X-Forwarded-Proto is set by SetXForwarded() even if it is not present in the inbound HTTP request. So only
+		// set X-Forwarded-Proto if it exists on the inbound HTTP request and remove it otherwise.
+		if req.In.Header.Get("X-Forwarded-Proto") != "" {
+			req.Out.Header["X-Forwarded-Proto"] = req.In.Header["X-Forwarded-Proto"]
+		} else {
+			req.Out.Header.Del("X-Forwarded-Proto")
+		}
 
 		// Setting a blank User-Agent causes the http lib not to output one, whereas if there
 		// is no header, it will output a default one.
 		// See: https://github.com/golang/go/blob/release-branch.go1.5/src/net/http/request.go#L419
-		if _, present := req.Header["User-Agent"]; !present {
-			req.Header.Set("User-Agent", "")
+		if _, present := req.Out.Header["User-Agent"]; !present {
+			req.Out.Header.Set("User-Agent", "")
 		}
 
-		populateViaHeader(req.Header, fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor))
+		populateViaHeader(req.Out.Header, fmt.Sprintf("%d.%d", req.Out.ProtoMajor, req.Out.ProtoMinor))
 	}
 
 	return proxy
