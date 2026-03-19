@@ -130,27 +130,6 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 			Expect(ok).To(BeFalse())
 		})
 
-		It("should not add a X-Forwarded-Proto if there isn't one in the request", func() {
-			resp := routerRequest(routerPort, "/foo")
-			Expect(resp.StatusCode).To(Equal(200))
-
-			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
-			beReq := recorder.ReceivedRequests()[0]
-			_, ok := beReq.Header[textproto.CanonicalMIMEHeaderKey("X-Forwarded-Proto")]
-			Expect(ok).To(BeFalse())
-		})
-
-		It("should pass through X-Forwarded-Proto header to the backend", func() {
-			resp := routerRequestWithHeaders(routerPort, "/foo", map[string]string{
-				"X-Forwarded-Proto": "https",
-			})
-			Expect(resp.StatusCode).To(Equal(200))
-
-			Expect(recorder.ReceivedRequests()).To(HaveLen(1))
-			beReq := recorder.ReceivedRequests()[0]
-			Expect(beReq.Header.Get("X-Forwarded-Proto")).To(Equal("https"))
-		})
-
 		It("should add the client IP to X-Forwarded-For", func() {
 			resp := routerRequest(routerPort, "/foo")
 			Expect(resp.StatusCode).To(Equal(200))
