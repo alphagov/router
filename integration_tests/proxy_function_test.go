@@ -223,6 +223,36 @@ var _ = Describe("Functioning as a reverse proxy", func() {
 				Expect(resp.Header.Get("Via")).To(Equal("1.0 fred, 1.1 barney, 1.1 router"))
 			})
 		})
+
+		Describe("setting the X-Forwarded-Host header", func() {
+			It("should not add one if one is not present", func() {
+				resp := routerRequestWithHeaders(routerPort, "/foo", map[string]string{
+					"Accept": "text/html",
+				})
+
+				Expect(resp.StatusCode).To(Equal(200))
+
+				Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+				beReq := recorder.ReceivedRequests()[0]
+				_, ok := beReq.Header[textproto.CanonicalMIMEHeaderKey("X-Forwarded-Host")]
+				Expect(ok).To(BeFalse())
+			})
+
+			It("should maintain the X-Forwarded-Host header value if one exists", func() {
+				resp := routerRequestWithHeaders(routerPort, "/foo", map[string]string{
+					"Accept": "text/html",
+					textproto.CanonicalMIMEHeaderKey("X-Forwarded-Host"): "example.org",
+				})
+
+				Expect(resp.StatusCode).To(Equal(200))
+
+				Expect(recorder.ReceivedRequests()).To(HaveLen(1))
+				beReq := recorder.ReceivedRequests()[0]
+				forwardedHost, ok := beReq.Header[textproto.CanonicalMIMEHeaderKey("X-Forwarded-Host")]
+				Expect(ok).To(BeTrue())
+				Expect(forwardedHost[0]).To(Equal("example.org"))
+			})
+		})
 	})
 
 	Describe("request verb, path, query and body handling", func() {

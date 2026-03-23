@@ -45,6 +45,17 @@ func NewBackendHandler(
 		req.Out.Header["X-Forwarded-For"] = req.In.Header["X-Forwarded-For"]
 		req.SetXForwarded()
 
+		// Router, in some request paths, lays behind another reverse proxy.
+		// In such cases, overwriting the X-Forwarded-Host header with the value of the Host header (as is
+		// done in SetXForwarded()) causes the origin to receive the wrong header and produce wrong URLs.
+		// If the X-Forwarded-Host header is present in the request, it should be passed on verbatim, otherwise
+		// it should not be passsed on at all.
+		if req.In.Header.Get("X-Forwarded-Host") != "" {
+			req.Out.Header["X-Forwarded-Host"] = req.In.Header["X-Forwarded-Host"]
+		} else {
+			req.Out.Header.Del("X-Forwarded-Host")
+		}
+
 		// X-Forwarded-Proto is set by SetXForwarded() even if it is not present in the inbound HTTP request. So only
 		// set X-Forwarded-Proto if it exists on the inbound HTTP request and remove it otherwise.
 		if req.In.Header.Get("X-Forwarded-Proto") != "" {
