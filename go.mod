@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/getsentry/sentry-go v0.43.0
 	github.com/getsentry/sentry-go/zerolog v0.43.0
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
 	github.com/pashagolub/pgxmock/v4 v4.9.0
