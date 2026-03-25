@@ -3,8 +3,8 @@ module github.com/alphagov/router
 go 1.25.0
 
 require (
-	github.com/getsentry/sentry-go v0.43.0
-	github.com/getsentry/sentry-go/zerolog v0.43.0
+	github.com/getsentry/sentry-go v0.44.1
+	github.com/getsentry/sentry-go/zerolog v0.44.1
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
@@ -22,7 +22,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect

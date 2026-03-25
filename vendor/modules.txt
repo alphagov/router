@@ -18,7 +18,7 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
-# github.com/buger/jsonparser v1.1.1
+# github.com/buger/jsonparser v1.1.2
 ## explicit; go 1.13
 github.com/buger/jsonparser
 # github.com/cenkalti/backoff/v4 v4.3.0
@@ -93,7 +93,7 @@ github.com/ebitengine/purego/internal/xreflect
 # github.com/felixge/httpsnoop v1.0.4
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
-# github.com/getsentry/sentry-go v0.43.0
+# github.com/getsentry/sentry-go v0.44.1
 ## explicit; go 1.24.0
 github.com/getsentry/sentry-go
 github.com/getsentry/sentry-go/attribute
@@ -106,7 +106,8 @@ github.com/getsentry/sentry-go/internal/protocol
 github.com/getsentry/sentry-go/internal/ratelimit
 github.com/getsentry/sentry-go/internal/telemetry
 github.com/getsentry/sentry-go/internal/util
-# github.com/getsentry/sentry-go/zerolog v0.43.0
+github.com/getsentry/sentry-go/report
+# github.com/getsentry/sentry-go/zerolog v0.44.1
 ## explicit; go 1.24.0
 github.com/getsentry/sentry-go/zerolog
 # github.com/go-logr/logr v1.4.3
