@@ -26,20 +26,29 @@ type PgxIface interface {
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 }
 
+/*
+Routes are mapped to handlers and added to the triemux:
+(i) Backend handlers are associated with backend routes via the backends map
+(ii) Redirect handlers are created for redirect routes
+(iii) Gone handlers are created for gone routes
+*/
 func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler, logger zerolog.Logger) error {
 	if route.IncomingPath == nil || route.RouteType == nil {
 		logger.Warn().Interface("route", route).Msg("ignoring route with nil fields")
 		return nil
 	}
 
+	// Boolean flag to indicate if it is a prefix route
 	prefix := (*route.RouteType == RouteTypePrefix)
 
+	// Parse the URL from the route object
 	incomingURL, err := url.Parse(*route.IncomingPath)
 	if err != nil {
 		logger.Warn().Interface("route", route).Str("incoming_path", *route.IncomingPath).Msg("ignoring route with invalid incoming path")
 		return nil //nolint:nilerr
 	}
 
+	// Map the route to a handler
 	switch route.handlerType() {
 	case HandlerTypeBackend:
 		backend := route.backend()
@@ -71,6 +80,7 @@ func addHandler(mux *triemux.Mux, route *Route, backends map[string]http.Handler
 	return nil
 }
 
+// Routes are loaded from content-store and mapped to handlers
 func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handler, logger zerolog.Logger) error {
 	rows, err := pool.Query(context.Background(), loadRoutesQuery)
 	if err != nil {
@@ -95,6 +105,7 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 			return err
 		}
 
+		// Routes are mapped to handlers and added to the triemux
 		err = addHandler(mux, route, backends, logger)
 		if err != nil {
 			return err
@@ -107,6 +118,11 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 	return nil
 }
 
+/*
+content-store uses the LISTEN/NOTIFY feature from Postgres. Router subscribes to content-store
+using LISTEN. Once content-store updates it's routing table it sends a NOTIFY message to Router
+which causes it to reload the routes from content-store by sending a boolean message to Router's channel
+*/
 func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 	listener := &pgxlisten.Listener{
 		Connect: func(ctx context.Context) (*pgx.Conn, error) {
@@ -141,6 +157,7 @@ func (rt *Router) listenForContentStoreUpdates(ctx context.Context) error {
 	return nil
 }
 
+// Periodically send boolean messages (true) to Router's channel that signals it to reload routes from content-store's database.
 func (rt *Router) PeriodicRouteUpdates() {
 	// Skip periodic updates if ReloadChan is nil (e.g., when using flat file)
 	if rt.ReloadChan == nil {
@@ -159,12 +176,14 @@ func (rt *Router) PeriodicRouteUpdates() {
 	}
 }
 
+// Listen for boolean messages (true) from Router's channel which signals Router to reload routes from content-store's database.
 func (rt *Router) waitForReload() {
 	for range rt.ReloadChan {
 		rt.reloadRoutes(rt.pool)
 	}
 }
 
+// Reloads routes from content-store's database
 func (rt *Router) reloadRoutes(pool PgxIface) {
 	var success bool
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
@@ -187,6 +206,7 @@ func (rt *Router) reloadRoutes(pool PgxIface) {
 	rt.Logger.Info().Msg("reloading routes from content store")
 	newmux := triemux.NewMux(rt.Logger)
 
+	// Load routes into a new Triemux
 	err := loadRoutes(pool, newmux, rt.backends, rt.Logger)
 	if err != nil {
 		rt.Logger.Warn().Err(err).Msg("error reloading routes")
@@ -195,6 +215,7 @@ func (rt *Router) reloadRoutes(pool PgxIface) {
 
 	routeCount := newmux.RouteCount()
 
+	// Set the new Triemux so Router picks up any new routes
 	rt.lock.Lock()
 	rt.mux = newmux
 	rt.lock.Unlock()

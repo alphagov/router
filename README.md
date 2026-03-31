@@ -1,31 +1,139 @@
 # Router
 
-GOV.UK Router is an HTTP reverse proxy built on top of [`triemux`][tm]. It
-loads a routing table into memory from a PostgreSQL database and:
+GOV.UK Router is an HTTP reverse proxy built on top of [`triemux`][tm].
 
-- forwards requests to backend application servers according to the path in the
-  request URL
-- serves HTTP `301` and `302` redirects for moved content and short URLs
-- serves `410 Gone` responses for resources that no longer exist
+## How router loads routes
 
-## How it works
+Router loads its routing table from [Content Store's](https://github.com/alphagov/content-store/) PostgreSQL database (or optionally from a flat file) into a [trie data structure](https://en.wikipedia.org/wiki/Trie) for fast path lookups.
 
-Router loads its routing table from [Content Store's](https://github.com/alphagov/content-store/) PostgreSQL database (or optionally from a flat file). It uses a [trie data structure](https://en.wikipedia.org/wiki/Trie) for fast path lookups, maintaining two separate tries: one for exact path matches and one for prefix matches. When a request comes in, Router first checks for an exact match, then falls back to the longest prefix match.
+Router can reload routes without restarting:
+1. Automatically via PostgreSQL's `LISTEN/NOTIFY` mechanism
+2. Periodic schedule
+3. Manually via the API server
 
-Router can reload routes without restarting, either automatically via PostgreSQL's `LISTEN/NOTIFY`, on a periodic schedule, or manually via the API.
+Internally these use a Go channel to send reload requests that causes Router to reload from `content-store's` PostgreSQL database.
+
+## Routes
 
 Routes can be one of two types:
-- **exact**: The path must match exactly (e.g., `/government` matches only `/government`)
-- **prefix**: The path prefix must match (e.g., `/government` matches `/government`, `/government/policies`, etc.)
+- **exact**: The path must match exactly (e.g., `/government` exact route matches only `/government`)
+- **prefix**: The path prefix must match (e.g., `/government` prefix route matches `/government`, `/government/policies`, etc.)
+
+Suppose we have the following routes:
+1. Prefix route on `/foo`
+2. Exact route on `/foo/bar`
+3. Exact route on `/bar`
+
+Then Router will:
+1. Returns `404` if a request is made for the children of an exact route (e.g. `/bar/foo/`).
+2. Match on the prefix route if the request is made for `/foo`
+3. Match on the exact route if the request is made for `/foo/bar`
+4. Match on the prefix route if the request is made for `/foo/bar/baz` as there is no matching exact route
+
+See [route_selection_test.go](https://github.com/alphagov/router/blob/2c46c40d43ff4feefeb112cd6aa1e44f0da4b417/integration_tests/route_selection_test.go) for more cases.
+
+### Handling
+
+Router maintains two separate tries:
+1. Exact path matches
+2. Prefix matches
+
+Once a request comes in, Router uses the URL path to first check for an exact match, then falls back to the longest prefix match.
+
+Routes have a `schemaName` property which indicate how it should be handled:
+1. Backend
+2. Redirect
+3. Gone
 
 Each matched route is handled by one of three handler types:
-- **backend**: Reverse proxies the request to a backend application server
-- **redirect**: Returns an HTTP 301 redirect to a new location
-- **gone**: Returns an HTTP 410 Gone response for deleted content
+1. **backend**: Reverse proxies the request to a backend application server
+2. **redirect**: Returns an HTTP `301` redirect to a new location
+3. **gone**: Returns an HTTP `410` Gone response for deleted content
 
-Router runs two HTTP servers: a public server (default `:8080`) for handling requests, and an API server (default `:8081`) for admin operations like reloading routes and exposing metrics.
+Some `Gone` routes are handled by the `backend` handler.
+
+Router otherwise:
+- serves `503` if no routes are loaded
+- serves `404` if the route can't be found
+
+### Redirect routes
+
+Redirect routes have a flag that is used to determine whether the URL path in the request should be preserved.
+
+If the source path is `/source` and the redirect target is `/target` then the target URL will preserve the path as follows:
+
+```
+https://source.example.com/target/path/subpath?q1=a&q2=b
+```
+
+Redirect routes will only redirect to a lowercase route if the URL path is in all caps (e.g. `/GOVERNMENT/GUIDANCE` will redirect to `/government/guidance`).
 
 For details on the route data structure and handler configuration, see [docs/data-structure.md](docs/data-structure.md).
+
+## Request flow
+
+```mermaid
+graph LR;
+    Fastly-->Router Load Balancer;
+    Router Load Balancer-->Router nginx;
+    Router nginx-->Router;
+    Router-->Backend;
+```
+
+Router's [load balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/x-forwarded-headers.html) adds the following headers:
+1. `X-Forwarded-For`
+2. `X-Forwarded-Proto`
+3. `X-Forwarded-Port`
+
+Router doesn't proxy redirect and gone routes to a backend but simply returns the response to the client.
+
+### Draft stack
+
+The [draft stack](https://docs.publishing.service.gov.uk/manual/content-preview.html) consists of 'draft' deployments of Router, 
+content store and backends.
+
+Here the request passes through an [authenticating proxy](https://github.com/alphagov/authenticating-proxy/) before it hits draft router:
+
+```mermaid
+graph LR;
+    Authenticating Proxy Load Balancer-->Authenticating Proxy nginx;
+    Authenticating Proxy nginx-->Authenticating Proxy;
+    Authenticating Proxy-->Draft Router nginx;
+    Draft Router nginx-->Draft Router;
+    Draft Router-->Draft backend;
+```
+
+In addition to the headers added by the load balancer authenticating proxy adds the following headers:
+1. `HTTP_X_GOVUK_AUTHENTICATED_USER_ORGANISATION`
+2. `HTTP_X_GOVUK_AUTHENTICATED_USER`
+3. `X-Forwarded-Host` replaces `Host`
+
+As before draft router doesn't proxy redirect and gone routes to a backend.
+
+### Nginx
+
+Router runs an nginx instance that proxies traffic to Router. The configuration for both live and draft stack live in [govuk-helm-charts](https://github.com/alphagov/govuk-helm-charts/blob/7a6e0b1e8964e2c25bf1539f048f9795ffb8629a/charts/app-config/templates/router-nginx-config.tpl)
+
+The nginx instance also provides:
+1. Healthcheck endpoints
+2. Static error pages
+3. `robots.txt` and `humans.txt`
+4. Google Search Console verification files
+5. Licensify endpoint
+
+It also sets and hides some HTTP headers.
+
+## API server
+
+Router runs two HTTP servers:
+1. Public server (default `:8080`) for handling requests
+2. API server (default `:8081`) for admin operations like reloading routes and exposing metrics.
+
+The API server exposes the following routes inside the cluster:
+1. `/reload`
+2. `/healthcheck`
+3. `/memory-stats`
+4. `/metrics`
 
 ## Configuration
 
@@ -78,6 +186,8 @@ ROUTER_ROUTES_FILE=/path/to/routes.jsonl ./router -export-routes
 
 This can be used to continue serving routes when Content Store's database is down for maintenance.
 
+For details on how to configure Router to load from a file see [docs/how-to-serve-routes-from-flat-file.md](docs/how-to-serve-routes-from-flat-file.md).
+
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
@@ -118,6 +228,8 @@ tests, for example:
 ```
 go test ./integration_tests -v --ginkgo.focus 'redirect should preserve the query string'
 ```
+
+See [Site tests](site_tests/README.md) on how to run the site tests.
 
 ### Debug output
 
@@ -167,6 +279,9 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
 - [Data structure](docs/data-structure.md)
 - [Original thinking behind the router](https://technology.blog.gov.uk/2013/12/05/building-a-new-router-for-gov-uk/)
 - [Example of adding a metric](https://github.com/alphagov/router/commit/b443d3d) using the [Go prometheus client library](https://pkg.go.dev/github.com/prometheus/client_golang/prometheus)
+- [Site tests](site_tests/README.md)
+- [Triemux](triemux/README.md)
+- [Trie](trie/README.md)
 
 ## Team
 
@@ -181,5 +296,4 @@ board](https://github.com/orgs/alphagov/projects/71).
 [MIT License](LICENCE)
 
 [#govuk-platform-engineering]: https://gds.slack.com/channels/govuk-platform-engineering
-[router-api]: https://github.com/alphagov/router-api
 [tm]: https://github.com/alphagov/router/tree/main/triemux

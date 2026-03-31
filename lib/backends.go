@@ -11,6 +11,15 @@ import (
 	"github.com/rs/zerolog"
 )
 
+/*
+Backend applications are configured using environment variables (e.g. BACKEND_URL_frontend).
+This generates a map of backend handlers referenced by ids:
+
+	{
+		"frontend", <frontend_handler>,
+		"publisher, <backend_handler>
+	}
+*/
 func loadBackendsFromEnv(connTimeout, headerTimeout time.Duration, logger zerolog.Logger) (backends map[string]http.Handler) {
 	backends = make(map[string]http.Handler)
 
