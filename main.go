@@ -106,6 +106,7 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Write routes to file if set
 	if *exportRoutes {
 		logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
@@ -174,8 +175,10 @@ func main() {
 		logger.Warn().Msg("skipping verification of TLS certificates; Do not use this option in a production environment.")
 	}
 
+	// Setup metrics
 	router.RegisterMetrics(prometheus.DefaultRegisterer)
 
+	// Create Router instance
 	rout, err := router.NewRouter(router.Options{
 		BackendConnTimeout:        beConnTimeout,
 		BackendHeaderTimeout:      beHeaderTimeout,
@@ -186,16 +189,21 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create router")
 	}
+
+	// Start goroutine which periodically instructs Router to reload routes from content-store
 	go rout.PeriodicRouteUpdates()
 
+	// Start Router in a goroutine
 	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
 	logger.Info().Msgf("listening for requests on %v", pubAddr)
 
+	// Create the API server handler
 	api, err := router.NewAPIHandler(rout)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create API handler")
 	}
 
 	logger.Info().Msgf("listening for API requests on %v", apiAddr)
+	// Start the API server
 	listenAndServeOrFatal(apiAddr, api, feReadTimeout, feWriteTimeout)
 }

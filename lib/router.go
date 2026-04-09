@@ -26,7 +26,7 @@ const (
 )
 
 // Router is a wrapper around an HTTP multiplexer (trie.Mux) which retrieves its
-// routes from a postgres database.
+// routes from a postgres database (content-store)
 type Router struct {
 	backends              map[string]http.Handler
 	mux                   *triemux.Mux
@@ -38,6 +38,7 @@ type Router struct {
 	Logger                zerolog.Logger
 }
 
+// Additional configurable options
 type Options struct {
 	BackendConnTimeout        time.Duration
 	BackendHeaderTimeout      time.Duration
@@ -53,7 +54,15 @@ func RegisterMetrics(r prometheus.Registerer) {
 	registerMetrics(r)
 }
 
+/*
+Creates an instance of Router struct which:
+1. Loads routes from file or content-store database
+2. Sets up a channel that will be used to send reload requests
+3. If enabled starts goroutine to listen for content-store updates
+4. Starts goroutine to listen for reload requests
+*/
 func NewRouter(o Options) (rt *Router, err error) {
+	// Generate a map of backend handlers for configured backends
 	backends := loadBackendsFromEnv(o.BackendConnTimeout, o.BackendHeaderTimeout, o.Logger)
 
 	// Load routes from a flat file
@@ -71,12 +80,12 @@ func NewRouter(o Options) (rt *Router, err error) {
 		o.Logger.Info().Int("route_count", routeCount).Msg("loaded routes from file")
 		routesCountMetric.WithLabelValues("file").Set(float64(routeCount))
 
+		// No ReloadChan or pool when using flat file
 		rt = &Router{
 			backends: backends,
 			mux:      mux,
 			Logger:   o.Logger,
 			opts:     o,
-			// No ReloadChan or pool when using flat file
 		}
 
 		return rt, nil
@@ -91,7 +100,13 @@ func NewRouter(o Options) (rt *Router, err error) {
 	}
 	o.Logger.Info().Msg("postgres connection pool created")
 
+	/*
+		Setup channel which Router's API server, content-store LISTEN/NOTIFY,and periodic route updates will use
+		to send messages which will trigger reload of routes.
+	*/
 	reloadChan := make(chan bool, 1)
+
+	// Create instance of Router
 	rt = &Router{
 		backends:   backends,
 		mux:        triemux.NewMux(o.Logger),
@@ -101,8 +116,10 @@ func NewRouter(o Options) (rt *Router, err error) {
 		pool:       pool,
 	}
 
+	// Trigger a reload of routes from content-store
 	rt.reloadRoutes(pool)
 
+	// Start goroutine to listen for content-store changes
 	if o.EnableContentStoreUpdates {
 		rt.Logger.Info().Msg("content store updates enabled")
 		go func() {
@@ -114,6 +131,7 @@ func NewRouter(o Options) (rt *Router, err error) {
 		rt.Logger.Info().Msg("content store updates are disabled")
 	}
 
+	// Start goroutine to listen on Router's channel
 	go rt.waitForReload()
 
 	return rt, nil
@@ -135,12 +153,14 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var mux *triemux.Mux
 
 	rt.lock.RLock()
+	// Retrieve the mux object from router
 	mux = rt.mux
 	rt.lock.RUnlock()
 
 	mux.ServeHTTP(w, req)
 }
 
+// Determines whether the URL path in a redirect route should be preserved
 func shouldPreserveSegments(routeType, segmentsMode string) bool {
 	switch routeType {
 	case RouteTypeExact:

@@ -22,6 +22,7 @@ const (
 
 func NewRedirectHandler(source, target string, preserve bool, logger zerolog.Logger) http.Handler {
 	status := http.StatusMovedPermanently
+	// Preserve the URL path and append it to the target prefix
 	if preserve {
 		return &pathPreservingRedirectHandler{source, target, status, logger}
 	}
