@@ -74,10 +74,10 @@ For details on the route data structure and handler configuration, see [docs/dat
 
 ```mermaid
 graph LR;
-    Fastly-->Router Load Balancer;
-    Router Load Balancer-->Router nginx;
-    Router nginx-->Router;
-    Router-->Backend;
+    A[Fastly]-->B[Router Load Balancer];
+    B[Router Load Balancer]-->C[Router nginx];
+    C[Router nginx]-->D[Router];
+    D[Router]-->E[Backend];
 ```
 
 Router's [load balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/x-forwarded-headers.html) adds the following headers:
@@ -96,11 +96,11 @@ Here the request passes through an [authenticating proxy](https://github.com/alp
 
 ```mermaid
 graph LR;
-    Authenticating Proxy Load Balancer-->Authenticating Proxy nginx;
-    Authenticating Proxy nginx-->Authenticating Proxy;
-    Authenticating Proxy-->Draft Router nginx;
-    Draft Router nginx-->Draft Router;
-    Draft Router-->Draft backend;
+    A[Authenticating Proxy Load Balancer]-->B[Authenticating Proxy nginx];
+    B[Authenticating Proxy nginx]-->C[Authenticating Proxy];
+    C[Authenticating Proxy]-->D[Draft Router nginx];
+    D[Draft Router nginx]-->E[Draft Router];
+    E[Draft Router]-->F[Draft backend];
 ```
 
 In addition to the headers added by the load balancer authenticating proxy adds the following headers:
