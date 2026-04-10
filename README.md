@@ -16,8 +16,16 @@ Internally these use a Go channel to send reload requests that causes Router to 
 ## Routes
 
 Routes can be one of two types:
-- **exact**: The path must match exactly (e.g., `/government` exact route matches only `/government`)
-- **prefix**: The path prefix must match (e.g., `/government` prefix route matches `/government`, `/government/policies`, etc.)
+- **exact**: The path must match exactly (e.g. the exact route `/government` only matches a request for `/government`)
+- **prefix**: The path prefix must match (e.g. the prefix route `/government` matches requests for `/government`, `/government/policies`, etc.)
+
+The route type and URL path determine which route gets matched to a particular request.
+
+Router maintains two separate tries:
+1. Exact path matches
+2. Prefix matches
+
+Once a request comes in, Router uses the URL path to first check for an exact match, then falls back to the longest prefix match.
 
 Suppose we have the following routes:
 1. Prefix route on `/foo`
@@ -32,25 +40,22 @@ Then Router will:
 
 See [route_selection_test.go](https://github.com/alphagov/router/blob/2c46c40d43ff4feefeb112cd6aa1e44f0da4b417/integration_tests/route_selection_test.go) for more cases.
 
+
 ### Handling
 
-Router maintains two separate tries:
-1. Exact path matches
-2. Prefix matches
-
-Once a request comes in, Router uses the URL path to first check for an exact match, then falls back to the longest prefix match.
-
-Routes have a `schemaName` property which indicate how it should be handled:
+Routes have a `schemaName` property:
 1. Backend
 2. Redirect
 3. Gone
 
-Each matched route is handled by one of three handler types:
+Once a request is matched to a route, Router uses the `schemaName` property to determine how the request should be handled.
+
+There are 3 handler types to handle a request:
 1. **backend**: Reverse proxies the request to a backend application server
 2. **redirect**: Returns an HTTP `301` redirect to a new location
 3. **gone**: Returns an HTTP `410` Gone response for deleted content
 
-Some `Gone` routes are handled by the `backend` handler.
+Note: some `Gone` routes are also handled by the `backend` handler.
 
 Router otherwise:
 - serves `503` if no routes are loaded
@@ -64,6 +69,12 @@ If the source path is `/source` and the redirect target is `/target` then the ta
 
 ```
 https://source.example.com/target/path/subpath?q1=a&q2=b
+```
+
+Otherwise the URL will be:
+
+```
+https://source.example.com/target/
 ```
 
 Redirect routes will only redirect to a lowercase route if the URL path is in all caps (e.g. `/GOVERNMENT/GUIDANCE` will redirect to `/government/guidance`).
@@ -104,8 +115,8 @@ graph LR;
 ```
 
 In addition to the headers added by the load balancer authenticating proxy adds the following headers:
-1. `HTTP_X_GOVUK_AUTHENTICATED_USER_ORGANISATION`
-2. `HTTP_X_GOVUK_AUTHENTICATED_USER`
+1. `X_GOVUK_AUTHENTICATED_USER_ORGANISATION`
+2. `X_GOVUK_AUTHENTICATED_USER`
 3. `X-Forwarded-Host` replaces `Host`
 
 As before draft router doesn't proxy redirect and gone routes to a backend.
@@ -127,7 +138,7 @@ It also sets and hides some HTTP headers.
 
 Router runs two HTTP servers:
 1. Public server (default `:8080`) for handling requests
-2. API server (default `:8081`) for admin operations like reloading routes and exposing metrics.
+2. API server (default `:8081`) for admin operations
 
 The API server exposes the following routes inside the cluster:
 1. `/reload`

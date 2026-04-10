@@ -59,6 +59,7 @@ func routerURL(port int, path string) string {
 	return fmt.Sprintf("http://127.0.0.1:%d%s", port, path)
 }
 
+// Send a reload request to Router's API server
 func reloadRoutes(port int) {
 	req, err := http.NewRequestWithContext(
 		context.Background(),
