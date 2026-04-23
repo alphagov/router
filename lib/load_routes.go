@@ -104,6 +104,28 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 	if err := rows.Err(); err != nil {
 		return err
 	}
+
+	err = addProbeRoute(mux, backends, logger)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addProbeRoute(mux *triemux.Mux, backends map[string]http.Handler, logger zerolog.Logger) error {
+	route := &Route{
+		IncomingPath: new("/__probe__"),
+		RouteType:    new(RouteTypePrefix),
+		SchemaName:   new(HandlerTypeBackend),
+		BackendID:    new("router-probe-backend"),
+	}
+
+	err := addHandler(mux, route, backends, logger)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

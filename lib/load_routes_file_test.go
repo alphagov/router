@@ -1,7 +1,10 @@
 package router
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -86,6 +89,52 @@ this is not valid JSON
 	routeCount := mux.RouteCount()
 	if routeCount != 2 {
 		t.Errorf("Expected 2 routes (skipping invalid JSON), got %d", routeCount)
+	}
+}
+
+func TestLoadRoutesFromFile_IncludesProbe(t *testing.T) {
+
+	tmpDir := t.TempDir()
+	routesFile := filepath.Join(tmpDir, "test_no_routes.jsonl")
+
+	content := ``
+
+	if err := os.WriteFile(routesFile, []byte(content), 0600); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	logger := zerolog.Nop()
+	mux := triemux.NewMux(logger)
+	backends := map[string]http.Handler{
+		"router-probe-backend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+
+			if _, err := w.Write([]byte("router-probe-backend")); err != nil {
+				fmt.Println("Failed to write to the response", err)
+			}
+		}),
+	}
+
+	err := loadRoutesFromFile(routesFile, mux, backends, logger)
+	if err != nil {
+		t.Fatalf("Failed to load routes from file: %v", err)
+	}
+
+	routeCount := mux.RouteCount()
+	if routeCount != 1 {
+		t.Errorf("Expected 1 routes, got %d", routeCount)
+	}
+
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/__probe__/get", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected router-probe-backend to return 200 OK, got %v", rr.Code)
+	}
+
+	if rr.Body.String() != "router-probe-backend" {
+		t.Errorf("Expected router-probe-backend to be called and return expected result, got %v", rr.Body.String())
 	}
 }
 
