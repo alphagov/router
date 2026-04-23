@@ -56,5 +56,10 @@ func loadRoutesFromFile(filePath string, mux *triemux.Mux, backends map[string]h
 		return fmt.Errorf("error reading routes file: %w", err)
 	}
 
+	err = addProbeRoute(mux, backends, logger)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

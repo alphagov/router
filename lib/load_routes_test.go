@@ -39,13 +39,19 @@ var _ = Describe("loadRoutes", func() {
 			}),
 			"backend2": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				if _, err:= w.Write([]byte("backend2")); err != nil {
+				if _, err := w.Write([]byte("backend2")); err != nil {
 					fmt.Println("Failed to write to the response", err)
 				}
 			}),
 			"frontend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				if _, err:= w.Write([]byte("frontend")); err != nil {
+				if _, err := w.Write([]byte("frontend")); err != nil {
+					fmt.Println("Failed to write to the response", err)
+				}
+			}),
+			"router-probe-backend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				if _, err := w.Write([]byte("router-probe-backend")); err != nil {
 					fmt.Println("Failed to write to the response", err)
 				}
 			}),
@@ -213,6 +219,25 @@ var _ = Describe("loadRoutes", func() {
 
 			Expect(rr.Code).To(Equal(http.StatusMovedPermanently))
 			Expect(rr.Header().Get("Location")).To(Equal("/redirected-prefix-preserve/foo/bar"))
+		})
+	})
+
+	Context("should always load the backend-probe route", func() {
+		BeforeEach(func() {
+			rows := pgxmock.NewRows([]string{})
+			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
+
+			err := loadRoutes(mockPool, mux, backends, logger)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should load the probe backend route correctly", func() {
+			req, _ := http.NewRequest(http.MethodGet, "/__probe__/get", nil)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			Expect(rr.Code).To(Equal(http.StatusOK))
+			Expect(rr.Body.String()).To(Equal("router-probe-backend"))
 		})
 	})
 })
