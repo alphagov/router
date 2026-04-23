@@ -3,7 +3,7 @@ module github.com/alphagov/router
 go 1.26.1
 
 require (
-	github.com/getsentry/sentry-go v0.43.0
+	github.com/getsentry/sentry-go v0.45.1
 	github.com/getsentry/sentry-go/zerolog v0.43.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/onsi/ginkgo/v2 v2.28.1
