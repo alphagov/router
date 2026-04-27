@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"syscall"
@@ -92,6 +93,12 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 	ctx := context.Background()
 	cmd := exec.CommandContext(ctx, bin) //gosec:disable G204 //gosec:disable G702-- We intentionally want to exec a sub process with a var
 
+	coverageDir, err := getCoverageDir()
+	if err != nil {
+		return err
+	}
+
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOCOVERDIR=%s", coverageDir))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_PUBADDR=%s", pubAddr))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_APIADDR=%s", apiAddr))
 	cmd.Env = append(cmd.Env, "CONTENT_STORE_DATABASE_URL="+postgresContainer.MustConnectionString(context.Background()))
@@ -102,7 +109,7 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return err
 	}
@@ -111,6 +118,15 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 
 	runningRouters[port] = cmd
 	return nil
+}
+
+func getCoverageDir() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Abs(filepath.Clean(path.Join(cwd, "..", "coverage", "integration")))
 }
 
 func stopRouter(port int) {
