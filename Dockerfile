@@ -1,5 +1,5 @@
 ARG go_registry=""
-ARG go_version=1.26.1
+ARG go_version=1.26.2
 ARG go_tag_suffix=-alpine
 
 FROM ${go_registry}golang:${go_version}${go_tag_suffix} AS builder

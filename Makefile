@@ -9,10 +9,11 @@ all: build
 
 clean:
 	rm -f $(TARGET_MODULE)
+	rm -f coverage/*/covmeta.* coverage/*/covcounters.* coverage/report/*.*
 
 build:
-	env $(GO_BUILD_ENV) go build
-	./$(TARGET_MODULE) -version
+	env $(GO_BUILD_ENV) go build -cover -covermode atomic
+	GOCOVERDIR=coverage/version ./$(TARGET_MODULE) -version
 
 test: lint unit_tests integration_tests
 
@@ -25,10 +26,17 @@ lint:
 	golangci-lint run
 
 unit_tests:
-	go test -race $$(go list ./... | grep -v integration_tests)
+	# Using covermode atomic so it can be merged with the integration tests
+	go test -cover -covermode atomic -race $$(go list ./... | grep -v integration_tests) -args -test.gocoverdir="${PWD}/coverage/unit"
 
 integration_tests: build
 	go test -race -v ./integration_tests
 
 update_deps:
 	go get -t -u ./... && go mod tidy && go mod vendor
+
+coverage_report:
+	go tool covdata merge -i coverage/unit,coverage/integration/,coverage/version -o coverage/merged/
+	go tool covdata percent -i coverage/merged/
+	go tool covdata textfmt -i coverage/merged/ -o coverage/report/textfmt.txt
+	go tool cover -html coverage/report/textfmt.txt -o coverage/report/coverage.html

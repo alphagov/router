@@ -28,6 +28,7 @@ jobs:
       - run: make unit_tests
       - run: make integration_tests
         timeout-minutes: 15
+      - run: make coverage_report
   golangci-lint:
     runs-on: ubuntu-latest
     steps:
