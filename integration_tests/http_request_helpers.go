@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +15,11 @@ import (
 	. "github.com/onsi/gomega"
 	// revive:enable:dot-imports
 )
+
+type AsyncResponse struct {
+	response *http.Response
+	err      error
+}
 
 func routerRequest(port int, path string) *http.Response {
 	return doRequest(newRequest(http.MethodGet, routerURL(port, path)))
@@ -47,6 +53,17 @@ func doRequest(req *http.Request) *http.Response {
 	resp, err := http.DefaultTransport.RoundTrip(req)
 	Expect(err).NotTo(HaveOccurred())
 	return resp
+}
+
+func doRequestAsync(request *http.Request, responseChannel chan *AsyncResponse) {
+	client := &http.Client{}
+	httpResponse, httpError := client.Do(request) //gosec:disable G704 - It's not really a tainted url, it just comes from elsewhere in our code
+	bodyCloseErr := httpResponse.Body.Close()
+
+	responseChannel <- &AsyncResponse{
+		response: httpResponse,
+		err:      errors.Join(httpError, bodyCloseErr),
+	}
 }
 
 func doHTTP10Request(req *http.Request) *http.Response {
