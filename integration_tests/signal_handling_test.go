@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = XDescribe("Signal Handling", func() {
+var _ = Describe("Signal Handling", func() {
 	const signalHandlingRouterPort = routerPort + 2
 	const signalHandlingApiPort = apiPort + 2
 
