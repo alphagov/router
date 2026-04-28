@@ -30,6 +30,7 @@ var backends = map[string]string{
 	"be":          "127.0.0.1:6802",
 	"not-running": "127.0.0.1:6803",
 	"with-path":   "127.0.0.1:6804",
+	"signals-1":   "127.0.0.1:6805",
 }
 
 func startSimpleBackend(identifier, host string) *httptest.Server {

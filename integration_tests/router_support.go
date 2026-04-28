@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -118,6 +119,62 @@ func startRouter(port, apiPort int, extraEnv []string) error {
 
 	runningRouters[port] = cmd
 	return nil
+}
+
+func sendSignalToRouter(port int, sig os.Signal) (*exec.Cmd, error) {
+	router, ok := runningRouters[port]
+	if !ok {
+		return nil, fmt.Errorf("no running router on on port %d", port)
+	}
+
+	err := router.Process.Signal(sig)
+	if err != nil {
+		return nil, err
+	}
+
+	return router, nil
+}
+
+func ensureRouterTerminated(port int) error {
+	cmd, ok := runningRouters[port]
+	if !ok {
+		// Router has already been terminated and cleaned up, or was never created
+		return nil
+	}
+
+	if cmd.ProcessState != nil {
+		// The process already terminated, just cleanup
+		delete(runningRouters, port)
+		return nil
+	}
+
+	err := cmd.Process.Signal(syscall.SIGINT)
+	if errors.Is(err, os.ErrProcessDone) {
+		delete(runningRouters, port)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to send termination signal to running router process, error: %w", err)
+	}
+
+	state, err := cmd.Process.Wait()
+	waitStatus, ok := state.Sys().(syscall.WaitStatus)
+	if !ok {
+		return fmt.Errorf("could not convert process wait status to a syscall.WaitStatus, maybe you're not on a *nix platform?")
+	}
+
+	switch {
+	// On *nix if a process exits because of a signal it is not 'exited', instead it is 'signalled', either way we shut down fine
+	case state.Exited() || waitStatus.Signaled():
+		delete(runningRouters, port)
+		return nil
+	case err != nil:
+		return fmt.Errorf("running router process did not exit with error: %w", err)
+	default:
+		return fmt.Errorf(
+			"the running router process both did not exit, and did not return an error waiting for termination! The state was %s",
+			state,
+		)
+	}
 }
 
 func getCoverageDir() (string, error) {

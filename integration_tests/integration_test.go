@@ -16,6 +16,18 @@ func TestEverything(t *testing.T) {
 	RunSpecs(t, "Integration test suite")
 }
 
+func StartupRouterForIntegrationTests(routerPort, apiPort int) {
+	backendEnvVars := []string{}
+	for id, host := range backends {
+		envVar := "BACKEND_URL_" + id + "=http://" + host
+		backendEnvVars = append(backendEnvVars, envVar)
+	}
+
+	if err := startRouter(routerPort, apiPort, backendEnvVars); err != nil {
+		Fail(err.Error())
+	}
+}
+
 var _ = BeforeSuite(func() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	var err error
@@ -28,15 +40,8 @@ var _ = BeforeSuite(func() {
 		Fail(err.Error())
 	}
 
-	backendEnvVars := []string{}
-	for id, host := range backends {
-		envVar := "BACKEND_URL_" + id + "=http://" + host
-		backendEnvVars = append(backendEnvVars, envVar)
-	}
+	StartupRouterForIntegrationTests(routerPort, apiPort)
 
-	if err := startRouter(routerPort, apiPort, backendEnvVars); err != nil {
-		Fail(err.Error())
-	}
 	if err := initRouteHelper(); err != nil {
 		Fail(err.Error())
 	}
