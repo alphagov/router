@@ -3,15 +3,40 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	router "github.com/alphagov/router/lib"
-	"github.com/rs/zerolog"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+func runRouterInExportRoutesMode(routesFileName string) error {
+	backgroundContext := context.Background()
+	coverageDir, err := getCoverageDir()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.CommandContext(backgroundContext, routerBinary(), "-export-routes") //gosec:disable G204 //gosec:disable G702-- We intentionally want to exec a sub process with a var
+
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOCOVERDIR=%s", coverageDir))
+	cmd.Env = append(
+		cmd.Env,
+		fmt.Sprintf("CONTENT_STORE_DATABASE_URL=%s", postgresContainer.MustConnectionString(backgroundContext)),
+	)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ROUTER_ROUTES_FILE=%s", routesFileName))
+
+	if os.Getenv("ROUTER_DEBUG_TESTS") != "" {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	return cmd.Run()
+}
 
 var _ = Describe("Route Export", func() {
 	BeforeEach(func() {
@@ -22,10 +47,6 @@ var _ = Describe("Route Export", func() {
 	})
 
 	It("should export routes in JSONL format", func() {
-		ctx := context.Background()
-		err := os.Setenv("CONTENT_STORE_DATABASE_URL", postgresContainer.MustConnectionString(ctx))
-		Expect(err).NotTo(HaveOccurred())
-
 		// Create a temporary file for export
 		tmpFile, err := os.CreateTemp("", "routes-*.jsonl")
 		Expect(err).NotTo(HaveOccurred())
@@ -35,9 +56,7 @@ var _ = Describe("Route Export", func() {
 			_ = os.Remove(tmpFileName)
 		}()
 
-		logger := zerolog.Nop()
-
-		err = router.ExportRoutes(tmpFileName, logger)
+		err = runRouterInExportRoutesMode(tmpFileName)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Read the exported file
@@ -81,10 +100,7 @@ var _ = Describe("Route Export", func() {
 			_ = os.Remove(tmpFileName)
 		}()
 
-		logger := zerolog.Nop()
-
-		// Export routes
-		err = router.ExportRoutes(tmpFileName, logger)
+		err = runRouterInExportRoutesMode(tmpFileName)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Read the exported file
