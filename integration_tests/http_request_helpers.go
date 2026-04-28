@@ -58,11 +58,15 @@ func doRequest(req *http.Request) *http.Response {
 func doRequestAsync(request *http.Request, responseChannel chan *AsyncResponse) {
 	client := &http.Client{}
 	httpResponse, httpError := client.Do(request) //gosec:disable G704 - It's not really a tainted url, it just comes from elsewhere in our code
-	bodyCloseErr := httpResponse.Body.Close()
+
+	var bodyCloseError error
+	if httpResponse != nil {
+		bodyCloseError = httpResponse.Body.Close()
+	}
 
 	responseChannel <- &AsyncResponse{
 		response: httpResponse,
-		err:      errors.Join(httpError, bodyCloseErr),
+		err:      errors.Join(httpError, bodyCloseError),
 	}
 }
 
