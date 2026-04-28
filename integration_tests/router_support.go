@@ -138,7 +138,7 @@ func sendSignalToRouter(port int, sig os.Signal) (*exec.Cmd, error) {
 func ensureRouterTerminated(port int) error {
 	cmd, ok := runningRouters[port]
 	if !ok {
-		// Router has already been termianted and cleaned up, or was never created
+		// Router has already been terminated and cleaned up, or was never created
 		return nil
 	}
 
@@ -163,7 +163,7 @@ func ensureRouterTerminated(port int) error {
 	}
 
 	switch {
-	// On unix if a process exits because of a signal it will is not 'exited', instead it is 'signalled', either way we shut down fine
+	// On *nix if a process exits because of a signal it is not 'exited', instead it is 'signalled', either way we shut down fine
 	case state.Exited() || waitStatus.Signaled():
 		delete(runningRouters, port)
 		return nil
