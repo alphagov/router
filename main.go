@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/alphagov/router/handlers"
@@ -83,16 +87,46 @@ func mustParseDuration(s string) (d time.Duration) {
 	return
 }
 
-func listenAndServeOrFatal(addr string, handler http.Handler, rTimeout time.Duration, wTimeout time.Duration) {
+func listenAndServeOrFatal(name string, addr string, handler http.Handler, rTimeout time.Duration, wTimeout time.Duration, shutdownChannel chan string) {
+	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      handler,
 		ReadTimeout:  rTimeout,
 		WriteTimeout: wTimeout,
 	}
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
+
+	idleConnectionsClosed := make(chan struct{})
+	go func() {
+		signalNotificationChannel := make(chan os.Signal, 1)
+		signal.Notify(signalNotificationChannel, syscall.SIGINT, syscall.SIGTERM)
+
+		signalReceived := <-signalNotificationChannel
+		logger.Info().Msgf("%s received by %s, shutting down, gracefully shutting down", signalReceived, name)
+
+		ctx, cancelTimeout := context.WithTimeout(context.Background(), max(rTimeout, wTimeout))
+		defer cancelTimeout()
+		defer close(idleConnectionsClosed)
+
+		err := srv.Shutdown(ctx)
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			logger.Error().Msgf("Timeout error when waiting for %s server shutdown", name)
+		case err != nil:
+			logger.Error().Err(err).Msgf("Error shutting down %s server gracefully", name)
+		default:
+			logger.Info().Msgf("Successful graceful shutdown of %s server", name)
+		}
+	}()
+
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		logger.Fatal().Err(err).Msgf("Error starting or shutting down %s server", name)
 	}
+
+	<-idleConnectionsClosed
+
+	shutdownChannel <- name
 }
 
 func main() {
@@ -193,8 +227,10 @@ func main() {
 	// Start goroutine which periodically instructs Router to reload routes from content-store
 	go rout.PeriodicRouteUpdates()
 
+	serverShutdownChannel := make(chan string, 2)
+
 	// Start Router in a goroutine
-	go listenAndServeOrFatal(pubAddr, rout, feReadTimeout, feWriteTimeout)
+	go listenAndServeOrFatal("routing", pubAddr, rout, feReadTimeout, feWriteTimeout, serverShutdownChannel)
 	logger.Info().Msgf("listening for requests on %v", pubAddr)
 
 	// Create the API server handler
@@ -205,5 +241,14 @@ func main() {
 
 	logger.Info().Msgf("listening for API requests on %v", apiAddr)
 	// Start the API server
-	listenAndServeOrFatal(apiAddr, api, feReadTimeout, feWriteTimeout)
+	go listenAndServeOrFatal("API", apiAddr, api, feReadTimeout, feWriteTimeout, serverShutdownChannel)
+
+	// Wait for both API server and primary router to complete shutdown. The order doesn't matter
+	// but both completing shutdown does
+	logger.Info().Msg("Waiting for shutdown")
+	serverName := <-serverShutdownChannel
+	logger.Info().Msgf("Received successful shutdown signal from %s", serverName)
+	serverName = <-serverShutdownChannel
+	logger.Info().Msgf("Received successful shutdown signal from %s", serverName)
+	logger.Info().Msg("Shutdown complete")
 }
