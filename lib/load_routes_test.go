@@ -222,22 +222,73 @@ var _ = Describe("loadRoutes", func() {
 		})
 	})
 
-	Context("should always load the backend-probe route", func() {
-		BeforeEach(func() {
-			rows := pgxmock.NewRows([]string{})
-			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
+	Context("loading the probe routes routes", func() {
+		Context("when there are no other routes loaded", func() {
+			BeforeEach(func() {
+				rows := pgxmock.NewRows([]string{})
+				mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
-			err := loadRoutes(mockPool, mux, backends, logger)
-			Expect(err).NotTo(HaveOccurred())
+				err := loadRoutes(mockPool, mux, backends, logger)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("should have no routes", func() {
+				Expect(mux.RouteCount()).To(BeZero())
+			})
+
+			for _, probeRoute := range []string{
+				"/__probe__/get",
+				"/__probe__/gone",
+				"/__probe__/router-redirect",
+			} {
+				It(fmt.Sprintf("should reply to %s with 503", probeRoute), func() {
+					req, _ := http.NewRequest(http.MethodGet, probeRoute, nil)
+					rr := httptest.NewRecorder()
+					mux.ServeHTTP(rr, req)
+
+					Expect(rr.Code).To(Equal(http.StatusServiceUnavailable))
+				})
+			}
 		})
 
-		It("should load the probe backend route correctly", func() {
-			req, _ := http.NewRequest(http.MethodGet, "/__probe__/get", nil)
-			rr := httptest.NewRecorder()
-			mux.ServeHTTP(rr, req)
+		Context("when there are other routes loaded", func() {
+			BeforeEach(func() {
+				rows := pgxmock.
+					NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+					AddRow(nil, new("/foo-gone"), new("exact"), nil, nil, new("gone"), new("{\"explanation\": \"this is gone\", \"alternative_path\": null}"))
 
-			Expect(rr.Code).To(Equal(http.StatusOK))
-			Expect(rr.Body.String()).To(Equal("router-probe-backend"))
+				mockPool.ExpectQuery("WITH").WillReturnRows(rows)
+
+				err := loadRoutes(mockPool, mux, backends, logger)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("should load the probe backend route correctly", func() {
+				req, _ := http.NewRequest(http.MethodGet, "/__probe__/get", nil)
+				rr := httptest.NewRecorder()
+				mux.ServeHTTP(rr, req)
+
+				Expect(rr.Code).To(Equal(http.StatusOK))
+				Expect(rr.Body.String()).To(Equal("router-probe-backend"))
+			})
+
+			It("should load the /__probe__/gone route correctly", func() {
+				req, _ := http.NewRequest(http.MethodGet, "/__probe__/gone", nil)
+				rr := httptest.NewRecorder()
+				mux.ServeHTTP(rr, req)
+
+				Expect(rr.Code).To(Equal(http.StatusGone))
+				Expect(rr.Body.String()).To(Equal("410 Gone\n"))
+			})
+
+			It("should load the /__probe__/router-redirect route correctly", func() {
+				req, _ := http.NewRequest(http.MethodGet, "/__probe__/router-redirect", nil)
+				rr := httptest.NewRecorder()
+				mux.ServeHTTP(rr, req)
+
+				Expect(rr.Code).To(Equal(http.StatusMovedPermanently))
+				Expect(rr.Result().Header.Get("Location")).To(Equal("/__probe__/redirected"))
+			})
 		})
 	})
 })
@@ -280,7 +331,7 @@ var _ = Describe("Router", func() {
 
 			router.reloadRoutes(mockPool)
 
-			Expect(router.mux.RouteCount()).To(Equal(2))
+			Expect(router.mux.RouteCount()).To(Equal(4)) // This is 4 because there are 2 auto-added probe routes which don't need a backend
 		})
 
 		It("should handle panic and log error", func() {

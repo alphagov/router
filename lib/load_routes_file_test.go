@@ -41,8 +41,8 @@ func TestLoadRoutesFromFile(t *testing.T) {
 	}
 
 	routeCount := mux.RouteCount()
-	if routeCount != 4 {
-		t.Errorf("Expected 4 routes, got %d", routeCount)
+	if routeCount != 6 { // 2 Extra routes loaded for the probe endpoints automatically
+		t.Errorf("Expected 6 routes, got %d", routeCount)
 	}
 }
 
@@ -87,13 +87,12 @@ this is not valid JSON
 
 	// Should have loaded 2 valid routes (first and last)
 	routeCount := mux.RouteCount()
-	if routeCount != 2 {
-		t.Errorf("Expected 2 routes (skipping invalid JSON), got %d", routeCount)
+	if routeCount != 4 { // 2 extra routes automatically loaded for the probe endpoints
+		t.Errorf("Expected 4 routes (skipping invalid JSON), got %d", routeCount)
 	}
 }
 
-func TestLoadRoutesFromFile_IncludesProbe(t *testing.T) {
-
+func TestLoadRoutesFromFile_DoesNotIncludeProbeRoutesIfNoOtherRoutes(t *testing.T) {
 	tmpDir := t.TempDir()
 	routesFile := filepath.Join(tmpDir, "test_no_routes.jsonl")
 
@@ -121,20 +120,111 @@ func TestLoadRoutesFromFile_IncludesProbe(t *testing.T) {
 	}
 
 	routeCount := mux.RouteCount()
-	if routeCount != 1 {
-		t.Errorf("Expected 1 routes, got %d", routeCount)
+	if routeCount != 0 {
+		t.Errorf("Expected 0 routes, got %d", routeCount)
 	}
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/__probe__/get", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/__probe__/gone", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected router-probe-backend to return 200 OK, got %v", rr.Code)
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected /__probe__/gone to return HTTP Code 503, got %v", rr.Code)
+	}
+}
+
+func TestLoadRoutesFromFile_IncludesProbeRoutes(t *testing.T) {
+	tmpDir := t.TempDir()
+	routesFile := filepath.Join(tmpDir, "test_routes.jsonl")
+
+	content := `{"BackendID":"router-probe-backend","IncomingPath":"/","RouteType":"prefix","RedirectTo":null,"SegmentsMode":null,"SchemaName":null,"Details":null}`
+
+	if err := os.WriteFile(routesFile, []byte(content), 0600); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	if rr.Body.String() != "router-probe-backend" {
-		t.Errorf("Expected router-probe-backend to be called and return expected result, got %v", rr.Body.String())
+	logger := zerolog.Nop()
+	mux := triemux.NewMux(logger)
+	backends := map[string]http.Handler{
+		"router-probe-backend": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+
+			if _, err := w.Write([]byte("router-probe-backend")); err != nil {
+				fmt.Println("Failed to write to the response", err)
+			}
+		}),
+	}
+
+	err := loadRoutesFromFile(routesFile, mux, backends, logger)
+	if err != nil {
+		t.Fatalf("Failed to load routes from file: %v", err)
+	}
+
+	routeCount := mux.RouteCount()
+	if routeCount != 4 {
+		t.Errorf("Expected 4 routes, got %d", routeCount)
+	}
+
+	type TestCase struct {
+		Endpoint           string
+		ExpectedStatus     int
+		ExpectedBody       string
+		ExpectToHitBackend bool
+		RedirectLocation   *string
+	}
+
+	testCases := []*TestCase{
+		{
+			Endpoint:           "/__probe__/get",
+			ExpectedStatus:     http.StatusOK,
+			ExpectedBody:       "router-probe-backend",
+			ExpectToHitBackend: true,
+			RedirectLocation:   nil,
+		},
+		{
+			Endpoint:           "/__probe__/gone",
+			ExpectedStatus:     http.StatusGone,
+			ExpectedBody:       "410 Gone\n",
+			ExpectToHitBackend: false,
+			RedirectLocation:   nil,
+		},
+		{
+			Endpoint:           "/__probe__/router-redirect",
+			ExpectedStatus:     http.StatusMovedPermanently,
+			ExpectedBody:       "<a href=\"/__probe__/redirected\">Moved Permanently</a>.\n\n",
+			ExpectToHitBackend: false,
+			RedirectLocation:   new("/__probe__/redirected"),
+		},
+	}
+
+	for _, testCase := range testCases {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, testCase.Endpoint, nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		if rr.Code != testCase.ExpectedStatus {
+			t.Errorf("Expected %s to return HTTP Code %d, got %v", testCase.Endpoint, testCase.ExpectedStatus, rr.Code)
+		}
+
+		body := rr.Body.String()
+		if body != testCase.ExpectedBody {
+			fmt.Printf("\n\nEXPECTED: [%s] - ACTUAL [%s]\n\n", testCase.ExpectedBody, body)
+			t.Errorf("Expected %s to be called and return body %s result, got %s", testCase.Endpoint, testCase.ExpectedBody, body)
+		}
+
+		switch {
+		case testCase.ExpectToHitBackend && body != "router-probe-backend":
+			t.Errorf("Expected %s to hit the backend, but it did not", testCase.Endpoint)
+		case !testCase.ExpectToHitBackend && body == "router-probe-backend":
+			t.Errorf("Expected %s not to hit the backend, but it did", testCase.Endpoint)
+		}
+
+		if testCase.RedirectLocation != nil {
+			locationHeader := rr.Result().Header.Get("Location")
+			if locationHeader != *testCase.RedirectLocation {
+				t.Errorf("Expected %s to redirect to %s, but instead it redirected to %s", testCase.Endpoint, *testCase.RedirectLocation, locationHeader)
+			}
+		}
 	}
 }
 
@@ -165,9 +255,9 @@ func TestLoadRoutesFromFile_EmptyLines(t *testing.T) {
 		t.Fatalf("Failed to load routes from file: %v", err)
 	}
 
-	// Should load 2 routes, skipping empty lines
+	// Should load 4 routes (the 2 added in this test, and the 2 automatically added probe routes), skipping empty lines
 	routeCount := mux.RouteCount()
-	if routeCount != 2 {
-		t.Errorf("Expected 2 routes (skipping empty lines), got %d", routeCount)
+	if routeCount != 4 {
+		t.Errorf("Expected 4 routes (skipping empty lines), got %d", routeCount)
 	}
 }
