@@ -87,14 +87,6 @@ func mustParseDuration(s string) (d time.Duration) {
 	return
 }
 
-func maxDuration(a time.Duration, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	} else {
-		return b
-	}
-}
-
 func listenAndServeOrFatal(name string, addr string, handler http.Handler, rTimeout time.Duration, wTimeout time.Duration, shutdownChannel chan string) {
 	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
@@ -113,7 +105,7 @@ func listenAndServeOrFatal(name string, addr string, handler http.Handler, rTime
 		signalReceived := <-signalNotificationChannel
 		logger.Info().Msgf("%s received by %s, shutting down, gracefully shutting down", signalReceived, name)
 
-		ctx, cancelTimeout := context.WithTimeout(context.Background(), maxDuration(rTimeout, wTimeout))
+		ctx, cancelTimeout := context.WithTimeout(context.Background(), max(rTimeout, wTimeout))
 		defer cancelTimeout()
 		defer close(idleConnectionsClosed)
 
