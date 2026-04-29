@@ -82,17 +82,23 @@ func reloadRoutes(port int) {
 
 var runningRouters = make(map[int]*exec.Cmd)
 
+func routerBinary() string {
+	bin := os.Getenv("BINARY")
+
+	if bin == "" {
+		bin = "../router"
+	}
+
+	return bin
+}
+
 func startRouter(port, apiPort int, extraEnv []string) error {
 	host := "localhost"
 	pubAddr := net.JoinHostPort(host, strconv.Itoa(port))
 	apiAddr := net.JoinHostPort(host, strconv.Itoa(apiPort))
 
-	bin := os.Getenv("BINARY")
-	if bin == "" {
-		bin = "../router"
-	}
 	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, bin) //gosec:disable G204 //gosec:disable G702-- We intentionally want to exec a sub process with a var
+	cmd := exec.CommandContext(ctx, routerBinary()) //gosec:disable G204 //gosec:disable G702-- We intentionally want to exec a sub process with a var
 
 	coverageDir, err := getCoverageDir()
 	if err != nil {
