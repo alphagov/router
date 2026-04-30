@@ -116,7 +116,7 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 		return err
 	}
 
-	err = addProbeRoute(mux, backends, logger)
+	err = addProbeRoutes(mux, backends, logger)
 	if err != nil {
 		return err
 	}
@@ -124,17 +124,45 @@ func loadRoutes(pool PgxIface, mux *triemux.Mux, backends map[string]http.Handle
 	return nil
 }
 
-func addProbeRoute(mux *triemux.Mux, backends map[string]http.Handler, logger zerolog.Logger) error {
-	route := &Route{
-		IncomingPath: new("/__probe__"),
-		RouteType:    new(RouteTypePrefix),
-		SchemaName:   new(HandlerTypeBackend),
-		BackendID:    new("router-probe-backend"),
+func addProbeRoutes(mux *triemux.Mux, backends map[string]http.Handler, logger zerolog.Logger) error {
+	if mux.RouteCount() == 0 {
+		// If we fail to load any routes prior to the probe routes then we should
+		// not add our probe routes. This is because we want to serve a 503 if all
+		// routes failed to load, but that check is done in the core of every request,
+		// and we don't want to add any latency doing a complex check of all Tries to
+		// verify they all begin /__probe__.
+		//
+		// This also ensures our own synthetic/smoke tests will immediately start seeing
+		// 5xx errors if router manages to start up and load no routes (which is disaster
+		// territory)
+		return nil
 	}
 
-	err := addHandler(mux, route, backends, logger)
-	if err != nil {
-		return err
+	probeRoutes := []*Route{
+		{
+			IncomingPath: new("/__probe__"),
+			RouteType:    new(RouteTypePrefix),
+			SchemaName:   new(HandlerTypeBackend),
+			BackendID:    new("router-probe-backend"),
+		},
+		{
+			IncomingPath: new("/__probe__/gone"),
+			RouteType:    new(RouteTypeExact),
+			SchemaName:   new(HandlerTypeGone),
+		},
+		{
+			IncomingPath: new("/__probe__/router-redirect"),
+			RouteType:    new(RouteTypeExact),
+			SchemaName:   new(HandlerTypeRedirect),
+			RedirectTo:   new("/__probe__/redirected"),
+		},
+	}
+
+	for _, probeRoute := range probeRoutes {
+		err := addHandler(mux, probeRoute, backends, logger)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
