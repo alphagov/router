@@ -7,4 +7,8 @@
 /site_tests/node_modules
 /site_tests/test-results
 __build
-coverage/
+coverage/integration
+coverage/unit
+coverage/version
+coverage/report
+coverage/merged
