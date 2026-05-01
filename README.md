@@ -199,6 +199,29 @@ This can be used to continue serving routes when Content Store's database is dow
 
 For details on how to configure Router to load from a file see [docs/how-to-serve-routes-from-flat-file.md](docs/how-to-serve-routes-from-flat-file.md).
 
+## Probe endpoints
+
+Several probe endpoints are provided which allow you to test the functionality of router externally.
+
+If no other routes are loaded, then none of the probe endpoint routes will be loaded and every request will return an HTTP 503 Service Unavailable..
+
+When run with the [router-probe-backend](https://github.com/alphagov/govuk-helm-charts/tree/main/charts/router-probe-backend) backend service the available probes are:
+
+Route                              | Provided by          | HTTP Response Expected
+-----------------------------------|----------------------|------------
+`/__probe__/gone`                  | router               | Returns 410 Gone status from internally within router
+`/__probe__/router-redirect`       | router               | Returns 301 Moved Permenantly to `/__probe__/redirected`
+`/__probe__/ok`                    | router-probe-backend | Returns 200 OK
+`/__probe__/redirect`              | router-probe-backend | Returns 301 Moved Permenantly to `/__probe__/redirected`
+`/__probe__/redirected`            | router-probe-backend | Returns 200 Ok
+`/__probe__/not-found`             | router-probe-backend | Returns 404 Not Found
+`/__probe__/internal-server-error` | router-probe-backend | Returns 500 Internal Server Error
+`/__probe__/get`                   | router-probe-backend | Returns 200 Ok if the HTTP method is GET, otherwise returns 403 Forbidden
+`/__probe__/post`                  | router-probe-backend | Returns 200 Ok if the HTTP method is POST, otherwise returns 403 Forbidden
+`/__probe__/headers/get`           | router-probe-backend | Returns 200 Ok if the HTTP method is GET, with a JSON body which includes the key `requestHeaders` which is an Object of headers on the HTTP Request (with some values redacted)
+`/__probe__/headers/post`          | router-probe-backend | Returns 200 Ok if the HTTP method is POST, with a JSON body which includes the key `requestHeaders` which is an Object of headers on the HTTP Request (with some values redacted)
+`/__probe__/__canary__`            | router-probe-backend | Returns 200 Ok with a JSON body of `{"message": "Tweet tweet"}\n'}`
+
 ## Technical documentation
 
 Recommended reading: [How to Write Go Code](https://golang.org/doc/code.html)
@@ -284,6 +307,42 @@ This project uses [Go Modules](https://github.com/golang/go/wiki/Modules) to ven
      Only `go get` and `go mod` should touch files in `vendor/`.
 
 1. Raise a PR.
+
+### View the test coverage report
+
+A coverage report is generated which includes both unit and integration test coverage merged into a single report.
+
+Runing the make target `coverage_report` will generate a coverage report which covers everything if you have already run `unit_tests` and `integration_tests` (this doesn't happen automatically for the sake of GitHub actions CI checks):
+
+```
+make unit_tests
+make integration_tests
+make coverage_report
+```
+
+The end of the coverage_report output will be a high level package statement coverage percentage, as well as an overall coverage percentage:
+
+```
+$ make coverage_report
+go tool covdata merge -i coverage/unit,coverage/integration/,coverage/version -o coverage/merged/
+go tool covdata textfmt -i coverage/merged/ -o coverage/report/textfmt.txt
+go tool cover -html coverage/report/textfmt.txt -o coverage/report/coverage.html
+go tool cover -func=coverage/report/textfmt.txt | tail -n 1 > coverage/report/overall-coverage.txt
+./coverage/generate-markdown-summary.sh
+
+
+Overall Coverage: 84.8%
+
+github.com/alphagov/router           coverage:  82.3%   of  statements
+github.com/alphagov/router/handlers  coverage:  95.6%   of  statements
+github.com/alphagov/router/lib       coverage:  80.8%   of  statements
+github.com/alphagov/router/trie      coverage:  97.7%   of  statements
+github.com/alphagov/router/triemux   coverage:  100.0%  of  statements
+````
+
+There is also a detailed textfmt report output into `coverage/report/textfmt.txt` which can be used by various other tooling.
+
+Finally there's an HTML version of the report which allows you to see individaul lines coverage broken down by file, this is output `coverage/report/coverage.html`
 
 ### Further documentation
 
