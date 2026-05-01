@@ -18,6 +18,8 @@ jobs:
   test-go:
     name: Test Go
     runs-on: ubuntu-latest
+    permissions:
+        pull-requests: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -29,6 +31,19 @@ jobs:
       - run: make integration_tests
         timeout-minutes: 15
       - run: make coverage_report
+      - name: Post PR Comment with Coverage
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          set -euo pipefail
+
+          # Clear any previous comment
+          gh pr comment "${PR_NUMBER}" --delete-last --yes || true
+
+          # Post updated coverage report
+          gh pr comment "${PR_NUMBER}" --body-file coverage/report/overall-coverage.md
   golangci-lint:
     runs-on: ubuntu-latest
     steps:

@@ -41,3 +41,7 @@ coverage_report:
 	go tool cover -html coverage/report/textfmt.txt -o coverage/report/coverage.html
 	go tool cover -func=coverage/report/textfmt.txt | tail -n 1 > coverage/report/overall-coverage.txt
 	./coverage/generate-markdown-summary.sh
+	@printf "\n\nOverall Coverage: "
+	@awk '{ print $$3; }' coverage/report/overall-coverage.txt
+	@echo
+	@go tool covdata percent -i coverage/merged | column -t
