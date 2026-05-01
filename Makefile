@@ -38,6 +38,7 @@ update_deps:
 coverage_report:
 	go tool covdata merge -i coverage/unit,coverage/integration/,coverage/version -o coverage/merged/
 	go tool covdata textfmt -i coverage/merged/ -o coverage/report/textfmt.txt
+	go tool covdata percent -i coverage/merged/ | awk '{ print $$1, substr($$3, 1, length($$3)-1); }' > coverage/report/percent.txt
 	go tool cover -html coverage/report/textfmt.txt -o coverage/report/coverage.html
 	go tool cover -func=coverage/report/textfmt.txt | tail -n 1 > coverage/report/overall-coverage.txt
 	./coverage/generate-markdown-summary.sh
