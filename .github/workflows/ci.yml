@@ -31,6 +31,17 @@ jobs:
       - run: make unit_tests
       - run: make integration_tests
         timeout-minutes: 15
+      - name: Download coverage report from main
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Download coverage report (they expire after 90 days, so don't fail if there isn't one)
+          if ! gh run download --name coverage-report-main --dir coverage/report-main/; then
+            echo "Failed to download coverage report artifact 'coverage-report-main', continuing anyway"
+          fi
       - run: make coverage_report
       - name: Post PR Comment with Coverage
         if: github.event_name == 'pull_request'
