@@ -75,7 +75,7 @@ function overall_coverage_percent_on_main {
     return 0
   fi
 
-  awk '{ print substr($3, 1, length($3)-1); }' "${COVERAGE_DIR}/report/overall-coverage.txt"
+  awk '{ print substr($3, 1, length($3)-1); }' "${COVERAGE_DIR}/report-main/overall-coverage.txt"
 }
 
 function percentage_for_package_on_main {
@@ -100,7 +100,7 @@ function coverage_change {
   #   $1: Coverage % on main
   #   $2: Coverage % now
   local COVERAGE_ON_MAIN=$1
-  local COVERAGE_NOW=$1
+  local COVERAGE_NOW=$2
 
   if [ "$COVERAGE_ON_MAIN" == "$UNKNOWN_COVERAGE" ] || [ "$COVERAGE_ON_MAIN" == "$NEW_PACKAGE" ]; then
     echo "$COVERAGE_ON_MAIN"
@@ -121,19 +121,19 @@ function change_percentage_text {
 
   case "$CHANGE_DIRECTION" in
     "$UNKNOWN_COVERAGE"|"$NEW_PACKAGE")
-      echo "$CHANGE_DIRECTION ${EMOJI}"
+      echo "${EMOJI} $CHANGE_DIRECTION"
       ;;
     "1")
-      echo "+${PERCENTAGE_POINTS_CHANGE}% ${EMOJI}"
+      echo "${EMOJI} +${PERCENTAGE_POINTS_CHANGE}% "
       ;;
     "0")
-      echo "+/- 0% ${EMOJI}"
+      echo "${EMOJI} +/- 0%"
       ;;
     "-1")
-      echo "${PERCENTAGE_POINTS_CHANGE}% ${EMOJI}"
+      echo "${EMOJI} ${PERCENTAGE_POINTS_CHANGE}%"
       ;;
     *)
-      echo "Unknown ${EMOJI}"
+      echo "${EMOJI} Unknown"
       ;;
   esac
 }
@@ -142,12 +142,11 @@ go tool covdata percent -i "${COVERAGE_DIR}/merged" > "$RAW_REPORT"
 
 MARKDOWN_REPORT="${COVERAGE_DIR}/report/overall-coverage.md"
 
-OVERALL_COVERAGE=$(awk '{ print substr($3, 1, length($3)-1); }' "${COVERAGE_DIR}/report/overall-coverage.txt")
+OVERALL_COVERAGE_NOW=$(awk '{ print substr($3, 1, length($3)-1); }' "${COVERAGE_DIR}/report/overall-coverage.txt")
 OVERALL_COVERAGE_ON_MAIN=$(overall_coverage_percent_on_main)
-OVERALL_COVERAGE_CHANGE_VS_MAIN=$(coverage_change "$OVERALL_COVERAGE_ON_MAIN" "$OVERALL_COVERAGE")
+OVERALL_COVERAGE_CHANGE_VS_MAIN=$(coverage_change "$OVERALL_COVERAGE_ON_MAIN" "$OVERALL_COVERAGE_NOW")
 OVERALL_CHANGE_PERCENTAGE_TEXT=$(change_percentage_text "$OVERALL_COVERAGE_CHANGE_VS_MAIN")
-
-OVERALL_EMOJI=$(emoji_for_percent "$OVERALL_COVERAGE")
+OVERALL_EMOJI=$(emoji_for_percent "$OVERALL_COVERAGE_NOW")
 
 WARNING_TEXT=""
 if [ "${OVERALL_COVERAGE_ON_MAIN}" == "$UNKNOWN_COVERAGE" ]; then
@@ -159,22 +158,24 @@ fi
 cat > "$MARKDOWN_REPORT" <<EOF
 ## Coverage report
 $WARNING_TEXT
-Overall coverage: ${OVERALL_COVERAGE}% ${OVERALL_EMOJI} (${OVERALL_CHANGE_PERCENTAGE_TEXT})
+Overall coverage: ${OVERALL_COVERAGE_NOW}% ${OVERALL_EMOJI} - Change vs. main: ${OVERALL_CHANGE_PERCENTAGE_TEXT}
 
-Package | Statements Covered | Happy?
--------|:------------------:|:------:
+Package | Statements Covered | Happy? | Change vs Main 
+--------|:------------------:|:------:|:--------------:
 EOF
 
 while read -r LINE; do
   PACKAGE=$(awk '{ print $1; }' <<<"$LINE")
+
   PERCENTAGE=$(awk '{ print substr($3, 1, length($3)-1); }' <<< "$LINE")
 
   PERCENTAGE_ON_MAIN=$(percentage_for_package_on_main "$PACKAGE")
+
   COVERAGE_CHANGE=$(coverage_change "$PERCENTAGE_ON_MAIN" "$PERCENTAGE")
 
   EMOJI=$(emoji_for_percent "$PERCENTAGE")
 
   CHANGE_PERCENTAGE_TEXT=$(change_percentage_text "$COVERAGE_CHANGE")
 
-  echo "${PACKAGE} | ${PERCENTAGE}% (${CHANGE_PERCENTAGE_TEXT})| $EMOJI" >> "$MARKDOWN_REPORT"
+  echo "${PACKAGE} | ${PERCENTAGE}% | ${EMOJI} | ${CHANGE_PERCENTAGE_TEXT}" >> "$MARKDOWN_REPORT"
 done < "$RAW_REPORT"
