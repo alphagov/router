@@ -1,0 +1,4 @@
+{
+  "enabledManagers": ["github-actions"],
+  "minimumReleaseAge": "10 days"
+}
