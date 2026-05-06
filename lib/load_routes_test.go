@@ -93,6 +93,32 @@ var _ = Describe("loadRoutes", func() {
 		})
 	})
 
+	Context("when a route has an unparseable IncomingPath", func() {
+		It("should not load the route", func() {
+			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+				AddRow(nil, new("\n"), new("exact"), nil, nil, new("gone"), new(""))
+
+			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
+
+			err := loadRoutes(mockPool, mux, backends, logger)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(mux.RouteCount()).To(BeZero())
+		})
+
+		It("should not fail to load other routes", func() {
+			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
+				AddRow(nil, new("\n"), new("exact"), nil, nil, new("gone"), new("")).
+				AddRow(nil, new("/frontend-gone"), new("exact"), nil, nil, new("gone"), new("{\"explanation\": \"this is gone\", \"alternative_path\": null}"))
+
+			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
+
+			err := loadRoutes(mockPool, mux, backends, logger)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(mux.RouteCount()).NotTo(BeZero())
+		})
+	})
+
 	Context("when content store has gone routes", func() {
 		BeforeEach(func() {
 			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
