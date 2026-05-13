@@ -45,8 +45,8 @@ github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
-github.com/getsentry/sentry-go v0.45.1 h1:9rfzJtGiJG+MGIaWZXidDGHcH5GU1Z5y0WVJGf9nysw=
-github.com/getsentry/sentry-go v0.45.1/go.mod h1:XDotiNZbgf5U8bPDUAfvcFmOnMQQceESxyKaObSssW0=
+github.com/getsentry/sentry-go v0.46.1 h1:mZyQFaQYkPxAdDG4HR8gDg6j4CnKYVWt4TF92N7i3XY=
+github.com/getsentry/sentry-go v0.46.1/go.mod h1:evVbw2qotNUdYG8KxXbAdjOQWWvWIwKxpjdZZIvcIPw=
 github.com/getsentry/sentry-go/zerolog v0.45.1 h1:0QGjTfE4MTaPBR5SkdMYgwOGmikeSepbOOZx4rPHg8Q=
 github.com/getsentry/sentry-go/zerolog v0.45.1/go.mod h1:uXyxZHfaMh949+QniS83uOyDlQAUQclR6+MxO03BDXA=
 github.com/gkampitakis/ciinfo v0.3.2 h1:JcuOPk8ZU7nZQjdUhctuhQofk7BGHuIy0c9Ez8BNhXs=
