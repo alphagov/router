@@ -65,8 +65,8 @@ var _ = Describe("loadRoutes", func() {
 	Context("when content store has backend routes", func() {
 		BeforeEach(func() {
 			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(stringPtr("backend1"), stringPtr("/path1"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
-				AddRow(stringPtr("backend2"), stringPtr("/path2"), stringPtr("prefix"), nil, nil, stringPtr("guidance"), stringPtr(""))
+				AddRow(new("backend1"), new("/path1"), new("exact"), nil, nil, new("guidance"), new("")).
+				AddRow(new("backend2"), new("/path2"), new("prefix"), nil, nil, new("guidance"), new(""))
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
@@ -122,12 +122,12 @@ var _ = Describe("loadRoutes", func() {
 	Context("when content store has gone routes", func() {
 		BeforeEach(func() {
 			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(nil, stringPtr("/frontend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
-				AddRow(stringPtr("backend2"), stringPtr("/backend-gone"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
-				AddRow(stringPtr("backend1"), stringPtr("/guidance"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
-				AddRow(nil, stringPtr("/gone-empty-attributes"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{\"explanation\": null, \"alternative_path\": null}")).
-				AddRow(nil, stringPtr("/gone-empty-details"), stringPtr("exact"), nil, nil, stringPtr("gone"), stringPtr("{}")).
-				AddRow(nil, stringPtr("/gone-nil-details"), stringPtr("exact"), nil, nil, stringPtr("gone"), nil)
+				AddRow(nil, new("/frontend-gone"), new("exact"), nil, nil, new("gone"), new("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
+				AddRow(new("backend2"), new("/backend-gone"), new("exact"), nil, nil, new("gone"), new("{\"explanation\": \"this is gone\", \"alternative_path\": null}")).
+				AddRow(new("backend1"), new("/guidance"), new("exact"), nil, nil, new("guidance"), new("")).
+				AddRow(nil, new("/gone-empty-attributes"), new("exact"), nil, nil, new("gone"), new("{\"explanation\": null, \"alternative_path\": null}")).
+				AddRow(nil, new("/gone-empty-details"), new("exact"), nil, nil, new("gone"), new("{}")).
+				AddRow(nil, new("/gone-nil-details"), new("exact"), nil, nil, new("gone"), nil)
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
@@ -181,12 +181,12 @@ var _ = Describe("loadRoutes", func() {
 	Context("when content store has redirect routes", func() {
 		BeforeEach(func() {
 			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(nil, stringPtr("/redirect-exact"), stringPtr("exact"), stringPtr("/redirected-exact"), nil, stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-prefix"), stringPtr("prefix"), stringPtr("/redirected-prefix"), nil, stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-exact-ignore"), stringPtr("exact"), stringPtr("/redirected-exact-ignore"), stringPtr("ignore"), stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-prefix-ignore"), stringPtr("prefix"), stringPtr("/redirected-prefix-ignore"), stringPtr("ignore"), stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-exact-preserve"), stringPtr("exact"), stringPtr("/redirected-exact-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil).
-				AddRow(nil, stringPtr("/redirect-prefix-preserve"), stringPtr("prefix"), stringPtr("/redirected-prefix-preserve"), stringPtr("preserve"), stringPtr("redirect"), nil)
+				AddRow(nil, new("/redirect-exact"), new("exact"), new("/redirected-exact"), nil, new("redirect"), nil).
+				AddRow(nil, new("/redirect-prefix"), new("prefix"), new("/redirected-prefix"), nil, new("redirect"), nil).
+				AddRow(nil, new("/redirect-exact-ignore"), new("exact"), new("/redirected-exact-ignore"), new("ignore"), new("redirect"), nil).
+				AddRow(nil, new("/redirect-prefix-ignore"), new("prefix"), new("/redirected-prefix-ignore"), new("ignore"), new("redirect"), nil).
+				AddRow(nil, new("/redirect-exact-preserve"), new("exact"), new("/redirected-exact-preserve"), new("preserve"), new("redirect"), nil).
+				AddRow(nil, new("/redirect-prefix-preserve"), new("prefix"), new("/redirected-prefix-preserve"), new("preserve"), new("redirect"), nil)
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
 			err := loadRoutes(mockPool, mux, backends, logger)
@@ -350,8 +350,8 @@ var _ = Describe("Router", func() {
 
 		It("should reload routes from content store successfully", func() {
 			rows := pgxmock.NewRows([]string{"backend", "path", "match_type", "destination", "segments_mode", "schema_name", "details"}).
-				AddRow(stringPtr("backend1"), stringPtr("/path1"), stringPtr("exact"), nil, nil, stringPtr("guidance"), stringPtr("")).
-				AddRow(stringPtr("backend2"), stringPtr("/path2"), stringPtr("prefix"), nil, nil, stringPtr("guidance"), stringPtr(""))
+				AddRow(new("backend1"), new("/path1"), new("exact"), nil, nil, new("guidance"), new("")).
+				AddRow(new("backend2"), new("/path2"), new("prefix"), nil, nil, new("guidance"), new(""))
 
 			mockPool.ExpectQuery("WITH").WillReturnRows(rows)
 
