@@ -80,7 +80,7 @@ github.com/getsentry/sentry-go/internal/ratelimit
 github.com/getsentry/sentry-go/internal/telemetry
 github.com/getsentry/sentry-go/internal/util
 github.com/getsentry/sentry-go/report
-# github.com/getsentry/sentry-go/zerolog v0.46.1
+# github.com/getsentry/sentry-go/zerolog v0.46.2
 ## explicit; go 1.25.0
 github.com/getsentry/sentry-go/zerolog
 # github.com/go-logr/logr v1.4.3
