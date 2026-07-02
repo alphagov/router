@@ -11,6 +11,6 @@ jobs:
   release:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     name: Release
-    uses: alphagov/govuk-infrastructure/.github/workflows/release.yml@main
+    uses: alphagov/govuk-infrastructure/.github/workflows/release.yml@c9d19bfdc2cc480beb46a23e07fed557bcac3760 # main
     secrets:
       GH_TOKEN: ${{ secrets.GOVUK_CI_GITHUB_API_TOKEN }}
