@@ -33,7 +33,7 @@ jobs:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
         with:
-          version: v2.11
+          version: v2.12.2
   codeql-sast:
     name: CodeQL SAST scan
     uses: alphagov/govuk-infrastructure/.github/workflows/codeql-analysis.yml@main
