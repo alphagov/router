@@ -6,7 +6,7 @@ tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 require (
 	github.com/getsentry/sentry-go v0.49.0
-	github.com/getsentry/sentry-go/zerolog v0.48.0
+	github.com/getsentry/sentry-go/zerolog v0.49.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.44.0
