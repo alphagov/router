@@ -19,7 +19,7 @@ func stripQuery(q string) (s string) {
 // and validate SQL ast, columns selected.
 //
 // pgxmock can be customized to implement a different QueryMatcher
-// configured through an option when pgxmock.New or pgxmock.NewWithDSN
+// configured through an option when pgxmock.NewConn or pgxmock.NewPool
 // is called, default QueryMatcher is QueryMatcherRegexp.
 type QueryMatcher interface {
 
@@ -63,6 +63,19 @@ var QueryMatcherEqual QueryMatcher = QueryMatcherFunc(func(expectedSQL, actualSQ
 	actual := stripQuery(actualSQL)
 	if actual != expect {
 		return fmt.Errorf(`actual sql: "%s" does not equal to expected "%s"`, actual, expect)
+	}
+	return nil
+})
+
+// QueryMatcherSubstring is the SQL query matcher which checks that the actual
+// SQL contains the expected string, after whitespace has been collapsed in
+// both. It suits query builders whose exact output is noisy but whose shape
+// matters, without the escaping that QueryMatcherRegexp requires.
+var QueryMatcherSubstring QueryMatcher = QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+	expect := stripQuery(expectedSQL)
+	actual := stripQuery(actualSQL)
+	if !strings.Contains(actual, expect) {
+		return fmt.Errorf(`actual sql: "%s" does not contain expected "%s"`, actual, expect)
 	}
 	return nil
 })

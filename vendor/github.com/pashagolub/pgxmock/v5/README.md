@@ -1,5 +1,4 @@
-[![Go Reference](https://pkg.go.dev/badge/github.com/pashagolub/pgxmock.svg)](https://pkg.go.dev/github.com/pashagolub/pgxmock/v4)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pashagolub/pgxmock)](https://goreportcard.com/report/github.com/pashagolub/pgxmock/v4)
+[![Go Reference](https://pkg.go.dev/badge/github.com/pashagolub/pgxmock.svg)](https://pkg.go.dev/github.com/pashagolub/pgxmock/v5)
 [![Coverage Status](https://coveralls.io/repos/github/pashagolub/pgxmock/badge.svg?branch=master)](https://coveralls.io/github/pashagolub/pgxmock?branch=master)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go)
 
@@ -10,18 +9,21 @@ It's based on the well-known [sqlmock](https://github.com/DATA-DOG/go-sqlmock) l
 
 **pgxmock** has one and only purpose - to simulate **pgx** behavior in tests, without needing a real database connection. It helps to maintain correct **TDD** workflow.
 
-- written based on **go1.21** version;
 - does not require any modifications to your source code;
 - has strict by default expectation order matching;
 - has no third party dependencies except **pgx** packages.
 
 ## Install
 
-    go get github.com/pashagolub/pgxmock/v4
+    go get github.com/pashagolub/pgxmock/v5
+
+## Version support policy
+
+**pgxmock** follows the [official Go release policy](https://go.dev/doc/devel/release#policy): the two most recent major Go releases are supported. Older versions may work but are not tested or maintained.
 
 ## Documentation and Examples
 
-Visit [godoc](http://pkg.go.dev/github.com/pashagolub/pgxmock/v4) for general examples and public api reference.
+Visit [godoc](http://pkg.go.dev/github.com/pashagolub/pgxmock/v5) for general examples and public api reference.
 
 See implementation examples:
 
@@ -92,7 +94,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pashagolub/pgxmock/v4"
+	"github.com/pashagolub/pgxmock/v5"
 )
 
 // a successful case
@@ -153,8 +155,8 @@ func TestShouldRollbackStatUpdatesOnFailure(t *testing.T) {
 ## Customize SQL query matching
 
 There were plenty of requests from users regarding SQL query string validation or different matching option.
-We have now implemented the `QueryMatcher` interface, which can be passed through an option when calling
-`pgxmock.New` or `pgxmock.NewWithDSN`.
+We have implemented the `QueryMatcher` interface, which can be passed through an option when creating a mock
+with `pgxmock.NewPool` or `pgxmock.NewConn`.
 
 This now allows to include some library, which would allow for example to parse and validate SQL AST.
 And create a custom QueryMatcher in order to validate SQL in sophisticated ways.
@@ -166,7 +168,7 @@ which uses expected SQL string as a regular expression to match incoming query s
 In order to customize the QueryMatcher, use the following:
 
 ``` go
-	mock, err := pgxmock.New(context.Background(), pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 ```
 
 The query matcher can be fully customized based on user needs. **pgxmock** will not
@@ -175,31 +177,40 @@ provide a standard sql parsing matchers.
 ## Matching arguments like time.Time
 
 There may be arguments which are of `struct` type and cannot be compared easily by value like `time.Time`. In this case
-**pgxmock** provides an [Argument](https://pkg.go.dev/github.com/pashagolub/pgxmock/v4#Argument) interface which
+**pgxmock** provides an [Argument](https://pkg.go.dev/github.com/pashagolub/pgxmock/v5#Argument) interface which
 can be used in more sophisticated matching. Here is a simple example of time argument matching:
 
 ``` go
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/pashagolub/pgxmock/v5"
+)
+
 type AnyTime struct{}
 
-// Match satisfies sqlmock.Argument interface
-func (a AnyTime) Match(v interface{}) bool {
+// Match satisfies pgxmock.Argument interface
+func (a AnyTime) Match(v any) bool {
 	_, ok := v.(time.Time)
 	return ok
 }
 
 func TestAnyTimeArgument(t *testing.T) {
 	t.Parallel()
-	db, mock, err := New()
+	mock, err := pgxmock.NewPool()
 	if err != nil {
-		t.Errorf("an error '%s' was not expected when opening a stub database connection", err)
+		t.Errorf("an error '%s' was not expected when creating a mock pool", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
 	mock.ExpectExec("INSERT INTO users").
 		WithArgs("john", AnyTime{}).
-		WillReturnResult(NewResult(1, 1))
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
-	_, err = db.Exec("INSERT INTO users(name, created_at) VALUES (?, ?)", "john", time.Now())
+	_, err = mock.Exec(context.Background(),
+		"INSERT INTO users(name, created_at) VALUES ($1, $2)", "john", time.Now())
 	if err != nil {
 		t.Errorf("error '%s' was not expected, while inserting a row", err)
 	}
@@ -210,7 +221,9 @@ func TestAnyTimeArgument(t *testing.T) {
 }
 ```
 
-It only asserts that argument is of `time.Time` type.
+It only asserts that the argument is of `time.Time` type. For cases where any value
+is acceptable, the built-in `pgxmock.AnyArg()` matcher can be used instead of
+implementing a custom `Argument`.
 
 ## Run tests
 
