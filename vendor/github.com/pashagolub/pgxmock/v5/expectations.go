@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	pgx "github.com/jackc/pgx/v5"
@@ -23,7 +24,12 @@ type expectation interface {
 	fmt.Stringer
 }
 
-// CallModifier interface represents common interface for all expectations supported
+// CallModifier interface represents common interface for all expectations supported.
+//
+// Every expectation type also declares these methods returning its own
+// concrete type, so they can be chained with the type-specific builders in any
+// order; see modifiers.go. The interface remains for code that wants to treat
+// the modifiers uniformly.
 type CallModifier interface {
 	// Maybe allows the expected method call to be optional.
 	// Not calling an optional method will not cause an error while asserting expectations
@@ -133,28 +139,83 @@ func (e *commonExpectation) String() string {
 type queryBasedExpectation struct {
 	expectSQL          string
 	expectRewrittenSQL string
-	args               []interface{}
+	args               []any
 }
 
-func (e *queryBasedExpectation) argsMatches(sql string, args []interface{}) (rewrittenSQL string, err error) {
-	eargs := e.args
-	// check for any QueryRewriter arguments: only supported as the first argument
-	if len(args) == 1 {
-		if qrw, ok := args[0].(pgx.QueryRewriter); ok {
-			// note: pgx.Conn is not currently used by the query rewriter
-			if rewrittenSQL, args, err = qrw.RewriteQuery(context.Background(), nil, sql, args); err != nil {
-				return rewrittenSQL, fmt.Errorf("error rewriting query: %w", err)
+// queryOption identifies a kind of pgx option value that may be passed ahead of
+// the real query arguments.
+type queryOption uint8
+
+const (
+	optRewriter queryOption = 1 << iota
+	optExecMode
+	optResultFormats
+
+	// optsQuery, optsExec and optsBatch mirror the option loops in pgx's
+	// Conn.Query, Conn.exec and Conn.SendBatch respectively. The sets differ,
+	// and an option a method does not consume stays a plain query argument.
+	optsQuery = optRewriter | optExecMode | optResultFormats
+	optsExec  = optRewriter | optExecMode
+	optsBatch = optRewriter
+)
+
+// splitQueryOptions consumes the leading pgx option values that a query method
+// accepts before its real arguments and returns the query rewriter among them,
+// if any, together with the remaining arguments. It mirrors the option loop
+// pgx runs, so that an expectation only has to describe the actual query
+// parameters and never the options.
+func splitQueryOptions(args []any, allowed queryOption) (rewriter pgx.QueryRewriter, rest []any) {
+	rest = args
+optionLoop:
+	for len(rest) > 0 {
+		switch arg := rest[0].(type) {
+		case pgx.QueryResultFormats:
+			if allowed&optResultFormats == 0 {
+				break optionLoop
 			}
-		}
-		// also do rewriting on the expected args if a QueryRewriter is present
-		if len(eargs) == 1 {
-			if qrw, ok := eargs[0].(pgx.QueryRewriter); ok {
-				if _, eargs, err = qrw.RewriteQuery(context.Background(), nil, sql, eargs); err != nil {
-					return "", fmt.Errorf("error rewriting query expectation: %w", err)
-				}
+		case pgx.QueryResultFormatsByOID:
+			if allowed&optResultFormats == 0 {
+				break optionLoop
 			}
+		case pgx.QueryExecMode:
+			if allowed&optExecMode == 0 {
+				break optionLoop
+			}
+		case pgx.QueryRewriter:
+			if allowed&optRewriter == 0 {
+				break optionLoop
+			}
+			rewriter = arg
+		default:
+			break optionLoop
 		}
+		rest = rest[1:]
 	}
+	return rewriter, rest
+}
+
+// rewrite applies rewriter, if there is one, the way pgx would.
+func rewrite(rewriter pgx.QueryRewriter, sql string, args []any) (string, []any, error) {
+	if rewriter == nil {
+		return "", args, nil
+	}
+	// note: pgx.Conn is not currently used by the query rewriter
+	return rewriter.RewriteQuery(context.Background(), nil, sql, args)
+}
+
+func (e *queryBasedExpectation) argsMatches(sql string, args []any, allowed queryOption) (rewrittenSQL string, err error) {
+	rewriter, args := splitQueryOptions(args, allowed)
+	if rewrittenSQL, args, err = rewrite(rewriter, sql, args); err != nil {
+		return rewrittenSQL, fmt.Errorf("error rewriting query: %w", err)
+	}
+
+	// the expectation may be written with a rewriter too, e.g.
+	// WithArgs(pgx.NamedArgs{...}), in which case it is expanded the same way
+	eRewriter, eargs := splitQueryOptions(e.args, allowed)
+	if _, eargs, err = rewrite(eRewriter, sql, eargs); err != nil {
+		return rewrittenSQL, fmt.Errorf("error rewriting query expectation: %w", err)
+	}
+
 	if len(args) != len(eargs) {
 		return rewrittenSQL, fmt.Errorf("expected %d, but got %d arguments", len(eargs), len(args))
 	}
@@ -211,7 +272,7 @@ func (e *ExpectedCommit) String() string {
 	return "ExpectedCommit => expecting call to Tx.Commit()\n" + e.commonExpectation.String()
 }
 
-// ExpectedExec is used to manage pgx.Exec, pgx.Tx.Exec or pgx.Stmt.Exec expectations.
+// ExpectedExec is used to manage pgx.Conn.Exec and pgx.Tx.Exec expectations.
 // Returned by pgxmock.ExpectExec.
 type ExpectedExec struct {
 	commonExpectation
@@ -222,7 +283,7 @@ type ExpectedExec struct {
 // WithArgs will match given expected args to actual database exec operation arguments.
 // if at least one argument does not match, it will return an error. For specific
 // arguments an pgxmock.Argument interface can be used to match an argument.
-func (e *ExpectedExec) WithArgs(args ...interface{}) *ExpectedExec {
+func (e *ExpectedExec) WithArgs(args ...any) *ExpectedExec {
 	e.args = args
 	return e
 }
@@ -236,22 +297,23 @@ func (e *ExpectedExec) WithRewrittenSQL(sql string) *ExpectedExec {
 
 // String returns string representation
 func (e *ExpectedExec) String() string {
-	msg := "ExpectedExec => expecting call to Exec():\n"
-	msg += fmt.Sprintf("\t- matches sql: '%s'\n", e.expectSQL)
+	var msg strings.Builder
+	msg.WriteString("ExpectedExec => expecting call to Exec():\n")
+	fmt.Fprintf(&msg, "\t- matches sql: '%s'\n", e.expectSQL)
 
 	if len(e.args) == 0 {
-		msg += "\t- is without arguments\n"
+		msg.WriteString("\t- is without arguments\n")
 	} else {
-		msg += "\t- is with arguments:\n"
+		msg.WriteString("\t- is with arguments:\n")
 		for i, arg := range e.args {
-			msg += fmt.Sprintf("\t\t%d - %+v\n", i, arg)
+			fmt.Fprintf(&msg, "\t\t%d - %+v\n", i, arg)
 		}
 	}
 	if e.result.String() != "" {
-		msg += fmt.Sprintf("\t- returns result: %s\n", e.result)
+		fmt.Fprintf(&msg, "\t- returns result: %s\n", e.result)
 	}
 
-	return msg + e.commonExpectation.String()
+	return msg.String() + e.commonExpectation.String()
 }
 
 // WillReturnResult arranges for an expected Exec() to return a particular
@@ -277,8 +339,7 @@ func (e *ExpectedBatch) ExpectExec(query string) *ExpectedExec {
 	ee := &ExpectedExec{}
 	ee.expectSQL = query
 	e.expectedQueries = append(e.expectedQueries, &ee.queryBasedExpectation)
-	e.mock.expectations = append(e.mock.expectations, ee)
-	return ee
+	return addExpectation(e.mock, ee)
 }
 
 // ExpectQuery allows to expect Queue().Query() or Queue().QueryRow() on this batch.
@@ -286,8 +347,7 @@ func (e *ExpectedBatch) ExpectQuery(query string) *ExpectedQuery {
 	eq := &ExpectedQuery{}
 	eq.expectSQL = query
 	e.expectedQueries = append(e.expectedQueries, &eq.queryBasedExpectation)
-	e.mock.expectations = append(e.mock.expectations, eq)
-	return eq
+	return addExpectation(e.mock, eq)
 }
 
 // String returns string representation
@@ -334,6 +394,32 @@ func (e *ExpectedDeallocate) String() string {
 	return msg + e.commonExpectation.String()
 }
 
+// ExpectedWaitForNotification is used to manage pgx.Conn.WaitForNotification
+// expectations. Returned by pgxmock.ExpectWaitForNotification.
+type ExpectedWaitForNotification struct {
+	commonExpectation
+	notification *pgconn.Notification
+}
+
+// WillReturnNotification arranges for the expected WaitForNotification() to
+// deliver n. Use WillReturnError to simulate a connection that fails while
+// waiting, or WillDelayFor together with a cancellable context to simulate a
+// wait that times out.
+func (e *ExpectedWaitForNotification) WillReturnNotification(n *pgconn.Notification) *ExpectedWaitForNotification {
+	e.notification = n
+	return e
+}
+
+// String returns string representation
+func (e *ExpectedWaitForNotification) String() string {
+	msg := "ExpectedWaitForNotification => expecting call to WaitForNotification()\n"
+	if e.notification != nil {
+		msg += fmt.Sprintf("\t- returns notification on channel '%s' with payload '%s'\n",
+			e.notification.Channel, e.notification.Payload)
+	}
+	return msg + e.commonExpectation.String()
+}
+
 // ExpectedPing is used to manage Ping() expectations
 type ExpectedPing struct {
 	commonExpectation
@@ -345,20 +431,20 @@ func (e *ExpectedPing) String() string {
 	return msg + e.commonExpectation.String()
 }
 
-// ExpectedQuery is used to manage *pgx.Conn.Query, *pgx.Conn.QueryRow, *pgx.Tx.Query,
-// *pgx.Tx.QueryRow, *pgx.Stmt.Query or *pgx.Stmt.QueryRow expectations
+// ExpectedQuery is used to manage pgx.Conn.Query, pgx.Conn.QueryRow,
+// pgx.Tx.Query and pgx.Tx.QueryRow expectations
 type ExpectedQuery struct {
 	commonExpectation
 	queryBasedExpectation
 	rows             pgx.Rows
 	rowsMustBeClosed bool
-	rowsWereClosed   bool
+	rowsWereClosed   atomic.Bool
 }
 
 // WithArgs will match given expected args to actual database query arguments.
 // if at least one argument does not match, it will return an error. For specific
 // arguments an pgxmock.Argument interface can be used to match an argument.
-func (e *ExpectedQuery) WithArgs(args ...interface{}) *ExpectedQuery {
+func (e *ExpectedQuery) WithArgs(args ...any) *ExpectedQuery {
 	e.args = args
 	return e
 }
@@ -378,21 +464,22 @@ func (e *ExpectedQuery) RowsWillBeClosed() *ExpectedQuery {
 
 // String returns string representation
 func (e *ExpectedQuery) String() string {
-	msg := "ExpectedQuery => expecting call to Query() or to QueryRow():\n"
-	msg += fmt.Sprintf("\t- matches sql: '%s'\n", e.expectSQL)
+	var msg strings.Builder
+	msg.WriteString("ExpectedQuery => expecting call to Query() or to QueryRow():\n")
+	fmt.Fprintf(&msg, "\t- matches sql: '%s'\n", e.expectSQL)
 
 	if len(e.args) == 0 {
-		msg += "\t- is without arguments\n"
+		msg.WriteString("\t- is without arguments\n")
 	} else {
-		msg += "\t- is with arguments:\n"
+		msg.WriteString("\t- is with arguments:\n")
 		for i, arg := range e.args {
-			msg += fmt.Sprintf("\t\t%d - %+v\n", i, arg)
+			fmt.Fprintf(&msg, "\t\t%d - %+v\n", i, arg)
 		}
 	}
 	if e.rows != nil {
-		msg += fmt.Sprintf("%s\n", e.rows)
+		fmt.Fprintf(&msg, "%s\n", e.rows)
 	}
-	return msg + e.commonExpectation.String()
+	return msg.String() + e.commonExpectation.String()
 }
 
 // WillReturnRows specifies the set of resulting rows that will be returned
@@ -402,13 +489,142 @@ func (e *ExpectedQuery) WillReturnRows(rows ...*Rows) *ExpectedQuery {
 	return e
 }
 
+// freshRows returns an independent view over the expected rows. Every call to
+// the mocked Query() gets its own cursor, so an expectation reused via Times()
+// (or matched repeatedly out of order) returns the full result set each time
+// instead of an already exhausted one.
+func (e *ExpectedQuery) freshRows() pgx.Rows {
+	src, ok := e.rows.(*rowSets)
+	if !ok {
+		return e.rows
+	}
+	sets := make([]*Rows, len(src.sets))
+	for i, s := range src.sets {
+		sets[i] = s.clone()
+	}
+	return &rowSets{sets: sets, RowSetNo: src.RowSetNo, ex: e}
+}
+
 // ExpectedCopyFrom is used to manage *pgx.Conn.CopyFrom expectations.
-// Returned by *Pgxmock.ExpectCopyFrom.
+// Returned by *pgxmock.ExpectCopyFrom.
 type ExpectedCopyFrom struct {
 	commonExpectation
 	expectedTableName pgx.Identifier
 	expectedColumns   []string
+	expectedRows      *CopyRows
+	rowsErr           error
 	rowsAffected      int64
+}
+
+// WithRows will match the rows the pgx.CopyFromSource yields against the
+// expected ones. Without it the copied data is drained and discarded, so a test
+// cannot tell what its code actually sent.
+//
+// A value may be an Argument matcher, such as AnyArg, to stand in for anything
+// the test cannot predict:
+//
+//	mock.ExpectCopyFrom(pgx.Identifier{"users"}, []string{"name", "created"}).
+//		WithRows(pgxmock.NewCopyRows("name", "created").
+//			AddRow("alice", pgxmock.AnyArg()).
+//			AddRow("bob", pgxmock.AnyArg())).
+//		WillReturnResult(2)
+//
+// Rows with no AddRow assert that nothing was copied, which is a different
+// statement from omitting WithRows altogether.
+//
+// The rows are checked once the source has been drained, since that is the only
+// way to see them, and so they take no part in choosing which expectation a call
+// matches. A mismatch is reported by CopyFrom and again by ExpectationsWereMet,
+// so a test that only inspects the copied count still fails.
+//
+// It panics when the columns disagree with the ones given to ExpectCopyFrom, the
+// way AddRow panics on a row of the wrong width: both are mistakes in the test
+// itself, worth reporting at the line that made them.
+func (e *ExpectedCopyFrom) WithRows(rows *CopyRows) *ExpectedCopyFrom {
+	if names := rows.columnNames(); !reflect.DeepEqual(names, e.expectedColumns) {
+		panic(fmt.Sprintf("CopyFrom: expected rows have columns %v, but the expected columns are %v",
+			names, e.expectedColumns))
+	}
+	e.expectedRows = rows
+	return e
+}
+
+// rowsMatch compares the rows a CopyFromSource produced against WithRows,
+// through the type map the mock decodes with, so that a registered custom type
+// is compared by its codec.
+func (e *ExpectedCopyFrom) rowsMatch(typeMap *lockedTypeMap, copied [][]any) error {
+	if e.expectedRows == nil {
+		return nil
+	}
+	expected := e.expectedRows.rows.rows
+	if len(copied) != len(expected) {
+		return fmt.Errorf("CopyFrom: expected %d row(s) to be copied, but got %d",
+			len(expected), len(copied))
+	}
+	if e.expectedRows.unordered {
+		return e.rowsMatchUnordered(typeMap, copied)
+	}
+	for i, row := range copied {
+		if err := e.rowMatch(typeMap, i, expected[i], row); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// rowsMatchUnordered pairs every copied row with an expected one it has not used
+// yet, greedily and in the order the rows were copied.
+func (e *ExpectedCopyFrom) rowsMatchUnordered(typeMap *lockedTypeMap, copied [][]any) error {
+	expected := e.expectedRows.rows.rows
+	paired := make([]bool, len(expected))
+	for i, row := range copied {
+		matched := false
+		for k := range expected {
+			if paired[k] {
+				continue
+			}
+			if e.rowMatch(typeMap, i, expected[k], row) == nil {
+				paired[k], matched = true, true
+				break
+			}
+		}
+		if !matched {
+			return fmt.Errorf("CopyFrom: copied row %d [%+v] matches none of the expected rows left to pair",
+				i, row)
+		}
+	}
+	return nil
+}
+
+// rowMatch compares one copied row against the one expected in its place.
+func (e *ExpectedCopyFrom) rowMatch(typeMap *lockedTypeMap, i int, expected, actual []any) error {
+	if len(actual) != len(expected) {
+		return fmt.Errorf("CopyFrom: row %d expected %d value(s), but got %d",
+			i, len(expected), len(actual))
+	}
+	for j, v := range actual {
+		if matcher, ok := expected[j].(Argument); ok {
+			if !matcher.Match(v) {
+				return fmt.Errorf("CopyFrom: matcher %T could not match value %d of row %d [%T - %+v]",
+					matcher, j, i, v, v)
+			}
+			continue
+		}
+		if !typeMap.equalValues(e.expectedRows.oidOf(j), expected[j], v) {
+			return fmt.Errorf("CopyFrom: value %d of row %d expected [%T - %+v] does not match actual [%T - %+v]",
+				j, i, expected[j], expected[j], v, v)
+		}
+	}
+	return nil
+}
+
+// recordRowsError keeps a row mismatch on the expectation, so that
+// ExpectationsWereMet reports it even when the test ignored the error CopyFrom
+// returned.
+func (e *ExpectedCopyFrom) recordRowsError(err error) {
+	e.Lock()
+	defer e.Unlock()
+	e.rowsErr = err
 }
 
 // String returns string representation
@@ -416,6 +632,16 @@ func (e *ExpectedCopyFrom) String() string {
 	msg := "ExpectedCopyFrom => expecting CopyFrom which:"
 	msg += "\n  - matches table name: '" + e.expectedTableName.Sanitize() + "'"
 	msg += fmt.Sprintf("\n  - matches column names: '%+v'", e.expectedColumns)
+	if e.expectedRows != nil {
+		order := ""
+		if e.expectedRows.unordered {
+			order = " in any order"
+		}
+		msg += fmt.Sprintf("\n  - matches %d row(s)%s:", len(e.expectedRows.rows.rows), order)
+		for i, row := range e.expectedRows.rows.rows {
+			msg += fmt.Sprintf("\n      row %d - %+v", i, row)
+		}
+	}
 
 	if e.err != nil {
 		msg += fmt.Sprintf("\n  - should returns error: %s", e.err)
