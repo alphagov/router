@@ -34,7 +34,7 @@ function emoji_for_percent {
   if [ "$INT_VALUE" -ge 95 ]; then
     echo ":star:"
   elif [ "$INT_VALUE" -ge 90 ]; then
-    echo ":white_tick:"
+    echo ":white_check_mark:"
   elif [ "$INT_VALUE" -ge 80 ]; then
     echo ":red_circle:"
   else
