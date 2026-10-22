@@ -1,0 +1,20 @@
+name: Build image from PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      gitRef:
+        description: 'Commit, tag or branch name to build from'
+        required: true
+        type: string
+  pull_request:
+
+jobs:
+  build-image-from-PR:
+    name: Build image from PR
+    uses: alphagov/govuk-infrastructure/.github/workflows/build-image-from-pr.yml@main
+    with:
+      gitRef: ${{ inputs.gitRef || github.head_ref }}
+    permissions:
+      id-token: write
+      contents: read
