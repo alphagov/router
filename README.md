@@ -128,9 +128,10 @@ Router runs an nginx instance that proxies traffic to Router. The configuration 
 The nginx instance also provides:
 1. Healthcheck endpoints
 2. Static error pages
-3. `robots.txt` and `humans.txt`
-4. Google Search Console verification files
-5. Licensify endpoint
+3. Static assets for draft stack
+4. `robots.txt` and `humans.txt`
+5. Google Search Console verification files
+6. Licensify endpoint
 
 It also sets and hides some HTTP headers.
 
